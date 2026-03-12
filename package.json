@@ -1,0 +1,24 @@
+{
+  "name": "math-learning-platform",
+  "version": "1.0.0",
+  "description": "Modern Math Learning Platform - MERN Stack",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
+  },
+  "keywords": [
+    "mern",
+    "education",
+    "math",
+    "learning"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "lowdb": "^5.1.0",
+    "nodemailer": "^8.0.2"
+  }
+}
