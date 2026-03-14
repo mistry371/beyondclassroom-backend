@@ -35,7 +35,7 @@ exports.sendWelcomeNotification = async (userId, userName, userEmail) => {
     // Create in-app notification
     await this.createNotification(
       userId,
-      'Welcome to Elite Math Platform! 🎉',
+      'Welcome to Beyond Classroom! 🎉',
       `Hi ${userName}! We're excited to have you here. Start exploring our courses and begin your learning journey today.`,
       'success'
     )
@@ -44,7 +44,7 @@ exports.sendWelcomeNotification = async (userId, userName, userEmail) => {
     try {
       await sendEmail({
         to: userEmail,
-        subject: 'Welcome to Elite Math Platform! 🎉',
+        subject: 'Welcome to Beyond Classroom! 🎉',
         html: welcomeEmailTemplate(userName, userEmail)
       })
     } catch (emailError) {
@@ -83,7 +83,7 @@ exports.sendEnrollmentNotification = async (userId, userName, userEmail, courseN
             <p>Your learning journey begins now. Access your course anytime from your dashboard.</p>
             <p><strong>Course Access:</strong> 90 days from enrollment</p>
             <p>Happy Learning!</p>
-            <p><strong>The Elite Math Team</strong></p>
+            <p><strong>The Beyond Classroom Team</strong></p>
           </div>
         `
       })
@@ -122,7 +122,7 @@ exports.sendExpiryReminder = async (userId, userName, userEmail, courseName, day
             <h2 style="color: #a855f7;">${courseName}</h2>
             <p>Will expire in <strong>${daysRemaining} days</strong>.</p>
             <p>Don't lose your progress! Consider renewing your subscription to continue learning.</p>
-            <p><strong>The Elite Math Team</strong></p>
+            <p><strong>The Beyond Classroom Team</strong></p>
           </div>
         `
       })
@@ -159,7 +159,7 @@ exports.sendAdminActionNotification = async (userId, userName, userEmail, action
             <p>Hi ${userName},</p>
             <p>${details}</p>
             <p>If you have any questions, please contact our support team.</p>
-            <p><strong>The Elite Math Team</strong></p>
+            <p><strong>The Beyond Classroom Team</strong></p>
           </div>
         `
       })

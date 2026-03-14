@@ -131,6 +131,10 @@ app.post('/api/auth/register', async (req, res) => {
     db.data.users.push(user);
     await db.write();
     
+    // Auto-enroll in free demo course
+    const { autoEnrollDemoCourse } = require('./middleware/autoEnrollDemo');
+    await autoEnrollDemoCourse(user._id);
+    
     // Clean up used OTP
     db.data.otps = db.data.otps?.filter(o => 
       !(o.email === email && o.purpose === 'registration' && o.otp === otp)
@@ -480,6 +484,7 @@ const quizRoutes = require('./routes/quizzes');
 const progressRoutes = require('./routes/progress');
 const adminRoutes = require('./routes/admin');
 const otpRoutes = require('./routes/otp');
+const paymentRoutes = require('./routes/payment');
 
 // Use new routes
 app.use('/api/modules', moduleRoutes);
@@ -489,6 +494,7 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/admin', protect, adminRoutes);
 app.use('/api/otp', otpRoutes);
+app.use('/api/payment', paymentRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT} with local database`));

@@ -55,7 +55,7 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
     try {
       const emailResult = await sendEmail({
         to: email,
-        subject: `Your ${purposeText} OTP - Elite Math Platform`,
+        subject: `Your ${purposeText} OTP - Beyond Classroom`,
         html: otpEmailTemplate(otpCode, purpose, '10 minutes')
       })
       
@@ -69,11 +69,11 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
       console.error('Email error details:', emailError.message);
     }
     
-    // Return OTP for development/testing (remove in production)
+    // Return success message (OTP removed from response for security)
     return {
       success: true,
-      message: 'OTP sent successfully',
-      otp: otpCode, // For testing only
+      message: 'OTP sent successfully to your email. Please check your inbox.',
+      // otp: otpCode, // Removed for security - only in email
       expiresAt: otp.expiresAt
     }
   } catch (error) {

@@ -1,8 +1,8 @@
-// Professional Email Templates for Elite Math Platform
+// Professional Email Templates for Beyond Classroom
 
 const getEmailHeader = () => `
   <div style="background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); padding: 40px 20px; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700;">Elite Math Platform</h1>
+    <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700;">Beyond Classroom</h1>
     <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Excellence in Mathematics Education</p>
   </div>
 `
@@ -10,7 +10,7 @@ const getEmailHeader = () => `
 const getEmailFooter = () => `
   <div style="background: #1f2937; padding: 30px 20px; text-align: center; margin-top: 40px;">
     <p style="color: #9ca3af; margin: 0 0 10px 0; font-size: 14px;">
-      © 2026 Elite Math Platform. All rights reserved.
+      © 2026 Beyond Classroom. All rights reserved.
     </p>
     <p style="color: #6b7280; margin: 0; font-size: 12px;">
       This email was sent to you because you registered on our platform.
@@ -97,7 +97,7 @@ exports.welcomeEmailTemplate = (userName, userEmail) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Elite Math Platform</title>
+      <title>Welcome to Beyond Classroom</title>
     </head>
     <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
       <div style="max-width: 600px; margin: 0 auto; background-color: white;">
@@ -107,7 +107,7 @@ exports.welcomeEmailTemplate = (userName, userEmail) => {
           <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px;">Welcome, ${userName}! 🎉</h2>
           
           <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-            We're thrilled to have you join the Elite Math Platform community! You've taken the first step towards mastering mathematics and achieving academic excellence.
+            We're thrilled to have you join the Beyond Classroom community! You've taken the first step towards mastering mathematics and achieving academic excellence.
           </p>
           
           <div style="background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%); padding: 30px; border-radius: 12px; margin: 30px 0;">

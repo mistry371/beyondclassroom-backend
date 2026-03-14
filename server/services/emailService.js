@@ -27,7 +27,7 @@ transporter.verify(function(error, success) {
 exports.sendEmail = async ({ to, subject, text, html }) => {
   try {
     const mailOptions = {
-      from: `"Elite Math Platform" <${process.env.EMAIL_USER || 'mistryjenish1003@gmail.com'}>`,
+      from: `"Beyond Classroom" <${process.env.EMAIL_USER || 'mistryjenish1003@gmail.com'}>`,
       to,
       subject,
       text,
