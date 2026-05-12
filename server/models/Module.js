@@ -9,6 +9,7 @@ class Module {
     this.lessons = data.lessons || []
     this.quiz = data.quiz || null
     this.isLocked = data.isLocked || false
+    this.isPublished = data.isPublished !== undefined ? data.isPublished : true
     this.createdAt = data.createdAt || new Date()
     this.updatedAt = data.updatedAt || new Date()
   }

@@ -1,6 +1,6 @@
 class ActivityLog {
   constructor(data) {
-    this._id = data._id || Date.now().toString() + Math.random().toString(36).substr(2, 9)
+    this._id = data._id || Date.now().toString() + Math.random().toString(36).slice(2, 9)
     this.userId = data.userId
     this.userName = data.userName
     this.action = data.action

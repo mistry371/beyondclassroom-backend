@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { BookOpen, Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft, Search } from 'lucide-react'
+import { BookOpen, Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft, Search, Layers } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -191,7 +191,7 @@ export default function AdminCourses() {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Price:</span>
-                  <span className="text-primary font-semibold">${course.price}</span>
+                  <span className="text-primary font-semibold">₹{course.price}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Enrolled:</span>
@@ -199,6 +199,15 @@ export default function AdminCourses() {
                 </div>
               </div>
 
+              <div className="flex gap-2 mb-2">
+                <button
+                  onClick={() => router.push(`/admin/modules?courseId=${course._id}`)}
+                  className="flex-1 px-3 py-2 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary/30 transition-all flex items-center justify-center gap-2 text-sm"
+                >
+                  <Layers className="h-4 w-4" />
+                  Modules
+                </button>
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleEdit(course)}
@@ -209,7 +218,7 @@ export default function AdminCourses() {
                 </button>
                 <button
                   onClick={() => handleToggleStatus(course._id)}
-                  className="px-3 py-2 bg-secondary/20 text-secondary rounded-lg hover:bg-secondary/30 transition-all"
+                  className="px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all"
                   title={course.status === 'published' ? 'Unpublish' : 'Publish'}
                 >
                   {course.status === 'published' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -297,7 +306,7 @@ export default function AdminCourses() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-gray-300 text-sm font-medium mb-2">Price ($)</label>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">Price (₹)</label>
                     <input
                       type="number"
                       value={formData.price}

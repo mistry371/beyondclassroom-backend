@@ -1,0 +1,1073 @@
+================================================================================
+       SOFTWARE REQUIREMENTS SPECIFICATION (SRS)
+       Beyond Classroom — Online Mathematics Learning Platform
+       Version: 1.0
+       Date: March 15, 2026
+================================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  Introduction
+2.  System Overview
+3.  User Roles & Permissions
+4.  Technology Stack
+5.  Functional Requirements
+    5.1  Authentication & OTP Verification
+    5.2  3-Day Free Trial System
+    5.3  Course Management
+    5.4  Learning System (Modules, Lessons, Progress)
+    5.5  Quiz System
+    5.6  Live Classes (Zoom Integration)
+    5.7  Mathematical Tools (40 Tools)
+    5.8  AI Tutor
+    5.9  Payment & Orders
+    5.10 Notifications
+    5.11 Certificates & Badges
+    5.12 Admin Panel
+    5.13 Analytics
+    5.14 Email System
+    5.15 Screen Protection
+6.  Non-Functional Requirements
+7.  API Endpoints Reference
+8.  Data Models
+9.  Environment Configuration
+================================================================================
+
+
+1. INTRODUCTION
+===============
+
+1.1 Purpose
+-----------
+This document defines the complete software requirements for "Beyond Classroom",
+a full-stack online mathematics learning platform. It covers all functional and
+non-functional requirements, system architecture, API contracts, and data models.
+
+1.2 Scope
+---------
+Beyond Classroom is a web-based LMS (Learning Management System) focused on
+mathematics education. It provides structured courses, interactive tools, live
+classes via Zoom, AI-powered tutoring, quizzes, certificates, and a full admin
+panel for platform management.
+
+1.3 Intended Audience
+---------------------
+- Development team
+- QA engineers
+- System administrators
+- Stakeholders / Product owners
+
+1.4 Definitions & Acronyms
+--------------------------
+LMS    - Learning Management System
+OTP    - One-Time Password
+JWT    - JSON Web Token
+PBT    - Property-Based Testing
+PMI    - Personal Meeting ID (Zoom)
+API    - Application Programming Interface
+CRUD   - Create, Read, Update, Delete
+
+
+================================================================================
+2. SYSTEM OVERVIEW
+================================================================================
+
+Beyond Classroom is a two-tier web application:
+
+  Frontend  : Next.js 14 (App Router) — runs on port 3000
+  Backend   : Node.js + Express.js    — runs on port 5000
+  Database  : LowDB (JSON flat-file, local persistence)
+  Auth      : JWT (7-day expiry) + OTP email verification
+
+Architecture Pattern:
+  - REST API backend with route-based controllers
+  - React/Redux frontend with protected routes
+  - File-based JSON database (db.json) via LowDB
+  - Email via Nodemailer (SMTP)
+  - Zoom via Server-to-Server OAuth (Account-level API)
+
+Deployment:
+  - Frontend: Netlify (https://beyondclassroom.netlify.app)
+  - Backend: Custom server (port 5000)
+
+================================================================================
+3. USER ROLES & PERMISSIONS
+================================================================================
+
+3.1 Guest User
+--------------
+- Can browse the homepage, course listings, blogs, about, contact pages
+- Can view course details (title, description, price)
+- Cannot access lessons, quizzes, or tools
+- Temporary guest session via /api/auth/guest
+
+3.2 Registered User (Student)
+------------------------------
+- Full authentication via email + OTP
+- 3-day free trial on registration (limited course access)
+- After trial: must purchase course to access content
+- Access to: dashboard, enrolled courses, lessons, quizzes, tools, live classes,
+  notifications, profile, AI tutor, certificates, badges
+
+3.3 Admin
+---------
+- All student permissions
+- Access to full admin panel (/admin/*)
+- Manage: users, courses, modules, lessons, quizzes, live classes, tools,
+  badges, certificates, orders, notifications, announcements, emails,
+  analytics, logs, media, settings, security
+
+================================================================================
+4. TECHNOLOGY STACK
+================================================================================
+
+FRONTEND
+--------
+  Framework     : Next.js 14 (App Router, React 18)
+  State Mgmt    : Redux Toolkit + Redux Persist
+  Styling       : Tailwind CSS + custom dark theme
+  Animations    : Framer Motion
+  HTTP Client   : Axios (via utils/api.js)
+  Icons         : Lucide React
+  Math Render   : KaTeX / MathJax (MathRenderer component)
+  Charts        : Recharts (analytics)
+  Particles     : tsParticles (ParticleBackground)
+
+BACKEND
+-------
+  Runtime       : Node.js
+  Framework     : Express.js
+  Auth          : bcryptjs (password hashing), jsonwebtoken (JWT)
+  Database      : LowDB v3 (JSON flat-file)
+  Email         : Nodemailer
+  Zoom          : HTTPS native module (Server-to-Server OAuth)
+  Environment   : dotenv
+
+INFRASTRUCTURE
+--------------
+  Frontend Port : 3000
+  Backend Port  : 5000
+  Currency      : INR (Indian Rupee ₹)
+  Timezone      : Asia/Kolkata (IST)
+
+
+================================================================================
+5. FUNCTIONAL REQUIREMENTS
+================================================================================
+
+--------------------------------------------------------------------------------
+5.1 AUTHENTICATION & OTP VERIFICATION
+--------------------------------------------------------------------------------
+
+FR-AUTH-01: User Registration
+  - Fields required: name, email, password (min 6 chars), OTP
+  - Email must be unique in the system
+  - OTP verification is MANDATORY before account creation
+  - On success: user created with trial fields, welcome notification sent,
+    auto-enrolled in free demo course, JWT token returned
+  - Trial fields set on registration:
+      trialStartedAt : current timestamp
+      trialEndsAt    : trialStartedAt + 72 hours (3 days)
+      trialExpired   : false
+
+FR-AUTH-02: OTP Flow
+  - POST /api/otp/send — sends OTP to email for 'registration' or 'login' purpose
+  - POST /api/otp/verify — verifies OTP, marks record as verified
+  - OTP expires after set duration (stored in db.data.otps)
+  - OTP is single-use; cleaned up after successful registration
+
+FR-AUTH-03: Login (Two-Step)
+  Step 1: POST /api/auth/login-precheck
+    - Validates email + password credentials
+    - Checks account is not suspended
+    - Returns success signal to trigger OTP send
+  Step 2: POST /api/auth/login
+    - Requires email, password, otpVerified: true
+    - Returns JWT token + user object (with trial fields)
+    - Logs activity to activityLogs
+
+FR-AUTH-04: Guest Access
+  - POST /api/auth/guest — creates temporary guest user
+  - Guest users have no trial, no purchased courses
+  - Guest sessions are ephemeral
+
+FR-AUTH-05: JWT Protection
+  - All protected routes require: Authorization: Bearer <token>
+  - Token expiry: 7 days
+  - Suspended accounts receive 403 on login attempt
+
+FR-AUTH-06: Account Suspension
+  - Admin can suspend/activate user accounts
+  - Suspended users cannot log in
+
+--------------------------------------------------------------------------------
+5.2 3-DAY FREE TRIAL SYSTEM
+--------------------------------------------------------------------------------
+
+FR-TRIAL-01: Trial Activation
+  - Every new registered user automatically receives a 3-day free trial
+  - Trial starts at registration timestamp
+  - Trial ends exactly 72 hours after registration
+
+FR-TRIAL-02: Trial Status API
+  GET /api/trial/status (protected)
+  Response fields:
+    trialActive         : boolean — trial is currently active
+    trialExpired        : boolean — trial has ended
+    trialEndsAt         : ISO timestamp
+    daysLeft            : integer (0–3)
+    hoursLeft           : integer
+    hasPurchasedCourses : boolean
+
+FR-TRIAL-03: Auto-Expiry
+  - On each /api/trial/status call, if trialEndsAt < now and trialExpired=false,
+    the system auto-sets trialExpired=true in the database
+
+FR-TRIAL-04: Trial Guard (Frontend)
+  - TrialGuard component wraps lesson and quiz pages
+  - If trial expired AND no purchased courses: shows full paywall screen
+    with "Browse & Purchase Courses" CTA
+  - If trial active AND no purchased courses: shows countdown banner
+    (yellow for days remaining, red for last day/hours)
+  - If user has purchased courses: no restriction, content shown normally
+
+FR-TRIAL-05: Dashboard Trial Banner
+  - Dashboard shows trial status banner
+  - Expired: red banner with "Purchase a course" CTA
+  - Active: yellow/red banner with days/hours remaining + "Upgrade Now" button
+
+FR-TRIAL-06: Trial Bypass
+  - Users who have purchased at least one course bypass all trial restrictions
+  - hasPurchasedCourses=true removes all trial UI and access blocks
+
+
+--------------------------------------------------------------------------------
+5.3 COURSE MANAGEMENT
+--------------------------------------------------------------------------------
+
+FR-COURSE-01: Course Listing
+  GET /api/courses
+  - Query filters: category, difficulty, search (title substring)
+  - Returns all matching courses
+
+FR-COURSE-02: Featured Courses
+  GET /api/courses/featured
+  - Returns up to 6 courses where isFeatured=true
+
+FR-COURSE-03: Course Detail
+  GET /api/courses/:id
+  - Returns full course object including modules, price, description, difficulty
+
+FR-COURSE-04: Course Fields
+  - _id, title, description, category, difficulty, price (₹), duration,
+    isFeatured, thumbnail, instructor, modules[]
+
+FR-COURSE-05: Cart System
+  GET    /api/cart          — fetch user's cart (populated with course details)
+  POST   /api/cart          — add course to cart (body: { courseId })
+  DELETE /api/cart/:courseId — remove course from cart
+  - Duplicate course in cart returns 400
+
+FR-COURSE-06: Order / Purchase
+  POST /api/orders
+  - Creates order from current cart items
+  - Calculates total from course prices (₹)
+  - Adds all courses to user.purchasedCourses
+  - Clears cart
+  - Sends enrollment notification per course
+  - Order status: 'completed'
+
+FR-COURSE-07: Auto-Enroll Demo Course
+  - On registration, user is auto-enrolled in the free demo course
+  - Handled by middleware/autoEnrollDemo.js
+
+--------------------------------------------------------------------------------
+5.4 LEARNING SYSTEM (MODULES, LESSONS, PROGRESS)
+--------------------------------------------------------------------------------
+
+FR-LEARN-01: Module Structure
+  - Courses contain ordered modules
+  - Modules contain ordered lessons
+  - Sequential module locking: module N+1 locked until module N is complete
+
+FR-LEARN-02: Lesson Types
+  - Video lessons, text/reading lessons, practice problems
+  - Lessons served via /api/lessons/:id
+
+FR-LEARN-03: Progress Tracking
+  GET  /api/progress/course/:courseId — returns completion percentage, completed lessons
+  POST /api/progress/lesson           — mark lesson as complete
+  - completionPercentage calculated as (completedLessons / totalLessons) * 100
+
+FR-LEARN-04: Advanced Course View
+  /learn/[courseId]/advanced — main learning interface
+  - Shows module list with lock/unlock status
+  - Shows lesson list per module
+  - Tracks and displays progress
+
+FR-LEARN-05: Lesson Page
+  /learn/[courseId]/lesson/[lessonId]
+  - Wrapped with TrialGuard
+  - Displays lesson content (video/text)
+  - Mark complete button
+  - Navigation to next/previous lesson
+
+FR-LEARN-06: Practice Problems
+  - Available per lesson via /api/practices
+  - Linked to lesson content
+
+--------------------------------------------------------------------------------
+5.5 QUIZ SYSTEM
+--------------------------------------------------------------------------------
+
+FR-QUIZ-01: Quiz Access
+  /learn/[courseId]/quiz/[quizId]
+  - Wrapped with TrialGuard
+  - Available at end of each module
+
+FR-QUIZ-02: Quiz Structure
+  - Multiple choice questions
+  - Each question has options[], correctAnswer, explanation
+  - Time limit configurable per quiz
+
+FR-QUIZ-03: Quiz Submission
+  POST /api/quizzes/:id/submit
+  - Evaluates answers, calculates score
+  - Returns score, correct answers, explanations
+  - Stores result in user progress
+
+FR-QUIZ-04: Admin Quiz Management
+  - Admin can create, edit, delete quizzes
+  - Assign quizzes to modules
+  - View all quiz results and scores
+
+FR-QUIZ-05: Quiz Results
+  - Score displayed as percentage
+  - Pass/fail threshold configurable
+  - Detailed answer review shown after submission
+
+
+--------------------------------------------------------------------------------
+5.6 LIVE CLASSES (ZOOM INTEGRATION)
+--------------------------------------------------------------------------------
+
+FR-LIVE-01: Zoom Integration Mode
+  Primary: Server-to-Server OAuth (Account-level API)
+    - Credentials: ZOOM_ACCOUNT_ID, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET
+    - Creates a unique Zoom meeting per scheduled class
+    - Returns: join_url, start_url, meeting_id, password
+    - Timezone: Asia/Kolkata (IST)
+    - Settings: waiting_room=true, mute_upon_entry=true, auto_recording=cloud
+
+  Fallback: PMI (Personal Meeting ID)
+    - Used if API credentials are missing or fail
+    - All classes share the same meeting room (ZOOM_PMI_LINK)
+    - Limitation: no unique meeting per class
+
+FR-LIVE-02: OAuth Token Flow
+  - POST to zoom.us/oauth/token with grant_type=account_credentials
+  - Resolves actual userId via GET /v2/users/me (required for admin scope)
+  - Creates meeting at POST /v2/users/{userId}/meetings
+
+FR-LIVE-03: Schedule Live Class (Admin)
+  - Admin fills: title, date, time, duration, topic, course
+  - System calls zoomService.createMeeting()
+  - Stores class in db.data.liveClasses with zoomLink, meetingId, password
+
+FR-LIVE-04: Delete Live Class (Admin)
+  - Calls zoomService.deleteMeeting(meetingId) to remove from Zoom
+  - PMI meetings are not deleted (shared room)
+  - Removes from db.data.liveClasses
+
+FR-LIVE-05: Public Live Classes Listing
+  GET /api/live-classes (public)
+  - Returns all scheduled live classes
+  - Students can view and join via join_url
+
+FR-LIVE-06: Admin Live Classes Page
+  - All UI text in English only (no Hinglish)
+  - Shows scheduled classes with status badges
+  - Schedule / Delete actions
+
+--------------------------------------------------------------------------------
+5.7 MATHEMATICAL TOOLS (40 TOOLS)
+--------------------------------------------------------------------------------
+
+FR-TOOLS-01: Tool Categories
+  Basic (8)        : Basic Calculator, Fraction Calculator, Percentage Calculator,
+                     Number Line, Fraction Visualizer, Exponent Calculator,
+                     Root Calculator, Ratio Calculator
+  Algebra (5)      : Quadratic Solver, Equation Builder, Linear Equation Solver,
+                     Sequence Calculator, Quadratic Solver Enhanced
+  Calculus (5)     : Graphing Calculator, Derivative Calculator, Integral Calculator,
+                     Limit Calculator, Visual Graph Tool
+  Advanced (4)     : Matrix Calculator, Vector Calculator, Logarithm Calculator,
+                     Complex Number Calculator
+  Geometry (3)     : Area Calculator, Volume Calculator, Geometry Visualizer
+  Statistics (3)   : Statistics Calculator, Probability Calculator,
+                     Permutation & Combination
+  Number Theory (3): LCM/GCD Calculator, Prime Checker, Factorial Calculator
+  Trigonometry (1) : Trigonometry Calculator
+  Learning (8)     : Step-by-Step Solver, Concept Simplifier, Practice Generator,
+                     Timed Practice, Daily Challenge, Hint Generator,
+                     Mistake Analyzer, Formula Explorer
+
+FR-TOOLS-02: Tool Management (Admin)
+  GET    /api/admin/tools        — list all 40 tools (synced on every call)
+  PUT    /api/admin/tools/:id    — enable/disable a tool
+  - On every GET, system syncs all 40 DEFAULT_TOOLS preserving enabled states
+  - Admin panel has search bar + category filter tabs
+
+FR-TOOLS-03: Tool Availability (Frontend)
+  - Disabled tools are hidden from /tools page
+  - Enabled tools render their respective React component
+  - Tools page at /tools with category filtering
+
+FR-TOOLS-04: Tool Persistence
+  - Tool enabled/disabled state persisted in db.data.tools
+  - Default: all 40 tools enabled
+
+--------------------------------------------------------------------------------
+5.8 AI TUTOR
+--------------------------------------------------------------------------------
+
+FR-AI-01: Global Visibility
+  - AITutor component is globally visible on all pages
+  - Floating button accessible from any page
+
+FR-AI-02: Functionality
+  - Students can ask math questions
+  - AI provides step-by-step explanations
+  - Supports LaTeX/math notation rendering via MathRenderer
+
+FR-AI-03: Access
+  - Available to all authenticated users (trial and paid)
+  - Guest users may have limited access
+
+
+--------------------------------------------------------------------------------
+5.9 PAYMENT & ORDERS
+--------------------------------------------------------------------------------
+
+FR-PAY-01: Payment Flow
+  - User adds courses to cart
+  - Proceeds to checkout via PaymentModal component
+  - On payment confirmation: POST /api/orders
+  - Courses added to user.purchasedCourses
+  - Cart cleared, enrollment notifications sent
+
+FR-PAY-02: Currency
+  - All prices in Indian Rupee (₹)
+  - No foreign currency support
+
+FR-PAY-03: Order History
+  - Admin can view all orders at /admin/orders
+  - Order fields: _id, user, courses[], totalAmount (₹), status, createdAt
+
+FR-PAY-04: Payment Routes
+  - /api/payment/* — payment processing routes
+  - Handled by routes/payment.js
+
+--------------------------------------------------------------------------------
+5.10 NOTIFICATIONS
+--------------------------------------------------------------------------------
+
+FR-NOTIF-01: Notification Types
+  - Welcome notification (on registration)
+  - Enrollment notification (on course purchase)
+  - Admin-created announcements
+  - System notifications
+
+FR-NOTIF-02: Notification API
+  GET /api/notifications                    — list user's notifications (sorted newest first)
+  PUT /api/notifications/:id/read          — mark single notification as read
+  PUT /api/notifications/mark-all-read     — mark all as read
+
+FR-NOTIF-03: Notification Fields
+  _id, user (userId), title, message, type, isRead, createdAt
+
+FR-NOTIF-04: Admin Notifications
+  - Admin can send notifications to all users or specific users
+  - Managed at /admin/notifications
+
+--------------------------------------------------------------------------------
+5.11 CERTIFICATES & BADGES
+--------------------------------------------------------------------------------
+
+FR-CERT-01: Certificate Generation
+  - Issued on course completion (100% progress)
+  - Contains: student name, course name, completion date
+  - Admin can manage certificate templates at /admin/certificates
+
+FR-CERT-02: Badge System
+  - Badges awarded for achievements (e.g., first lesson, quiz pass, course complete)
+  - Admin manages badge definitions at /admin/badges
+  - Badges displayed on user profile
+
+FR-CERT-03: Admin Management
+  - CRUD operations for certificates and badges
+  - View which users have earned which certificates/badges
+
+--------------------------------------------------------------------------------
+5.12 ADMIN PANEL
+--------------------------------------------------------------------------------
+
+FR-ADMIN-01: Admin Routes (all protected, admin role required)
+  /admin                  — dashboard overview
+  /admin/users            — user management (view, suspend, activate)
+  /admin/courses          — course CRUD
+  /admin/modules          — module management
+  /admin/lessons          — lesson management
+  /admin/quizzes          — quiz management
+  /admin/live             — live class scheduling (Zoom)
+  /admin/tools            — 40 tools enable/disable
+  /admin/badges           — badge management
+  /admin/certificates     — certificate management
+  /admin/orders           — order history
+  /admin/notifications    — send notifications
+  /admin/announcements    — platform announcements
+  /admin/emails           — email management
+  /admin/analytics        — platform analytics
+  /admin/logs             — activity logs
+  /admin/media            — media/file management
+  /admin/progress         — student progress overview
+  /admin/settings         — platform settings
+  /admin/security         — security settings
+  /admin/content          — content management
+
+FR-ADMIN-02: User Management
+  - View all users with role, status, trial info, purchase history
+  - Suspend / activate accounts
+  - View individual user progress
+
+FR-ADMIN-03: Activity Logs
+  - All significant actions logged (login, course purchase, etc.)
+  - Admin can view logs at /admin/logs
+  - Log fields: userId, userName, action, module, description, timestamp
+
+FR-ADMIN-04: Analytics
+  - Total users, active users, revenue (₹), course enrollments
+  - Charts: enrollment trends, revenue over time, tool usage
+  - Displayed at /admin/analytics
+
+
+--------------------------------------------------------------------------------
+5.13 ANALYTICS
+--------------------------------------------------------------------------------
+
+FR-ANALYTICS-01: Metrics Tracked
+  - Total registered users
+  - Active users (logged in within last 30 days)
+  - Total revenue (₹)
+  - Course enrollment counts
+  - Quiz completion rates
+  - Tool usage frequency
+  - Live class attendance
+
+FR-ANALYTICS-02: Admin Analytics Page
+  - Visual charts (Recharts)
+  - Date range filtering
+  - Export capability
+
+--------------------------------------------------------------------------------
+5.14 EMAIL SYSTEM
+--------------------------------------------------------------------------------
+
+FR-EMAIL-01: Transactional Emails
+  - OTP email (registration and login)
+  - Welcome email (on registration)
+  - Enrollment confirmation (on course purchase)
+  - Password reset (if implemented)
+
+FR-EMAIL-02: Email Templates
+  - Advanced templates in server/services/emailTemplatesAdvanced.js
+  - HTML formatted with platform branding
+
+FR-EMAIL-03: Admin Email Management
+  - Admin can send bulk emails at /admin/emails
+  - Template management
+
+FR-EMAIL-04: SMTP Configuration
+  - Configured via EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS in .env
+
+--------------------------------------------------------------------------------
+5.15 SCREEN PROTECTION
+--------------------------------------------------------------------------------
+
+FR-SCREEN-01: Content Protection
+  - Right-click disabled on all pages for authenticated users
+  - Copy keyboard shortcut (Ctrl+C / Cmd+C) disabled on lesson content
+  - Print screen / screenshot shortcuts disabled
+  - Implemented via ScreenProtection component
+
+FR-SCREEN-02: Scope
+  - Protection applies to all users (trial and paid)
+  - Prevents unauthorized copying of course content
+
+================================================================================
+6. NON-FUNCTIONAL REQUIREMENTS
+================================================================================
+
+NFR-01: Performance
+  - API response time < 500ms for standard queries
+  - Frontend initial load < 3 seconds
+  - Zoom meeting creation < 5 seconds
+
+NFR-02: Security
+  - Passwords hashed with bcryptjs (salt rounds: 12)
+  - JWT tokens expire in 7 days
+  - OTP mandatory for login and registration
+  - Admin routes protected by role check
+  - No sensitive data in frontend state (passwords never stored)
+  - CORS configured on backend
+
+NFR-03: Availability
+  - Backend: port 5000, Frontend: port 3000
+  - Database: LowDB JSON file (local persistence)
+  - Zoom fallback to PMI if API fails
+
+NFR-04: Usability
+  - All UI text in English only (no Hinglish)
+  - Dark theme throughout the platform
+  - Responsive design (mobile, tablet, desktop)
+  - Framer Motion animations for smooth UX
+
+NFR-05: Maintainability
+  - Modular route/controller structure
+  - Separate services for Zoom, email, notifications, OTP
+  - Environment variables for all secrets (.env)
+
+NFR-06: Scalability
+  - LowDB suitable for development/small scale
+  - Architecture supports migration to MongoDB/PostgreSQL
+  - Stateless JWT auth supports horizontal scaling
+
+NFR-07: Localization
+  - Currency: INR (₹) only
+  - Timezone: Asia/Kolkata (IST)
+  - Language: English only
+
+NFR-08: Content Security
+  - Right-click, copy, and screenshot disabled for course content
+  - Lesson and quiz pages protected by TrialGuard
+
+
+================================================================================
+7. API ENDPOINTS REFERENCE
+================================================================================
+
+BASE URL: http://localhost:5000/api
+Auth header: Authorization: Bearer <JWT_TOKEN>
+[P] = Protected (requires JWT)  [A] = Admin only
+
+AUTH
+----
+POST   /api/auth/register              — Register new user (requires OTP)
+POST   /api/auth/login-precheck        — Validate credentials before OTP
+POST   /api/auth/login                 — Login with OTP verification
+POST   /api/auth/guest                 — Create guest session
+
+OTP
+---
+POST   /api/otp/send                   — Send OTP to email
+POST   /api/otp/verify                 — Verify OTP
+
+PROFILE
+-------
+GET    /api/profile              [P]   — Get current user profile
+PUT    /api/profile              [P]   — Update profile (name, email, photo)
+
+TRIAL
+-----
+GET    /api/trial/status         [P]   — Get trial status and days remaining
+
+COURSES
+-------
+GET    /api/courses                    — List courses (filter: category, difficulty, search)
+GET    /api/courses/featured           — Get featured courses (max 6)
+GET    /api/courses/:id                — Get course detail
+
+CART
+----
+GET    /api/cart                 [P]   — Get user cart
+POST   /api/cart                 [P]   — Add course to cart
+DELETE /api/cart/:courseId       [P]   — Remove from cart
+
+ORDERS
+------
+POST   /api/orders               [P]   — Create order from cart
+
+MODULES
+-------
+GET    /api/modules/course/:courseId [P] — Get modules for a course
+GET    /api/modules/:id          [P]   — Get module detail
+POST   /api/modules              [A]   — Create module
+PUT    /api/modules/:id          [A]   — Update module
+DELETE /api/modules/:id          [A]   — Delete module
+
+LESSONS
+-------
+GET    /api/lessons/module/:moduleId [P] — Get lessons for a module
+GET    /api/lessons/:id          [P]   — Get lesson detail
+POST   /api/lessons              [A]   — Create lesson
+PUT    /api/lessons/:id          [A]   — Update lesson
+DELETE /api/lessons/:id          [A]   — Delete lesson
+
+QUIZZES
+-------
+GET    /api/quizzes/module/:moduleId [P] — Get quiz for module
+GET    /api/quizzes/:id          [P]   — Get quiz detail
+POST   /api/quizzes/:id/submit   [P]   — Submit quiz answers
+POST   /api/quizzes              [A]   — Create quiz
+PUT    /api/quizzes/:id          [A]   — Update quiz
+DELETE /api/quizzes/:id          [A]   — Delete quiz
+
+PROGRESS
+--------
+GET    /api/progress/course/:courseId [P] — Get course progress
+POST   /api/progress/lesson      [P]   — Mark lesson complete
+
+PRACTICES
+---------
+GET    /api/practices/lesson/:lessonId [P] — Get practice problems
+POST   /api/practices/:id/submit [P]   — Submit practice answer
+
+NOTIFICATIONS
+-------------
+GET    /api/notifications        [P]   — Get user notifications
+PUT    /api/notifications/:id/read [P] — Mark notification read
+PUT    /api/notifications/mark-all-read [P] — Mark all read
+
+LIVE CLASSES
+------------
+GET    /api/live-classes               — Get all live classes (public)
+POST   /api/admin/live-classes   [A]   — Schedule live class (creates Zoom meeting)
+DELETE /api/admin/live-classes/:id [A] — Delete live class (deletes Zoom meeting)
+
+TOOLS
+-----
+GET    /api/admin/tools          [A]   — Get all 40 tools
+PUT    /api/admin/tools/:id      [A]   — Enable/disable tool
+
+ADMIN
+-----
+GET    /api/admin/users          [A]   — List all users
+PUT    /api/admin/users/:id      [A]   — Update user (suspend/activate)
+GET    /api/admin/orders         [A]   — List all orders
+GET    /api/admin/analytics      [A]   — Platform analytics
+GET    /api/admin/logs           [A]   — Activity logs
+GET    /api/admin/badges         [A]   — List badges
+POST   /api/admin/badges         [A]   — Create badge
+PUT    /api/admin/badges/:id     [A]   — Update badge
+DELETE /api/admin/badges/:id     [A]   — Delete badge
+GET    /api/admin/certificates   [A]   — List certificates
+POST   /api/admin/certificates   [A]   — Create certificate
+PUT    /api/admin/certificates/:id [A] — Update certificate
+DELETE /api/admin/certificates/:id [A] — Delete certificate
+POST   /api/admin/notifications  [A]   — Send notification to users
+GET    /api/admin/announcements  [A]   — List announcements
+POST   /api/admin/announcements  [A]   — Create announcement
+GET    /api/admin/settings       [A]   — Get platform settings
+PUT    /api/admin/settings       [A]   — Update platform settings
+
+SYSTEM
+------
+GET    /api/health                     — Health check
+GET    /api/zoom/test            [P]   — Test Zoom configuration
+
+
+================================================================================
+8. DATA MODELS
+================================================================================
+
+USER
+----
+  _id              : string (timestamp + random)
+  name             : string
+  email            : string (unique)
+  password         : string (bcrypt hashed)
+  role             : 'user' | 'admin'
+  status           : 'active' | 'suspended'
+  profilePhoto     : string (URL or base64)
+  isGuest          : boolean
+  emailVerified    : boolean
+  purchasedCourses : string[] (course IDs)
+  favorites        : string[] (course IDs)
+  trialStartedAt   : ISO timestamp
+  trialEndsAt      : ISO timestamp (trialStartedAt + 72h)
+  trialExpired     : boolean
+  createdAt        : timestamp
+  updatedAt        : timestamp
+
+COURSE
+------
+  _id          : string
+  title        : string
+  description  : string
+  category     : string
+  difficulty   : 'Beginner' | 'Intermediate' | 'Advanced'
+  price        : number (₹)
+  duration     : string (e.g., "12 hours")
+  isFeatured   : boolean
+  thumbnail    : string (URL)
+  instructor   : string
+  modules      : string[] (module IDs)
+  createdAt    : timestamp
+
+MODULE
+------
+  _id        : string
+  courseId   : string
+  title      : string
+  order      : number
+  lessons    : string[] (lesson IDs)
+  quizId     : string (optional)
+  isLocked   : boolean (sequential locking)
+  createdAt  : timestamp
+
+LESSON
+------
+  _id        : string
+  moduleId   : string
+  title      : string
+  type       : 'video' | 'text' | 'practice'
+  content    : string (URL or HTML)
+  order      : number
+  duration   : string
+  createdAt  : timestamp
+
+QUIZ
+----
+  _id        : string
+  moduleId   : string
+  title      : string
+  timeLimit  : number (minutes)
+  questions  : Question[]
+  createdAt  : timestamp
+
+QUESTION
+--------
+  _id           : string
+  text          : string
+  options       : string[]
+  correctAnswer : number (index)
+  explanation   : string
+
+PROGRESS
+--------
+  _id                  : string
+  userId               : string
+  courseId             : string
+  completedLessons     : string[] (lesson IDs)
+  completionPercentage : number (0-100)
+  lastAccessedAt       : timestamp
+
+ORDER
+-----
+  _id         : string
+  user        : string (userId)
+  courses     : string[] (course IDs)
+  totalAmount : number (₹)
+  status      : 'completed' | 'pending' | 'failed'
+  createdAt   : timestamp
+
+CART
+----
+  user  : string (userId)
+  items : CartItem[]
+
+CART ITEM
+---------
+  _id     : string
+  course  : string (courseId)
+  addedAt : timestamp
+
+NOTIFICATION
+------------
+  _id       : string
+  user      : string (userId)
+  title     : string
+  message   : string
+  type      : string
+  isRead    : boolean
+  createdAt : timestamp
+
+LIVE CLASS
+----------
+  _id        : string
+  title      : string
+  topic      : string
+  courseId   : string
+  date       : string (YYYY-MM-DD)
+  time       : string (HH:MM)
+  duration   : string (minutes)
+  zoomLink   : string (join URL)
+  startUrl   : string (host URL)
+  meetingId  : string
+  password   : string
+  mode       : 'api' | 'pmi'
+  createdAt  : timestamp
+
+TOOL
+----
+  _id         : string (1-40)
+  name        : string
+  description : string
+  category    : string
+  enabled     : boolean
+
+BADGE
+-----
+  _id         : string
+  name        : string
+  description : string
+  icon        : string
+  criteria    : string
+  createdAt   : timestamp
+
+CERTIFICATE
+-----------
+  _id        : string
+  userId     : string
+  courseId   : string
+  issuedAt   : timestamp
+  template   : string
+
+OTP RECORD
+----------
+  email     : string
+  otp       : string
+  purpose   : 'registration' | 'login'
+  verified  : boolean
+  expiresAt : timestamp
+
+ACTIVITY LOG
+------------
+  _id         : string
+  userId      : string
+  userName    : string
+  action      : string
+  module      : string
+  description : string
+  createdAt   : timestamp
+
+
+================================================================================
+9. ENVIRONMENT CONFIGURATION
+================================================================================
+
+SERVER (.env)
+-------------
+  PORT=5000
+  JWT_SECRET=<your_jwt_secret>
+
+  # Email (SMTP)
+  EMAIL_HOST=smtp.gmail.com
+  EMAIL_PORT=587
+  EMAIL_USER=<your_email>
+  EMAIL_PASS=<your_app_password>
+
+  # Zoom Server-to-Server OAuth (Primary)
+  ZOOM_ACCOUNT_ID=q226_zxFRn2kNh5zrmqtTw
+  ZOOM_CLIENT_ID=wgoQkPA0TT23looqcFTQVg
+  ZOOM_CLIENT_SECRET=TrslfejsihVJnvmtoqXbNfDIKSRPnyYs
+
+  # Zoom PMI Fallback (if API fails)
+  ZOOM_PMI_LINK=https://zoom.us/j/<your_pmi>
+  ZOOM_PMI_ID=<your_pmi_id>
+
+  # Optional: explicit Zoom user ID
+  ZOOM_USER_ID=me
+
+CLIENT (.env.local)
+-------------------
+  NEXT_PUBLIC_API_URL=http://localhost:5000/api
+
+================================================================================
+10. FRONTEND PAGES REFERENCE
+================================================================================
+
+PUBLIC PAGES
+------------
+  /                          — Homepage (Hero, featured courses, tools preview)
+  /courses                   — Course catalog with filters
+  /courses/[id]              — Course detail page
+  /blogs                     — Blog listing
+  /blogs/[id]                — Blog post detail
+  /about                     — About page
+  /contact                   — Contact page
+  /career                    — Career page
+  /live                      — Live classes listing (public)
+  /tools                     — Math tools page (40 tools)
+  /auth/login                — Login page (2-step: credentials + OTP)
+  /auth/register             — Registration page (with OTP verification)
+
+PROTECTED PAGES (requires login)
+---------------------------------
+  /dashboard                 — Student dashboard (courses, progress, trial banner)
+  /profile                   — User profile management
+  /cart                      — Shopping cart
+  /notifications             — Notification center
+  /learn/[courseId]          — Course overview
+  /learn/[courseId]/advanced — Main learning interface (modules + lessons)
+  /learn/[courseId]/lesson/[lessonId]  — Lesson page (TrialGuard wrapped)
+  /learn/[courseId]/quiz/[quizId]      — Quiz page (TrialGuard wrapped)
+
+ADMIN PAGES (requires admin role)
+----------------------------------
+  /admin                     — Admin dashboard
+  /admin/users               — User management
+  /admin/courses             — Course management
+  /admin/modules             — Module management
+  /admin/lessons             — Lesson management
+  /admin/quizzes             — Quiz management
+  /admin/live                — Live class scheduling
+  /admin/tools               — Tool enable/disable (all 40)
+  /admin/badges              — Badge management
+  /admin/certificates        — Certificate management
+  /admin/orders              — Order history
+  /admin/notifications       — Send notifications
+  /admin/announcements       — Announcements
+  /admin/emails              — Email management
+  /admin/analytics           — Platform analytics
+  /admin/logs                — Activity logs
+  /admin/media               — Media management
+  /admin/progress            — Student progress
+  /admin/settings            — Platform settings
+  /admin/security            — Security settings
+  /admin/content             — Content management
+
+================================================================================
+11. KEY COMPONENTS REFERENCE
+================================================================================
+
+  Navbar.js              — Top navigation bar (auth state aware)
+  Hero.js                — Homepage hero section
+  CourseCard.js          — Course listing card
+  TrialGuard.js          — Trial/paywall wrapper for lesson & quiz pages
+  AITutor.js             — Floating AI tutor (globally visible)
+  PaymentModal.js        — Course purchase modal
+  MathRenderer.js        — LaTeX/math notation renderer
+  ParticleBackground.js  — Animated particle background
+  ScreenProtection.js    — Disables right-click, copy, screenshot shortcuts
+
+  tools/ (40 components):
+    BasicCalculator, QuadraticSolver, GraphingCalculator, MatrixCalculator,
+    StatisticsCalculator, TrigonometryCalculator, DerivativeCalculator,
+    IntegralCalculator, LimitCalculator, VectorCalculator, FractionCalculator,
+    PercentageCalculator, LCMGCDCalculator, PrimeChecker, ProbabilityCalculator,
+    AreaCalculator, VolumeCalculator, GeometryVisualizer, NumberLine,
+    FractionVisualizer, EquationBuilder, LinearEquationSolver, SequenceCalculator,
+    LogarithmCalculator, ExponentCalculator, RootCalculator, ComplexNumberCalculator,
+    RatioCalculator, FactorialCalculator, PermutationCombination,
+    QuadraticSolverEnhanced, StepByStepper, ConceptSimplifier, PracticeGenerator,
+    TimedPractice, DailyChallenge, HintGenerator, MistakeAnalyzer,
+    FormulaExplorer, VisualGraphTool
+
+================================================================================
+END OF DOCUMENT
+================================================================================
+Document: SRS_BeyondClassroom.txt
+Project : Beyond Classroom — Online Mathematics Learning Platform
+Version : 1.0  |  Date: March 15, 2026
+================================================================================

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { db } = require('../database/db');
 
 exports.protect = async (req, res, next) => {
   try {
@@ -12,9 +12,10 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized to access this route' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select('-password');
-    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    await db.read();
+    req.user = db.data.users.find(u => u._id === decoded.id);
+
     if (!req.user) {
       return res.status(401).json({ message: 'User not found' });
     }
@@ -26,7 +27,7 @@ exports.protect = async (req, res, next) => {
 };
 
 exports.admin = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
     next();
   } else {
     res.status(403).json({ message: 'Admin access required' });

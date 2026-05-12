@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const moduleController = require('../controllers/moduleController')
 
+router.get('/', moduleController.getAllModules)
 router.get('/course/:courseId', moduleController.getModulesByCourse)
 router.get('/:moduleId', moduleController.getModule)
 router.post('/', moduleController.createModule)

@@ -5,28 +5,25 @@ exports.getProgress = async (req, res) => {
   try {
     await db.read();
     
-    const progress = db.data.users
-      .filter(u => u.role === 'student')
-      .map(user => {
-        const userCourses = user.purchasedCourses || [];
-        return userCourses.map(courseId => {
-          const course = db.data.courses?.find(c => c._id === courseId);
-          return {
-            _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-            user: { _id: user._id, name: user.name },
-            course: { _id: courseId, title: course?.title || 'Unknown Course' },
-            completionPercentage: Math.floor(Math.random() * 100),
-            lessonsCompleted: Math.floor(Math.random() * 10),
-            totalLessons: 15,
-            quizzesPassed: Math.floor(Math.random() * 5),
-            totalQuizzes: 8,
-            avgScore: Math.floor(Math.random() * 30) + 70
-          };
-        });
-      })
-      .flat();
+    const progressData = (db.data.progress || []).map(p => {
+      const uid = p.userId || p.user
+      const cid = p.courseId || p.course
+      const user = db.data.users?.find(u => u._id === uid)
+      const course = db.data.courses?.find(c => c._id === cid)
+      const completionPercentage = p.completionPercentage ?? p.overallProgress ?? 0
+      const lessonsCompleted = p.lessonsCompleted || p.completedLessons || []
+      const quizzesCompleted = p.quizzesCompleted || p.completedModules || []
+      return {
+        ...p,
+        completionPercentage,
+        lessonsCompleted,
+        quizzesCompleted,
+        user: user ? { _id: user._id, name: user.name, email: user.email } : null,
+        course: course ? { _id: course._id, title: course.title } : null
+      }
+    }).filter(p => p.user && p.course)
 
-    res.json({ progress });
+    res.json({ progress: progressData });
   } catch (error) {
     console.error('Get progress error:', error);
     res.status(500).json({ message: 'Server error' });

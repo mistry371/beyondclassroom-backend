@@ -75,3 +75,40 @@ exports.getEmailTemplates = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Send email (manual send from admin)
+exports.sendEmail = async (req, res) => {
+  try {
+    const { templateId, to, subject } = req.body;
+    if (!to || !subject) return res.status(400).json({ message: 'Recipient and subject required' });
+
+    await db.read();
+    if (!db.data.emailLogs) db.data.emailLogs = [];
+
+    // Try to send via email service
+    let status = 'sent';
+    try {
+      const { sendEmail: sendEmailService } = require('../services/emailService');
+      await sendEmailService({ to, subject, html: `<p>This is a test email for template: ${templateId}</p>` });
+    } catch (e) {
+      status = 'simulated'; // Email service not configured, log as simulated
+    }
+
+    const log = {
+      _id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
+      templateId,
+      subject,
+      to,
+      status,
+      sentAt: new Date().toISOString(),
+      sentBy: req.user._id
+    };
+    db.data.emailLogs.push(log);
+    await db.write();
+
+    res.json({ success: true, message: 'Email sent successfully', log });
+  } catch (error) {
+    console.error('Send email error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};

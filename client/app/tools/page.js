@@ -2,6 +2,20 @@
 
 import { useState } from 'react'
 import Navbar from '@/components/Navbar'
+import StepByStepSolver from '@/components/tools/StepByStepSolver'
+import QuadraticSolverEnhanced from '@/components/tools/QuadraticSolverEnhanced'
+import ConceptSimplifier from '@/components/tools/ConceptSimplifier'
+import MistakeAnalyzer from '@/components/tools/MistakeAnalyzer'
+import HintGenerator from '@/components/tools/HintGenerator'
+import VisualGraphTool from '@/components/tools/VisualGraphTool'
+import FractionVisualizer from '@/components/tools/FractionVisualizer'
+import NumberLine from '@/components/tools/NumberLine'
+import TimedPractice from '@/components/tools/TimedPractice'
+import PracticeGenerator from '@/components/tools/PracticeGenerator'
+import FormulaExplorer from '@/components/tools/FormulaExplorer'
+import EquationBuilder from '@/components/tools/EquationBuilder'
+import GeometryVisualizer from '@/components/tools/GeometryVisualizer'
+import DailyChallenge from '@/components/tools/DailyChallenge'
 import GraphingCalculator from '@/components/tools/GraphingCalculator'
 import MatrixCalculator from '@/components/tools/MatrixCalculator'
 import DerivativeCalculator from '@/components/tools/DerivativeCalculator'
@@ -9,6 +23,7 @@ import PercentageCalculator from '@/components/tools/PercentageCalculator'
 import FractionCalculator from '@/components/tools/FractionCalculator'
 import AreaCalculator from '@/components/tools/AreaCalculator'
 import BasicCalculator from '@/components/tools/BasicCalculator'
+import AdvancedCalculator from '@/components/tools/AdvancedCalculator'
 import QuadraticSolver from '@/components/tools/QuadraticSolver'
 import PrimeChecker from '@/components/tools/PrimeChecker'
 import FactorialCalculator from '@/components/tools/FactorialCalculator'
@@ -28,16 +43,32 @@ import ComplexNumberCalculator from '@/components/tools/ComplexNumberCalculator'
 import IntegralCalculator from '@/components/tools/IntegralCalculator'
 import LimitCalculator from '@/components/tools/LimitCalculator'
 import VolumeCalculator from '@/components/tools/VolumeCalculator'
-import { Calculator, Grid3x3, TrendingUp, Percent, Divide, Square, Plus, Sigma, PieChart, Ruler, Triangle, Circle, Binary, Hash, Infinity, Zap, Target, Brain, Code, Sparkles, Star, Shuffle, BarChart3, Navigation, Dices, List, Box } from 'lucide-react'
+import { Calculator, Grid3x3, TrendingUp, Percent, Divide, Square, Plus, Sigma, PieChart, Ruler, Triangle, Circle, Binary, Hash, Infinity, Zap, Target, Brain, Code, Sparkles, Star, Shuffle, BarChart3, Navigation, Dices, List, Box, Lightbulb, BookOpen, Timer, Minus, Trophy } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export default function ToolsPage() {
-  const [activeTool, setActiveTool] = useState('basic')
+  const [activeTool, setActiveTool] = useState('advanced-calc')
   const [category, setCategory] = useState('all')
 
   const tools = [
+    // NEW: Learning Tools (Enhanced)
+    { id: 'step-solver', name: 'Step-by-Step Solver', icon: Brain, component: StepByStepSolver, category: 'learning', grade: '6-10', desc: 'See every solving step', badge: 'NEW' },
+    { id: 'quadratic-enhanced', name: 'Quadratic Solver Pro', icon: Sparkles, component: QuadraticSolverEnhanced, category: 'learning', grade: '8-10', desc: 'With hints & steps', badge: 'ENHANCED' },
+    { id: 'concept-simplifier', name: 'Concept Simplifier', icon: Lightbulb, component: ConceptSimplifier, category: 'learning', grade: '5-10', desc: 'Complex concepts made simple', badge: 'NEW' },
+    { id: 'mistake-analyzer', name: 'Mistake Analyzer', icon: Target, component: MistakeAnalyzer, category: 'learning', grade: '6-10', desc: 'Find and fix errors', badge: 'NEW' },
+    { id: 'hint-generator', name: 'Hint Generator', icon: Lightbulb, component: HintGenerator, category: 'learning', grade: '6-10', desc: 'Progressive hints', badge: 'NEW' },
+    { id: 'visual-graph', name: 'Visual Graph Tool', icon: TrendingUp, component: VisualGraphTool, category: 'learning', grade: '8-12', desc: 'Interactive graphing', badge: 'NEW' },
+    { id: 'fraction-viz', name: 'Fraction Visualizer', icon: PieChart, component: FractionVisualizer, category: 'learning', grade: '5-8', desc: 'See fractions visually', badge: 'NEW' },
+    { id: 'number-line', name: 'Number Line', icon: Minus, component: NumberLine, category: 'learning', grade: '5-8', desc: 'Interactive number line', badge: 'NEW' },
+    { id: 'timed-practice', name: 'Timed Practice', icon: Timer, component: TimedPractice, category: 'learning', grade: '5-10', desc: 'Speed training', badge: 'NEW' },
+    { id: 'practice-gen', name: 'Practice Generator', icon: Shuffle, component: PracticeGenerator, category: 'learning', grade: '5-10', desc: 'Unlimited problems', badge: 'NEW' },
+    { id: 'formula-explorer', name: 'Formula Explorer', icon: BookOpen, component: FormulaExplorer, category: 'learning', grade: '8-12', desc: 'Formula reference', badge: 'NEW' },
+    { id: 'equation-builder', name: 'Equation Builder', icon: Code, component: EquationBuilder, category: 'learning', grade: '6-10', desc: 'Word to equation', badge: 'NEW' },
+    { id: 'geometry-viz', name: 'Geometry Visualizer', icon: Triangle, component: GeometryVisualizer, category: 'learning', grade: '6-10', desc: 'Interactive shapes', badge: 'NEW' },
+    { id: 'daily-challenge', name: 'Daily Challenge', icon: Trophy, component: DailyChallenge, category: 'learning', grade: '6-12', desc: 'Daily problem', badge: 'NEW' },
+    
     // Basic Math (5th-7th Grade) - 8 tools
-    { id: 'basic', name: 'Basic Calculator', icon: Calculator, component: BasicCalculator, category: 'basic', grade: '5-7', desc: 'Add, subtract, multiply, divide' },
+    { id: 'advanced-calc', name: 'Advanced Calculator', icon: Calculator, component: AdvancedCalculator, category: 'basic', grade: '5-12', desc: 'Scientific calculator with keyboard', badge: 'NEW' },
     { id: 'percentage', name: 'Percentage', icon: Percent, component: PercentageCalculator, category: 'basic', grade: '5-7', desc: 'Calculate percentages easily' },
     { id: 'fraction', name: 'Fraction', icon: Divide, component: FractionCalculator, category: 'basic', grade: '5-7', desc: 'Fraction operations' },
     { id: 'ratio', name: 'Ratio & Proportion', icon: Divide, component: RatioCalculator, category: 'basic', grade: '6-8', desc: 'Simplify ratios' },
@@ -75,6 +106,7 @@ export default function ToolsPage() {
 
   const categories = [
     { id: 'all', name: 'All Tools', icon: Sparkles, count: tools.length },
+    { id: 'learning', name: 'Learning Tools', icon: Brain, count: tools.filter(t => t.category === 'learning').length, badge: 'NEW' },
     { id: 'basic', name: 'Basic Math', icon: Calculator, count: tools.filter(t => t.category === 'basic').length },
     { id: 'algebra', name: 'Algebra', icon: Plus, count: tools.filter(t => t.category === 'algebra').length },
     { id: 'geometry', name: 'Geometry', icon: Triangle, count: tools.filter(t => t.category === 'geometry').length },
@@ -102,6 +134,7 @@ export default function ToolsPage() {
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-primary/20 to-secondary/20 backdrop-blur-xl border border-primary/30 rounded-full px-6 py-3 mb-6">
               <Sparkles className="h-5 w-5 text-primary animate-pulse" />
               <span className="text-primary font-semibold">{tools.length} Premium Tools</span>
+              <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-bold">14 NEW</span>
             </div>
 
             <h1 className="text-5xl md:text-6xl font-black mb-6">
@@ -130,6 +163,11 @@ export default function ToolsPage() {
                     <Icon className="h-5 w-5" />
                     {cat.name}
                     <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{cat.count}</span>
+                    {cat.badge && (
+                      <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs font-bold">
+                        {cat.badge}
+                      </span>
+                    )}
                   </button>
                 )
               })}
@@ -161,7 +199,18 @@ export default function ToolsPage() {
                       >
                         <Icon className="h-5 w-5 flex-shrink-0" />
                         <div className="text-left flex-1">
-                          <div className="font-medium text-sm">{tool.name}</div>
+                          <div className="font-medium text-sm flex items-center gap-2">
+                            {tool.name}
+                            {tool.badge && (
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-bold ${
+                                tool.badge === 'NEW' 
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : 'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {tool.badge}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs opacity-75">Grade {tool.grade}</div>
                         </div>
                       </button>

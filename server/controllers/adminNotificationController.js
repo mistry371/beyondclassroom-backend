@@ -47,7 +47,7 @@ exports.sendNotification = async (req, res) => {
     }
 
     const newNotification = {
-      _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      _id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
       title,
       message,
       type: type || 'info',

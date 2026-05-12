@@ -10,11 +10,19 @@ router.post('/send', async (req, res) => {
     if (!email) {
       return res.status(400).json({ success: false, message: 'Email is required' })
     }
-    
+
+    // Hard 15s timeout so the request never hangs forever
+    const timeout = setTimeout(() => {
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'OTP service timed out. Please try again.' })
+      }
+    }, 15000)
+
     const result = await createAndSendOTP(email, purpose || 'registration')
-    res.json(result)
+    clearTimeout(timeout)
+    if (!res.headersSent) res.json(result)
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message })
+    if (!res.headersSent) res.status(500).json({ success: false, message: error.message })
   }
 })
 

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useDispatch } from 'react-redux'
 import { useForm } from 'react-hook-form'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, User, Shield, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
+import { Mail, Lock, User, Shield, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react'
 import { setCredentials } from '@/store/slices/authSlice'
 import api from '@/utils/api'
 import Link from 'next/link'
@@ -20,6 +20,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState(null)
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [resendTimer, setResendTimer] = useState(0)
+  const [showPassword, setShowPassword] = useState(false)
 
   // Step 1: Send OTP
   const onSubmitDetails = async (data) => {
@@ -38,14 +39,19 @@ export default function RegisterPage() {
         setStep(2)
         startResendTimer()
         
-        // Show OTP in console for testing
         if (otpRes.data.otp) {
           console.log('🔐 OTP for testing:', otpRes.data.otp)
-          alert(`OTP sent! Check console or email. Test OTP: ${otpRes.data.otp}`)
+          // Auto-fill OTP boxes
+          const otpDigits = otpRes.data.otp.toString().split('').slice(0, 6)
+          setOtp([...otpDigits, ...Array(6).fill('')].slice(0, 6))
         }
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP')
+      if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Server is starting up. Please wait 30 seconds and try again.')
+      } else {
+        setError(err.response?.data?.message || 'Failed to send OTP')
+      }
     } finally {
       setLoading(false)
     }
@@ -86,12 +92,19 @@ export default function RegisterPage() {
       
       dispatch(setCredentials(response.data))
       
-      // Redirect based on role
-      const userRole = response.data.user?.role
-      if (userRole === 'admin' || userRole === 'super_admin') {
-        router.push('/admin')
+      // Redirect based on role or redirect parameter
+      const urlParams = new URLSearchParams(window.location.search)
+      const redirectUrl = urlParams.get('redirect')
+      
+      if (redirectUrl) {
+        router.push(redirectUrl)
       } else {
-        router.push('/dashboard')
+        const userRole = response.data.user?.role
+        if (userRole === 'admin' || userRole === 'super_admin') {
+          router.push('/admin')
+        } else {
+          router.push('/dashboard')
+        }
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed')
@@ -141,7 +154,8 @@ export default function RegisterPage() {
         
         if (otpRes.data.otp) {
           console.log('🔐 New OTP:', otpRes.data.otp)
-          alert(`New OTP sent! Test OTP: ${otpRes.data.otp}`)
+          const otpDigits = otpRes.data.otp.toString().split('').slice(0, 6)
+          setOtp([...otpDigits, ...Array(6).fill('')].slice(0, 6))
         }
       }
     } catch (err) {
@@ -172,6 +186,17 @@ export default function RegisterPage() {
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-8 w-full max-w-md"
       >
+        {/* Back to Home Button */}
+        <div className="mb-6">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 text-gray-400 hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <motion.div
@@ -257,10 +282,15 @@ export default function RegisterPage() {
                       required: 'Password is required', 
                       minLength: { value: 6, message: 'Min 6 characters' } 
                     })}
-                    type="password"
-                    className="w-full pl-10 pr-4 py-3 bg-dark-200/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    type={showPassword ? 'text' : 'password'}
+                    className="w-full pl-10 pr-12 py-3 bg-dark-200/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                     placeholder="••••••••"
                   />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-3 text-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
                 {errors.password && <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>}
               </div>

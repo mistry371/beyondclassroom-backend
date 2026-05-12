@@ -1,5 +1,4 @@
 const { db } = require('../database/db')
-const Setting = require('../models/Setting')
 const { logActivity } = require('./adminController')
 
 // Get all settings
@@ -28,13 +27,15 @@ exports.updateSetting = async (req, res) => {
     const { key, value } = req.body
     const settingIndex = db.data.settings?.findIndex(s => s.key === key)
     
-    if (settingIndex === -1) {
+    if (settingIndex === -1 || settingIndex === undefined) {
       // Create new setting
-      const newSetting = new Setting({
+      const newSetting = {
+        key,
+        value,
         ...req.body,
-        updatedBy: req.user._id
-      })
-      
+        updatedBy: req.user._id,
+        updatedAt: new Date()
+      }
       db.data.settings = db.data.settings || []
       db.data.settings.push(newSetting)
     } else {

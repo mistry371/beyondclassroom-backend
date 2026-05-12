@@ -9,50 +9,69 @@ exports.getAnalytics = async (req, res) => {
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - parseInt(days));
 
-    // User growth data
+    // User growth data (real counts from DB)
     const userGrowth = [];
     for (let i = parseInt(days); i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const count = Math.floor(Math.random() * 10) + 5;
+      const count = db.data.users?.filter(u => {
+        const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null
+        return created === dateStr
+      }).length || 0;
       userGrowth.push({ date: dateStr, users: count });
     }
 
-    // Revenue data
+    // Revenue data (real from orders)
     const revenue = [];
     for (let i = parseInt(days); i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const amount = Math.floor(Math.random() * 5000) + 1000;
+      const amount = db.data.orders?.filter(o => {
+        const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null
+        return created === dateStr && o.status === 'completed'
+      }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
       revenue.push({ date: dateStr, revenue: amount });
     }
 
-    // Course popularity
-    const coursePopularity = [
-      { name: 'Algebra Basics', enrollments: 45 },
-      { name: 'Geometry', enrollments: 32 },
-      { name: 'Calculus', enrollments: 28 },
-      { name: 'Statistics', enrollments: 25 }
-    ];
+    // Course popularity (real enrollment counts)
+    const coursePopularity = (db.data.courses || [])
+      .map(c => ({
+        name: c.title,
+        enrollments: db.data.orders?.filter(o => o.courses?.includes(c._id) && o.status === 'completed').length || 0
+      }))
+      .sort((a, b) => b.enrollments - a.enrollments)
+      .slice(0, 5);
 
     // Top students
     const topStudents = db.data.users
-      .filter(u => u.role === 'student')
+      .filter(u => u.role === 'user' || u.role === 'student')
       .slice(0, 5)
-      .map(u => ({
-        _id: u._id,
-        name: u.name,
-        coursesCompleted: Math.floor(Math.random() * 5) + 1,
-        avgScore: Math.floor(Math.random() * 30) + 70
-      }));
+      .map(u => {
+        const userProgress = db.data.progress?.filter(p => p.user === u._id || p.userId === u._id) || []
+        const completedCourses = userProgress.filter(p => p.completionPercentage >= 100).length
+        const allScores = userProgress.flatMap(p => (p.quizScores || []).map(s => s.score || 0))
+        const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0
+        return {
+          _id: u._id,
+          name: u.name,
+          coursesCompleted: completedCourses,
+          avgScore
+        }
+      });
+
+    const totalRevenue = db.data.orders?.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0
+    const allProgress = db.data.progress || []
+    const avgCompletionRate = allProgress.length > 0
+      ? Math.round(allProgress.reduce((sum, p) => sum + (p.completionPercentage || 0), 0) / allProgress.length)
+      : 0
 
     const analytics = {
       totalUsers: db.data.users.length,
-      activeCourses: db.data.courses?.filter(c => c.isPublished).length || 0,
-      totalRevenue: db.data.orders?.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0,
-      avgCompletionRate: 75,
+      activeCourses: db.data.courses?.filter(c => !c.status || c.status === 'published' || c.isFeatured !== undefined).length || 0,
+      totalRevenue,
+      avgCompletionRate,
       userGrowthPercent: 15,
       revenueGrowthPercent: 22,
       userGrowth,
@@ -71,13 +90,33 @@ exports.getAnalytics = async (req, res) => {
 // Export analytics
 exports.exportAnalytics = async (req, res) => {
   try {
-    const { format = 'csv', days = 30 } = req.query;
-    
-    // Generate CSV data
-    const csvData = 'Date,Users,Revenue\n2024-01-01,10,5000\n2024-01-02,12,6000';
-    
+    const { days = 30 } = req.query;
+    await db.read();
+
+    const daysInt = parseInt(days);
+    const rows = [];
+    for (let i = daysInt; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      const newUsers = db.data.users?.filter(u => {
+        const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null;
+        return created === dateStr;
+      }).length || 0;
+
+      const revenue = db.data.orders?.filter(o => {
+        const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null;
+        return created === dateStr && o.status === 'completed';
+      }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
+
+      rows.push(`${dateStr},${newUsers},${revenue}`);
+    }
+
+    const csvData = 'Date,New Users,Revenue\n' + rows.join('\n');
+
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=analytics.csv');
+    res.setHeader('Content-Disposition', `attachment; filename=analytics-${days}days.csv`);
     res.send(csvData);
   } catch (error) {
     console.error('Export analytics error:', error);

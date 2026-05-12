@@ -27,7 +27,10 @@ exports.getAnnouncements = async (req, res) => {
       await db.write();
     }
 
-    res.json({ announcements: db.data.announcements });
+    res.json({ announcements: db.data.announcements.map(a => ({
+      ...a,
+      message: a.message || a.content || ''
+    })) });
   } catch (error) {
     console.error('Get announcements error:', error);
     res.status(500).json({ message: 'Server error' });

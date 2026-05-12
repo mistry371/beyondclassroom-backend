@@ -1,0 +1,242 @@
+# Implementation Plan: Platform Enhancements
+
+## Overview
+
+Incremental implementation of 12 platform enhancements across the Beyond Classroom stack. Backend tasks target `server/` (Node.js/Express/lowdb); frontend tasks target `client/` (Next.js App Router). Each task builds on the previous and ends with all code wired together.
+
+## Tasks
+
+- [x] 1. Set up shared file upload middleware and download route
+  - [ ] 1.1 Create `server/middleware/upload.js` with `imageUpload`, `pdfUpload`, and `excelUpload` multer handlers
+    - Image: JPEG/PNG/GIF/WebP, max 5 MB
+    - PDF: application/pdf, max 20 MB
+    - Excel: .xlsx/.xls, max 10 MB
+    - Ensure `uploads/` directory is created if missing
+    - _Requirements: 1.2, 1.3, 2.2, 2.3, 3.2, 3.3, 5.1_
+  - [ ] 1.2 Write property test for file upload validation (Property 1)
+    - **Property 1: File upload validation — accept iff MIME type allowed AND size within limit**
+    - **Validates: Requirements 1.2, 1.3, 2.2, 2.3, 3.2, 3.3**
+    - Use `fast-check` to generate random `{ mimetype, size }` pairs and assert `validateUpload` returns correct `accepted` boolean
+  - [ ] 1.3 Add multer error-handling middleware to `server-simple.js` (or main app entry)
+    - Catch `LIMIT_FILE_SIZE` → 400, catch `err.message` → 400
+    - Serve `uploads/` as static: `app.use('/uploads', express.static('uploads'))`
+    - _Requirements: 1.3, 2.3, 3.3_
+  - [ ] 1.4 Create `server/routes/downloads.js` — `GET /api/download?file=<filename>`
+    - Require auth via `protect` middleware
+    - Validate filename stays within `uploads/` (prevent path traversal)
+    - Return 404 if file missing, stream file with `Content-Disposition: attachment` otherwise
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ] 1.5 Write property test for download auth guard (Property 9)
+    - **Property 9: Download requires authentication — unauthenticated requests return 401**
+    - **Validates: Requirements 6.3**
+  - [ ] 1.6 Write property test for download 404 (Property 10)
+    - **Property 10: Download returns 404 for missing files**
+    - **Validates: Requirements 6.4**
+  - Register the downloads router in the main server entry point
+  - _Requirements: 6.1–6.5_
+
+- [ ] 2. Quiz enhancements — backend
+  - [ ] 2.1 Update quiz data model in `server/controllers/quizzesController.js` (or wherever quizzes are created/updated)
+    - Add `pdfUrl: null` and `createdBy: { userId, name }` to quiz creation
+    - Preserve `createdBy` on update — never overwrite it
+    - Add `imageUrl: null` to each question object on creation
+    - _Requirements: 4.1, 4.3_
+  - [ ] 2.2 Write property test for createdBy preservation (Property 6)
+    - **Property 6: createdBy is set on create and preserved on update**
+    - **Validates: Requirements 4.1, 4.3**
+    - Use `fast-check` to generate arbitrary update payloads and assert `createdBy` is unchanged
+  - [ ] 2.3 Add image upload route: `POST /api/quizzes/:quizId/questions/:questionId/image`
+    - Use `imageUpload` middleware from `upload.js`
+    - Store `req.file.path` as `imageUrl` on the matching question object
+    - _Requirements: 1.1, 1.2, 1.3, 1.4_
+  - [ ] 2.4 Add PDF upload route: `POST /api/quizzes/:quizId/pdf`
+    - Use `pdfUpload` middleware
+    - Store `req.file.path` as `pdfUrl` on the quiz record
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - [ ] 2.5 Create `server/services/quizImportParser.js`
+    - Use `xlsx` npm package to parse `.xlsx`/`.xls` buffer
+    - Map columns: `question`, `type`, `options` (comma-split), `correctAnswer`
+    - Skip rows missing `question` or `correctAnswer`; collect them in `errors[]`
+    - Return `{ questions: [...], errors: [{ row, reason }] }`
+    - _Requirements: 3.4, 3.5, 3.6_
+  - [ ] 2.6 Write property test for Excel import round-trip (Property 4)
+    - **Property 4: Excel import round-trip — serialize then parse produces equivalent question set**
+    - **Validates: Requirements 3.4, 3.7**
+  - [ ] 2.7 Write property test for Excel import skips invalid rows (Property 5)
+    - **Property 5: Excel import skips invalid rows — every invalid row appears in error summary**
+    - **Validates: Requirements 3.5**
+  - [ ] 2.8 Add Excel import route: `POST /api/quizzes/:quizId/import`
+    - Use `excelUpload` middleware
+    - Call `quizImportParser`, append valid questions to quiz, return `{ questions, errors }`
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
+  - Register all new quiz routes in `server/routes/quizzes.js`
+
+- [ ] 3. Quiz enhancements — frontend
+  - [ ] 3.1 Update `client/app/admin/quizzes/page.js` — quiz list shows `createdBy` name
+    - Add a "Created By" column/field next to each quiz entry
+    - _Requirements: 4.2_
+  - [ ] 3.2 Update quiz creation/edit form in `client/app/admin/quizzes/page.js` — per-question image upload
+    - Add file input for image per question; on change POST to `/api/quizzes/:quizId/questions/:questionId/image`
+    - Display image preview after successful upload
+    - _Requirements: 1.1, 1.4_
+  - [ ] 3.3 Update quiz creation/edit form — quiz-level PDF upload
+    - Add file input for PDF at quiz level; on change POST to `/api/quizzes/:quizId/pdf`
+    - Display filename + remove button after upload
+    - _Requirements: 2.1, 2.4_
+  - [ ] 3.4 Update quiz creation/edit form — Excel bulk import
+    - Add "Import Questions from Excel" file input; on change POST to `/api/quizzes/:quizId/import`
+    - Display imported questions in the question list for review; show validation error summary if any rows were skipped
+    - _Requirements: 3.1, 3.6_
+  - [ ] 3.5 Update student quiz renderer `client/app/learn/[courseId]/quiz/[quizId]/page.js`
+    - Render `imageUrl` as `<img>` above question text when non-null
+    - Render PDF link as `<a target="_blank">` when quiz `pdfUrl` is non-null
+    - _Requirements: 1.5, 2.5_
+  - [ ] 3.6 Write property test for quiz image rendered above question text (Property 2)
+    - **Property 2: imageUrl non-null → img element appears before question text in DOM**
+    - **Validates: Requirements 1.5**
+  - [ ] 3.7 Write property test for quiz PDF link rendered (Property 3)
+    - **Property 3: pdfUrl non-null → anchor with target="_blank" is rendered**
+    - **Validates: Requirements 2.5**
+
+- [ ] 4. Checkpoint — ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 5. Module PDF upload
+  - [ ] 5.1 Update module create/update controller to accept and store `pdfUrl` and `topicName` fields
+    - `pdfUrl: null`, `topicName: null` as defaults on new modules
+    - _Requirements: 5.2, 12.6, 12.9_
+  - [ ] 5.2 Add PDF upload route: `POST /api/modules/:moduleId/pdf`
+    - Use `pdfUpload` middleware; store path as `pdfUrl` on module record
+    - _Requirements: 5.1, 5.2_
+  - [ ] 5.3 Add PDF remove route: `DELETE /api/modules/:moduleId/pdf`
+    - Set `pdfUrl` to null on the module record
+    - _Requirements: 5.5_
+  - [ ] 5.4 Write property test for module PDF round-trip (Property 7)
+    - **Property 7: Upload sets non-null pdfUrl; delete sets null pdfUrl**
+    - **Validates: Requirements 5.2, 5.5**
+  - [ ] 5.5 Write property test for failed upload leaves record unchanged (Property 8)
+    - **Property 8: Invalid file submission leaves pdfUrl unchanged**
+    - **Validates: Requirements 5.3**
+  - [ ] 5.6 Update `client/app/admin/modules/page.js`
+    - Add PDF upload control (POST to `/api/modules/:moduleId/pdf`) and remove button (DELETE)
+    - Add `topicName` text field to module create/edit form
+    - _Requirements: 5.1, 5.5, 12.9_
+  - [ ] 5.7 Update module viewer in `client/app/learn/[courseId]/page.js`
+    - Show "Download / View PDF" button linking to `module.pdfUrl` when non-null
+    - _Requirements: 5.4_
+
+- [ ] 6. Student content download button
+  - [ ] 6.1 Add "Download" button to content/lesson viewer components where a downloadable file URL exists
+    - Button calls `GET /api/download?file=<filename>` (the protected download route from task 1.4)
+    - Show button for PDF and image content items
+    - _Requirements: 6.1, 6.2, 6.5_
+
+- [ ] 7. Analytics — topic-wise popularity
+  - [ ] 7.1 Update `server/controllers/adminAnalyticsController.js` — replace `coursePopularity` with `topicPopularity`
+    - Aggregate enrollments by `module.topicName || module.title` across completed orders
+    - Include all topics (zero-enrollment topics default to 0)
+    - Sort descending, take top 10
+    - Return as `topicPopularity` in the analytics response
+    - _Requirements: 7.1, 7.2, 7.4_
+  - [ ] 7.2 Write property test for topic popularity sorted descending, max 10 (Property 11)
+    - **Property 11: Topic popularity response has ≤10 entries, ordered by enrollment count descending**
+    - **Validates: Requirements 7.2, 7.4**
+  - [ ] 7.3 Update `client/app/admin/analytics/page.js` — replace PieChart with BarChart for topic popularity
+    - Title: "Topic-wise Popularity"
+    - X-axis: topic name, Y-axis: enrollment count
+    - Use `topicPopularity` data from API response
+    - _Requirements: 7.1, 7.3, 7.5_
+
+- [ ] 8. 5-star student feedback
+  - [ ] 8.1 Create `server/routes/feedback.js` with three routes
+    - `POST /api/feedback` — upsert rating by `(userId, courseId)`; validate rating 1–5
+    - `GET /api/feedback/course/:courseId` — return average rating (rounded to 1 decimal) and count
+    - `GET /api/feedback/my/:courseId` — return current user's rating for a course
+    - Initialize `db.data.feedback = []` if missing
+    - _Requirements: 8.2, 8.3, 8.6, 8.7_
+  - [ ] 8.2 Write property test for feedback upsert no duplicates (Property 12)
+    - **Property 12: Submitting N ratings for same (userId, courseId) results in exactly 1 record with the last rating**
+    - **Validates: Requirements 8.2, 8.3**
+  - [ ] 8.3 Write property test for average rating calculation (Property 14)
+    - **Property 14: Average rating equals Math.round(sum/N * 10) / 10**
+    - **Validates: Requirements 8.6**
+  - [ ] 8.4 Register feedback router in main server entry point
+  - [ ] 8.5 Add 5-star rating widget to student dashboard/progress view (`client/app/dashboard/page.js`)
+    - Show widget only when `completionPercentage >= 1`
+    - Fetch current rating via `GET /api/feedback/my/:courseId` on load
+    - On star click, POST to `/api/feedback`; update displayed stars to filled/highlighted state
+    - _Requirements: 8.1, 8.2, 8.4, 8.5_
+  - [ ] 8.6 Write property test for rating widget visibility (Property 13)
+    - **Property 13: Rating widget visible iff completionPercentage >= 1**
+    - **Validates: Requirements 8.1**
+  - [ ] 8.7 Update `client/app/admin/progress/page.js` — show average star rating per course
+    - Fetch average ratings via `GET /api/feedback/course/:courseId` for each course
+    - Display average (e.g. "4.2 ★") or "No ratings yet" if count is 0
+    - _Requirements: 8.6, 8.7_
+
+- [ ] 9. Checkpoint — ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 10. Homepage featured and recent courses
+  - [ ] 10.1 Add `GET /api/courses/recent` route to backend
+    - Return courses sorted by `createdAt` descending, limit 6
+    - _Requirements: 10.2, 10.3_
+  - [ ] 10.2 Update `GET /api/courses` default sort to `createdAt` descending
+    - _Requirements: 11.1, 11.2_
+  - [ ] 10.3 Write property test for recent courses ordering (Property 16)
+    - **Property 16: getRecentCourses returns ≤6 courses ordered by createdAt descending**
+    - **Validates: Requirements 10.2**
+  - [ ] 10.4 Write property test for default course list newest-first (Property 17)
+    - **Property 17: GET /api/courses without sort param returns courses ordered by createdAt descending**
+    - **Validates: Requirements 11.1**
+  - [ ] 10.5 Add `isFeatured` toggle to `client/app/admin/courses/page.js`
+    - Toggle button per course that PATCHes `isFeatured` on the course record
+    - _Requirements: 9.4_
+  - [ ] 10.6 Update `client/app/page.js` — replace single courses section with Featured + Recent sections
+    - "Featured Courses": call `GET /api/courses/featured`, show up to 6 cards; show "No featured courses available" if empty
+    - "Recent Courses": call `GET /api/courses/recent`, show up to 6 cards
+    - _Requirements: 9.1, 9.2, 9.3, 10.1, 10.4_
+  - [ ] 10.7 Write property test for featured courses filter and cap (Property 15)
+    - **Property 15: Featured section shows only isFeatured=true courses, max 6**
+    - **Validates: Requirements 9.1, 9.3, 9.4**
+
+- [ ] 11. Grade-wise course hierarchy
+  - [ ] 11.1 Update course create/update backend to accept and store `grade` field
+    - Validate grade is one of: "5th Std", "6th Std", "7th Std", "8th Std", "9th Std", "10th Std", "11th Std", "12th Std" or null
+    - Return 400 for invalid grade values
+    - _Requirements: 12.1, 12.2_
+  - [ ] 11.2 Update `GET /api/courses` to support `?grade=<grade>` filter
+    - Return only courses matching that grade, ordered by first module's `topicName` ascending
+    - _Requirements: 12.3, 12.5_
+  - [ ] 11.3 Write property test for grade filter correctness (Property 18)
+    - **Property 18: GET /api/courses?grade=G returns only courses where course.grade === G**
+    - **Validates: Requirements 12.1, 12.3, 12.5**
+  - [ ] 11.4 Update lesson create/update backend to accept and store `subTopicName` field
+    - _Requirements: 12.7, 12.10_
+  - [ ] 11.5 Write property test for hierarchy fields round-trip (Property 19)
+    - **Property 19: Setting topicName/subTopicName via API and reading back returns same value**
+    - **Validates: Requirements 12.6, 12.7, 12.9, 12.10**
+  - [ ] 11.6 Update `client/app/admin/courses/page.js` — add Grade dropdown to create/edit form and Grade filter to list
+    - Dropdown values: "5th Std" through "12th Std"
+    - _Requirements: 12.2, 12.3_
+  - [ ] 11.7 Update `client/app/admin/lessons/page.js` — add `subTopicName` text field to lesson create/edit form
+    - _Requirements: 12.10_
+  - [ ] 11.8 Update `client/app/courses/page.js` — add Grade filter dropdown
+    - On grade select, call `GET /api/courses?grade=<grade>`; on "All" show unfiltered list
+    - _Requirements: 12.4, 12.5_
+  - [ ] 11.9 Update `client/app/learn/[courseId]/page.js` — display grade-wise hierarchy
+    - Show Grade label at top
+    - Group modules by `topicName` (Topics); within each topic group lessons by `subTopicName` (Sub-topics)
+    - Render: Grade → Topics → Sub-topics → content items
+    - _Requirements: 12.8_
+
+- [ ] 12. Final checkpoint — ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
+
+## Notes
+
+- Tasks marked with `*` are optional and can be skipped for a faster MVP
+- Each task references specific requirements for traceability
+- Property tests use `fast-check` (already common in JS ecosystems)
+- File uploads are stored on the Render filesystem (`uploads/`); swap `multer` storage to Cloudinary/S3 for production persistence
+- The `topicName` field on modules is shared between Requirement 7 (analytics) and Requirement 12 (hierarchy) — implement once in task 5, reuse in tasks 7 and 11

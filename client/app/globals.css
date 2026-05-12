@@ -266,3 +266,31 @@ body {
 .border-gold-animate {
   animation: borderGlow 2s ease-in-out infinite;
 }
+
+/* Screen Protection */
+body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Allow text selection only in input fields and textareas */
+input, textarea, [contenteditable="true"] {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
+/* Disable image dragging */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
+}
+
+/* Allow pointer events on interactive images */
+img.interactive, button img, a img {
+  pointer-events: auto;
+}

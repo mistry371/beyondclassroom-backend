@@ -2,11 +2,16 @@ const Razorpay = require('razorpay')
 const crypto = require('crypto')
 const { db } = require('../database/db')
 
-// Initialize Razorpay
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET
-})
+// Lazy init — only create instance when keys are available
+const getRazorpay = () => {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new Error('Razorpay keys not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in environment variables.')
+  }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+  })
+}
 
 // Create Order
 exports.createOrder = async (req, res) => {
@@ -15,6 +20,7 @@ exports.createOrder = async (req, res) => {
     const userId = req.user._id
 
     // Create Razorpay order
+    const razorpay = getRazorpay()
     const options = {
       amount: amount * 100, // amount in paise
       currency: 'INR',
@@ -101,12 +107,12 @@ exports.verifyPayment = async (req, res) => {
       db.data.payments[paymentIndex].updatedAt = new Date()
     }
 
-    // Grant course access - Add to user's enrolled courses
+    // Grant course access - Add to user's purchasedCourses (consistent with rest of app)
     const userIndex = db.data.users.findIndex(u => u._id === userId)
     if (userIndex !== -1) {
-      db.data.users[userIndex].enrolledCourses = db.data.users[userIndex].enrolledCourses || []
-      if (!db.data.users[userIndex].enrolledCourses.includes(courseId)) {
-        db.data.users[userIndex].enrolledCourses.push(courseId)
+      db.data.users[userIndex].purchasedCourses = db.data.users[userIndex].purchasedCourses || []
+      if (!db.data.users[userIndex].purchasedCourses.includes(courseId)) {
+        db.data.users[userIndex].purchasedCourses.push(courseId)
       }
     }
 
@@ -199,7 +205,7 @@ exports.checkCourseAccess = async (req, res) => {
 
     // Check if user has purchased the course
     const user = db.data.users?.find(u => u._id === userId)
-    const hasAccess = user?.enrolledCourses?.includes(courseId) || false
+    const hasAccess = user?.purchasedCourses?.includes(courseId) || false
 
     // Check if trial is active
     const trial = db.data.trials?.find(
@@ -246,7 +252,7 @@ exports.startFreeTrial = async (req, res) => {
 
     // Check if user already purchased
     const user = db.data.users?.find(u => u._id === userId)
-    if (user?.enrolledCourses?.includes(courseId)) {
+    if (user?.purchasedCourses?.includes(courseId)) {
       return res.status(400).json({
         success: false,
         message: 'You already have access to this course'

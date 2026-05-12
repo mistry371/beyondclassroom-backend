@@ -116,9 +116,14 @@ exports.deleteCourse = async (req, res) => {
     }
     
     // Delete related modules, lessons, practices, quizzes
-    db.data.modules = db.data.modules?.filter(m => m.courseId !== req.params.id) || []
     const moduleIds = db.data.modules?.filter(m => m.courseId === req.params.id).map(m => m._id) || []
     db.data.lessons = db.data.lessons?.filter(l => !moduleIds.includes(l.moduleId)) || []
+    db.data.practices = db.data.practices?.filter(p => {
+      const lesson = db.data.lessons?.find(l => l._id === p.lessonId)
+      return lesson !== undefined
+    }) || []
+    db.data.quizzes = db.data.quizzes?.filter(q => !moduleIds.includes(q.moduleId)) || []
+    db.data.modules = db.data.modules?.filter(m => m.courseId !== req.params.id) || []
     
     db.data.courses = db.data.courses.filter(c => c._id !== req.params.id)
     await db.write()

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
-import { BookOpen, TrendingUp, Award, Clock, PlayCircle, Lock } from 'lucide-react'
+import { BookOpen, TrendingUp, Award, Clock, PlayCircle, Lock, AlertTriangle, ShoppingCart } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [purchasedCourses, setPurchasedCourses] = useState([])
   const [progress, setProgress] = useState([])
   const [loading, setLoading] = useState(true)
+  const [trialStatus, setTrialStatus] = useState(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -25,31 +26,33 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch user profile with purchased courses
       const profileRes = await api.get('/profile')
       const userCourses = profileRes.data.user.purchasedCourses || []
-      
-      // Fetch full course details
-      const coursesPromises = userCourses.map(courseId => 
-        api.get(`/courses/${courseId}`).catch(() => null)
+
+      const courses = await Promise.all(
+        userCourses.map(async (item) => {
+          if (item && typeof item === 'object' && item._id) return item
+          try {
+            const res = await api.get(`/courses/${item}`)
+            return res.data.course
+          } catch { return null }
+        })
       )
-      const coursesResults = await Promise.all(coursesPromises)
-      const courses = coursesResults
-        .filter(res => res !== null)
-        .map(res => res.data.course)
-      
-      setPurchasedCourses(courses)
-      
-      // Fetch progress for each course
-      const progressPromises = courses.map(course =>
-        api.get(`/progress/course/${course._id}`).catch(() => null)
+      const validCourses = courses.filter(Boolean)
+      setPurchasedCourses(validCourses)
+
+      const progressResults = await Promise.all(
+        validCourses.map(course =>
+          api.get(`/progress/course/${course._id}`).catch(() => null)
+        )
       )
-      const progressResults = await Promise.all(progressPromises)
-      const progressData = progressResults
-        .filter(res => res !== null)
-        .map(res => res.data.progress)
-      
-      setProgress(progressData)
+      setProgress(progressResults.filter(r => r !== null).map(r => r.data.progress))
+
+      // Fetch trial status
+      try {
+        const trialRes = await api.get('/trial/status')
+        setTrialStatus(trialRes.data)
+      } catch {}
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
     } finally {
@@ -90,6 +93,56 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Trial Banner */}
+        {trialStatus && !trialStatus.hasPurchasedCourses && (
+          trialStatus.trialExpired ? (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className="mb-6 bg-gradient-to-r from-red-500/20 to-orange-500/20 border border-red-500/30 rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500/20 rounded-xl"><Lock className="h-5 w-5 text-red-400" /></div>
+                <div>
+                  <p className="text-red-300 font-bold">Your free trial has expired</p>
+                  <p className="text-gray-400 text-sm">Purchase a course to continue learning and unlock all content.</p>
+                </div>
+              </div>
+              <button onClick={() => router.push('/courses')}
+                className="px-5 py-2.5 bg-gradient-to-r from-primary to-secondary text-white rounded-xl font-semibold hover:opacity-90 transition-all flex items-center gap-2 flex-shrink-0"
+              >
+                <ShoppingCart className="h-4 w-4" /> Browse Courses
+              </button>
+            </motion.div>
+          ) : trialStatus.trialActive ? (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+              className={`mb-6 border rounded-2xl p-5 flex items-center justify-between gap-4 flex-wrap ${
+                trialStatus.daysLeft === 0
+                  ? 'bg-gradient-to-r from-red-500/15 to-orange-500/15 border-red-500/30'
+                  : 'bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border-yellow-500/30'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-xl ${trialStatus.daysLeft === 0 ? 'bg-red-500/20' : 'bg-yellow-500/20'}`}>
+                  <AlertTriangle className={`h-5 w-5 ${trialStatus.daysLeft === 0 ? 'text-red-400' : 'text-yellow-400'}`} />
+                </div>
+                <div>
+                  <p className={`font-bold ${trialStatus.daysLeft === 0 ? 'text-red-300' : 'text-yellow-300'}`}>
+                    {trialStatus.daysLeft === 0
+                      ? `Free trial expires in ${trialStatus.hoursLeft} hour${trialStatus.hoursLeft !== 1 ? 's' : ''}`
+                      : `Free trial: ${trialStatus.daysLeft} day${trialStatus.daysLeft !== 1 ? 's' : ''} remaining`}
+                  </p>
+                  <p className="text-gray-400 text-sm">You have limited access. Purchase a course for full access.</p>
+                </div>
+              </div>
+              <button onClick={() => router.push('/courses')}
+                className={`px-5 py-2.5 rounded-xl font-semibold transition-all flex items-center gap-2 flex-shrink-0 ${
+                  trialStatus.daysLeft === 0 ? 'bg-red-500 text-white hover:bg-red-600' : 'bg-yellow-500 text-dark hover:bg-yellow-400'
+                }`}
+              >
+                <ShoppingCart className="h-4 w-4" /> Upgrade Now
+              </button>
+            </motion.div>
+          ) : null
+        )}
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <motion.div
@@ -228,7 +281,7 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -248,7 +301,21 @@ export default function Dashboard() {
           >
             <Award className="h-8 w-8 text-secondary mb-3" />
             <h3 className="text-lg font-bold text-white mb-2">Math Tools</h3>
-            <p className="text-gray-400 text-sm">Access 26 powerful mathematical calculators</p>
+            <p className="text-gray-400 text-sm">Access 40 powerful mathematical calculators</p>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push('/live')}
+            className="bg-gradient-to-br from-red-500/10 to-orange-500/10 backdrop-blur-xl rounded-2xl border border-red-500/20 p-6 text-left hover:border-red-500/40 transition-all"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="h-8 w-8 text-red-400" />
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Live Classes</h3>
+            <p className="text-gray-400 text-sm">Join live sessions with expert instructors</p>
           </motion.button>
         </div>
       </div>

@@ -1,6 +1,10 @@
 import './globals.css'
 import { Providers } from './providers'
 import Script from 'next/script'
+import dynamic from 'next/dynamic'
+
+const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false })
+const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false })
 
 export const metadata = {
   title: 'MathLearn Pro - Advanced Mathematics Learning Platform',
@@ -34,7 +38,11 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <AITutor />
+          <ScreenProtection />
+        </Providers>
       </body>
     </html>
   )

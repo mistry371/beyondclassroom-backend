@@ -10,17 +10,37 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://beyondclassroom.netlify.app',
+  'https://beyondclassroom-backend.onrender.com',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
-// Initialize database
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, Render health checks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Initialize database then start server
 initDB().then(() => {
   console.log('Database initialized');
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Server running on port ${PORT} with local database`));
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
 });
 
 // Helper functions
-const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9);
+const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11);
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your_jwt_secret', {
@@ -54,6 +74,24 @@ const protect = async (req, res, next) => {
 };
 
 // AUTH ROUTES
+app.post('/api/auth/login-precheck', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+    await db.read();
+    const user = db.data.users.find(u => u.email === email);
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    if (user.status === 'suspended') {
+      return res.status(403).json({ message: 'Account suspended. Contact support.' });
+    }
+    res.json({ success: true, message: 'Credentials valid. OTP will be sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, password, otp } = req.body;
@@ -113,6 +151,8 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(trialStartedAt.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days
     const user = {
       _id: generateId(),
       name,
@@ -125,6 +165,9 @@ app.post('/api/auth/register', async (req, res) => {
       purchasedCourses: [],
       favorites: [],
       emailVerified: true,
+      trialStartedAt: trialStartedAt.toISOString(),
+      trialEndsAt: trialEndsAt.toISOString(),
+      trialExpired: false,
       createdAt: new Date()
     };
 
@@ -163,9 +206,50 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP and new password are required' })
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' })
+    }
+    await db.read()
+
+    // Verify OTP was verified for password_reset
+    const otpRecord = db.data.otps?.find(o =>
+      o.email === email &&
+      o.purpose === 'password_reset' &&
+      o.otp === otp &&
+      o.verified === true &&
+      new Date(o.expiresAt) > new Date()
+    )
+    if (!otpRecord) {
+      return res.status(400).json({ message: 'Invalid or expired OTP. Please restart the process.' })
+    }
+
+    const userIdx = db.data.users.findIndex(u => u.email === email)
+    if (userIdx === -1) {
+      return res.status(404).json({ message: 'User not found' })
+    }
+
+    db.data.users[userIdx].password = await bcrypt.hash(newPassword, 12)
+    db.data.users[userIdx].updatedAt = new Date()
+
+    // Clean up used OTP
+    db.data.otps = db.data.otps.filter(o => !(o.email === email && o.purpose === 'password_reset'))
+    await db.write()
+
+    res.json({ success: true, message: 'Password reset successfully' })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, otpVerified } = req.body;
     
     // Validation
     if (!email || !password) {
@@ -184,7 +268,20 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
     }
 
+    // OTP must be verified for login (except guest)
+    if (!otpVerified) {
+      return res.status(400).json({ message: 'OTP verification required. Please verify your OTP first.' });
+    }
+
     const token = generateToken(user._id);
+
+    // Write activity log
+    try {
+      const ActivityLog = require('./models/ActivityLog');
+      db.data.activityLogs = db.data.activityLogs || [];
+      db.data.activityLogs.push(new ActivityLog({ userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email}` }));
+      await db.write();
+    } catch (_) {}
 
     res.json({
       success: true,
@@ -193,7 +290,10 @@ app.post('/api/auth/login', async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        trialEndsAt: user.trialEndsAt || null,
+        trialExpired: user.trialExpired || false,
+        purchasedCourses: user.purchasedCourses || []
       }
     });
   } catch (error) {
@@ -429,12 +529,41 @@ app.get('/api/profile', protect, async (req, res) => {
     const user = db.data.users.find(u => u._id === req.user._id);
     
     if (user) {
-      user.purchasedCourses = user.purchasedCourses.map(courseId => 
+      const populatedCourses = (user.purchasedCourses || []).map(courseId => 
         db.data.courses.find(c => c._id === courseId)
       ).filter(Boolean);
+      
+      const { password, ...userWithoutPassword } = user;
+      res.json({ success: true, user: { 
+        ...userWithoutPassword, 
+        purchasedCourses: populatedCourses,
+        trialEndsAt: user.trialEndsAt || null,
+        trialExpired: user.trialExpired || false
+      } });
+    } else {
+      res.status(404).json({ message: 'User not found' });
     }
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-    const { password, ...userWithoutPassword } = user;
+app.put('/api/profile', protect, async (req, res) => {
+  try {
+    await db.read();
+    const { name, email, profilePhoto } = req.body;
+    const userIndex = db.data.users.findIndex(u => u._id === req.user._id);
+    
+    if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
+    
+    if (name) db.data.users[userIndex].name = name;
+    if (email) db.data.users[userIndex].email = email;
+    if (profilePhoto !== undefined) db.data.users[userIndex].profilePhoto = profilePhoto;
+    db.data.users[userIndex].updatedAt = new Date();
+    
+    await db.write();
+    
+    const { password, ...userWithoutPassword } = db.data.users[userIndex];
     res.json({ success: true, user: userWithoutPassword });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -450,6 +579,19 @@ app.get('/api/notifications', protect, async (req, res) => {
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     
     res.json({ success: true, notifications });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+app.put('/api/notifications/mark-all-read', protect, async (req, res) => {
+  try {
+    await db.read();
+    db.data.notifications
+      .filter(n => n.user === req.user._id)
+      .forEach(n => { n.isRead = true; });
+    await db.write();
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -476,6 +618,85 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Server is running with local database' });
 });
 
+// Zoom test endpoint (admin only — remove in production)
+app.get('/api/zoom/test', protect, async (req, res) => {
+  try {
+    const zoomService = require('./services/zoomService');
+    const mode = zoomService.isApiConfigured() ? 'api' : zoomService.isPmiConfigured() ? 'pmi' : 'none';
+    if (mode === 'none') {
+      return res.json({ success: false, mode, message: 'Zoom not configured. Set ZOOM_PMI_LINK or Server-to-Server OAuth credentials in .env' });
+    }
+    const result = await zoomService.createMeeting({
+      title: 'Test Meeting - Beyond Classroom',
+      date: new Date().toISOString().split('T')[0],
+      time: '10:00',
+      duration: '30',
+      topic: 'Test'
+    });
+    res.json({ success: result.success, mode: result.mode, message: result.message, zoomLink: result.zoomLink, meetingId: result.meetingId });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Live classes endpoint — only for enrolled/purchased users
+app.get('/api/live-classes', protect, async (req, res) => {
+  try {
+    await db.read();
+    db.data.liveClasses = db.data.liveClasses || [];
+    const user = db.data.users.find(u => u._id === req.user._id);
+    const purchased = user?.purchasedCourses || [];
+
+    // Admin sees all classes
+    if (user?.role === 'admin' || user?.role === 'super_admin') {
+      return res.json({ success: true, liveClasses: db.data.liveClasses });
+    }
+
+    // Students only see classes if they have at least one purchased course
+    if (purchased.length === 0) {
+      return res.json({ success: true, liveClasses: [], locked: true, message: 'Purchase a course to access live classes' });
+    }
+
+    res.json({ success: true, liveClasses: db.data.liveClasses, locked: false });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// TRIAL STATUS ROUTE
+app.get('/api/trial/status', protect, async (req, res) => {
+  try {
+    await db.read();
+    const user = db.data.users.find(u => u._id === req.user._id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const now = new Date();
+    const trialEndsAt = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+    const trialActive = trialEndsAt && now < trialEndsAt;
+    const trialExpired = trialEndsAt && now >= trialEndsAt;
+    const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24))) : 0;
+    const hoursLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60))) : 0;
+
+    // Auto-mark expired
+    if (trialExpired && !user.trialExpired) {
+      user.trialExpired = true;
+      await db.write();
+    }
+
+    res.json({
+      success: true,
+      trialActive,
+      trialExpired: trialExpired || user.trialExpired || false,
+      trialEndsAt: user.trialEndsAt || null,
+      daysLeft,
+      hoursLeft,
+      hasPurchasedCourses: (user.purchasedCourses || []).length > 0
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // Import new routes
 const moduleRoutes = require('./routes/modules');
 const lessonRoutes = require('./routes/lessons');
@@ -485,6 +706,8 @@ const progressRoutes = require('./routes/progress');
 const adminRoutes = require('./routes/admin');
 const otpRoutes = require('./routes/otp');
 const paymentRoutes = require('./routes/payment');
+const subtopicRoutes = require('./routes/subtopics');
+const examRoutes = require('./routes/exams');
 
 // Use new routes
 app.use('/api/modules', moduleRoutes);
@@ -495,6 +718,5 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/admin', protect, adminRoutes);
 app.use('/api/otp', otpRoutes);
 app.use('/api/payment', paymentRoutes);
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT} with local database`));
+app.use('/api/subtopics', subtopicRoutes);
+app.use('/api/exams', examRoutes);

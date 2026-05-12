@@ -1,13 +1,31 @@
 const { db } = require('../database/db')
 const Module = require('../models/Module')
 
+// Get all modules (for admin)
+exports.getAllModules = async (req, res) => {
+  try {
+    await db.read()
+    const modules = db.data.modules || []
+    res.json({ success: true, modules })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 // Get all modules for a course
 exports.getModulesByCourse = async (req, res) => {
   try {
     await db.read()
     const { courseId } = req.params
     
-    const modules = db.data.modules?.filter(m => m.courseId === courseId) || []
+    let modules = db.data.modules?.filter(m => m.courseId === courseId) || []
+    
+    // Populate lesson count and lessons for each module
+    modules = modules.map(m => {
+      const lessons = db.data.lessons?.filter(l => l.moduleId === m._id) || []
+      const quiz = db.data.quizzes?.find(q => q.moduleId === m._id) || null
+      return { ...m, lessons, lessonCount: lessons.length, quiz }
+    })
     
     res.json({
       success: true,

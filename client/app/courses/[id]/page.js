@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { Clock, Users, Star, ShoppingCart, Heart, BookOpen, Award, CheckCircle, PlayCircle, Lock } from 'lucide-react'
+import { Clock, Users, Star, ShoppingCart, BookOpen, Award, CheckCircle, PlayCircle, Lock } from 'lucide-react'
 import Navbar from '@/components/Navbar'
+import PaymentModal from '@/components/PaymentModal'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
 
@@ -15,6 +16,7 @@ export default function CourseDetails() {
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
     fetchCourse()
@@ -34,7 +36,7 @@ export default function CourseDetails() {
   const handleAddToCart = async () => {
     // Check if user is logged in
     if (!user) {
-      router.push('/auth/login?redirect=/courses/' + params.id)
+      router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
       return
     }
     
@@ -50,17 +52,31 @@ export default function CourseDetails() {
   const handleEnroll = async () => {
     // Check if user is logged in
     if (!user) {
-      router.push('/auth/login?redirect=/courses/' + params.id)
+      router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
       return
     }
     
-    try {
-      await api.post('/orders', { courses: [course._id] })
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('Enrollment failed:', error)
-      alert('Failed to enroll. Please try again.')
+    // If course is free/demo, enroll directly via orders API
+    if (course.price === 0 || course.isFree || course.isDemo) {
+      try {
+        // Add to cart first, then place order to get it into purchasedCourses
+        await api.post('/cart', { courseId: course._id }).catch(() => {}) // ignore if already in cart
+        await api.post('/orders')
+        router.push(`/learn/${course._id}`)
+      } catch (error) {
+        console.error('Failed to enroll:', error)
+        alert('Failed to enroll. Please try again.')
+      }
+      return
     }
+    
+    // Open payment modal for paid courses
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = () => {
+    alert('Payment successful! You are now enrolled in the course.')
+    router.push('/dashboard')
   }
 
   if (loading) {
@@ -142,9 +158,15 @@ export default function CourseDetails() {
 
               <div className="flex items-center gap-4">
                 <div className="text-white">
-                  <span className="text-5xl font-bold">₹{course.price}</span>
-                  {course.discountPrice && (
-                    <span className="text-2xl text-gray-400 line-through ml-3">₹{course.discountPrice}</span>
+                  {course.price === 0 || course.isFree ? (
+                    <span className="text-5xl font-bold text-green-400">FREE</span>
+                  ) : (
+                    <>
+                      <span className="text-5xl font-bold">₹{course.price}</span>
+                      {course.discountPrice && (
+                        <span className="text-2xl text-gray-400 line-through ml-3">₹{course.discountPrice}</span>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -187,20 +209,31 @@ export default function CourseDetails() {
                   onClick={handleEnroll}
                   className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
-                  {user ? 'Enroll Now' : (
+                  {user ? (
+                    course.price === 0 || course.isFree ? (
+                      <>
+                        <PlayCircle className="h-5 w-5" />
+                        Start Free Course
+                      </>
+                    ) : (
+                      'Enroll Now'
+                    )
+                  ) : (
                     <>
                       <Lock className="h-5 w-5" />
                       Login to Enroll
                     </>
                   )}
                 </button>
-                <button
-                  onClick={handleAddToCart}
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-white py-4 rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2"
-                >
-                  <ShoppingCart className="h-5 w-5" />
-                  Add to Cart
-                </button>
+                {user && course.price > 0 && !course.isFree && (
+                  <button
+                    onClick={handleAddToCart}
+                    className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-white py-4 rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                    Add to Cart
+                  </button>
+                )}
               </div>
 
               {!user && (
@@ -361,6 +394,14 @@ export default function CourseDetails() {
           </div>
         </div>
       </div>
+
+      {/* Payment Modal */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        course={course}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   )
 }

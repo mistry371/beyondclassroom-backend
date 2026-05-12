@@ -3,23 +3,65 @@
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { BookOpen, Calculator, TrendingUp, Award, Sparkles, Zap, Brain, Rocket } from 'lucide-react'
 import Link from 'next/link'
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
+import api from '@/utils/api'
 
 export default function Hero() {
   const ref = useRef(null)
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start start", "end start"]
+  const [mounted, setMounted] = useState(false)
+  const [content, setContent] = useState({
+    heroTitle: 'Master Mathematics with Beyond Classroom',
+    heroSubtitle: 'Interactive lessons, live classes, and AI-powered tools for Grade 6-12 and competitive exams',
   })
 
-  const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"])
+  const { scrollYProgress } = useScroll({
+    target: ref,
+    offset: ['start start', 'end start'],
+  })
+
+  const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
   const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
 
+  // Stable random values generated once on mount (avoids hydration mismatch)
+  const [particles, setParticles] = useState([])
+
+  useEffect(() => {
+    setMounted(true)
+
+    // Generate particles only on client
+    const w = window.innerWidth
+    const h = window.innerHeight
+    setParticles(
+      Array.from({ length: 20 }, (_, i) => ({
+        id: i,
+        x: Math.random() * w,
+        y: Math.random() * h,
+        opacity: Math.random() * 0.5,
+        yAnim: Math.random() * -100 - 100,
+        duration: Math.random() * 3 + 2,
+        delay: Math.random() * 2,
+      }))
+    )
+
+    // Fetch admin-managed content
+    api.get('/admin/content')
+      .then(res => {
+        const c = res.data.content
+        if (c) {
+          setContent({
+            heroTitle:    c.heroTitle    || content.heroTitle,
+            heroSubtitle: c.heroSubtitle || content.heroSubtitle,
+          })
+        }
+      })
+      .catch(() => {/* keep defaults */})
+  }, [])
+
   const features = [
-    { icon: Brain, title: 'AI-Powered Learning', desc: 'Adaptive content for your level', color: 'from-primary to-secondary' },
-    { icon: Calculator, title: '20+ Elite Tools', desc: 'Professional calculators', color: 'from-secondary to-accent' },
-    { icon: Rocket, title: 'Fast Track', desc: '10x faster learning', color: 'from-accent to-primary' },
-    { icon: Award, title: 'Certified', desc: 'Industry-recognized', color: 'from-primary via-secondary to-accent' },
+    { icon: Brain,      title: 'AI-Powered Learning', desc: 'Adaptive content for your level',  color: 'from-primary to-secondary'          },
+    { icon: Calculator, title: '20+ Elite Tools',     desc: 'Professional calculators',          color: 'from-secondary to-accent'           },
+    { icon: Rocket,     title: 'Fast Track',          desc: '10x faster learning',               color: 'from-accent to-primary'             },
+    { icon: Award,      title: 'Certified',           desc: 'Industry-recognized',               color: 'from-primary via-secondary to-accent' },
   ]
 
   return (
@@ -34,66 +76,55 @@ export default function Hero() {
         </motion.div>
       </div>
 
-      {/* Floating Particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        {[...Array(20)].map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-2 h-2 bg-white rounded-full"
-            initial={{
-              x: Math.random() * window.innerWidth,
-              y: Math.random() * window.innerHeight,
-              opacity: Math.random() * 0.5
-            }}
-            animate={{
-              y: [null, Math.random() * -100 - 100],
-              opacity: [null, 0]
-            }}
-            transition={{
-              duration: Math.random() * 3 + 2,
-              repeat: Infinity,
-              delay: Math.random() * 2
-            }}
-          />
-        ))}
-      </div>
+      {/* Floating Particles — client only */}
+      {mounted && (
+        <div className="absolute inset-0 overflow-hidden">
+          {particles.map((p) => (
+            <motion.div
+              key={p.id}
+              className="absolute w-2 h-2 bg-white rounded-full"
+              initial={{ x: p.x, y: p.y, opacity: p.opacity }}
+              animate={{ y: p.yAnim, opacity: 0 }}
+              transition={{ duration: p.duration, repeat: Infinity, delay: p.delay }}
+            />
+          ))}
+        </div>
+      )}
 
       <motion.div style={{ opacity }} className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 z-10">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          transition={{ duration: 1, ease: 'easeOut' }}
           className="text-center mb-20"
         >
-          {/* Premium Badge */}
+          {/* Badge */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring" }}
+            transition={{ delay: 0.2, type: 'spring' }}
             className="inline-flex items-center gap-2 bg-gradient-to-r from-primary/20 to-secondary/20 backdrop-blur-xl border border-primary/30 rounded-full px-6 py-3 mb-8"
           >
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-            <span className="text-primary font-semibold">Elite Mathematics Platform</span>
+            <span className="text-primary font-semibold">Beyond Classroom</span>
             <Zap className="h-5 w-5 text-secondary animate-pulse" />
           </motion.div>
 
+          {/* Hero Title — from admin content */}
           <h1 className="text-6xl md:text-8xl font-black mb-8 leading-tight">
             <span className="block bg-clip-text text-transparent bg-gradient-to-r from-primary via-secondary to-accent animate-glow">
-              Master Mathematics
+              {content.heroTitle}
             </span>
-            <span className="block text-white mt-2">Like Never Before</span>
           </h1>
 
+          {/* Hero Subtitle — from admin content */}
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
             className="text-xl md:text-2xl text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed"
           >
-            Experience the future of mathematics education with{' '}
-            <span className="text-primary font-bold">AI-powered learning</span>,{' '}
-            <span className="text-secondary font-bold">20+ elite tools</span>, and{' '}
-            <span className="text-accent font-bold">world-class instruction</span>
+            {content.heroSubtitle}
           </motion.p>
 
           <motion.div
@@ -143,7 +174,7 @@ export default function Hero() {
                 whileHover={{ scale: 1.05, y: -10 }}
                 className="group relative"
               >
-                <div className="absolute inset-0 bg-gradient-to-r ${feature.color} rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity"></div>
+                <div className={`absolute inset-0 bg-gradient-to-r ${feature.color} rounded-2xl blur-xl opacity-50 group-hover:opacity-75 transition-opacity`}></div>
                 <div className="relative bg-dark-100/80 backdrop-blur-xl rounded-2xl p-6 border border-primary/10 group-hover:border-primary/30 transition-all">
                   <div className={`w-14 h-14 rounded-xl bg-gradient-to-r ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                     <Icon className="h-7 w-7 text-white" />

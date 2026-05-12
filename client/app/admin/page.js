@@ -12,17 +12,26 @@ import { motion } from 'framer-motion'
 
 export default function AdminDashboard() {
   const router = useRouter()
-  const { user } = useSelector(state => state.auth)
+  const { user, isAuthenticated } = useSelector(state => state.auth)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
+    // Check authentication and role
+    if (!isAuthenticated) {
+      router.push('/auth/login')
       return
     }
-    fetchDashboardStats()
-  }, [user])
+    
+    if (user && user.role !== 'admin' && user.role !== 'super_admin') {
+      router.push('/dashboard')
+      return
+    }
+    
+    if (user) {
+      fetchDashboardStats()
+    }
+  }, [user, isAuthenticated])
 
   const fetchDashboardStats = async () => {
     try {
@@ -60,7 +69,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Total Revenue',
-      value: `$${stats?.totalRevenue?.toFixed(2) || 0}`,
+      value: `₹${stats?.totalRevenue?.toFixed(2) || 0}`,
       icon: DollarSign,
       color: 'from-green-500 to-emerald-500',
       change: 0
@@ -124,29 +133,189 @@ export default function AdminDashboard() {
           ))}
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <QuickActionCard
-            title="User Management"
-            description="Manage users, roles, and permissions"
-            icon={Users}
-            color="from-primary to-secondary"
-            onClick={() => router.push('/admin/users')}
-          />
-          <QuickActionCard
-            title="Course Management"
-            description="Create and manage courses"
-            icon={BookOpen}
-            color="from-secondary to-accent"
-            onClick={() => router.push('/admin/courses')}
-          />
-          <QuickActionCard
-            title="Settings"
-            description="Configure platform settings"
-            icon={Settings}
-            color="from-green-500 to-emerald-500"
-            onClick={() => router.push('/admin/settings')}
-          />
+        {/* Quick Actions - All 20 Modules */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Content Management</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickActionCard
+              title="Modules"
+              description="Manage course modules"
+              icon={BookOpen}
+              color="from-primary to-secondary"
+              onClick={() => router.push('/admin/modules')}
+            />
+            <QuickActionCard
+              title="Lessons"
+              description="Create and edit lessons"
+              icon={BookOpen}
+              color="from-secondary to-accent"
+              onClick={() => router.push('/admin/lessons')}
+            />
+            <QuickActionCard
+              title="Subtopics"
+              description="Manage lesson subtopics"
+              icon={BookOpen}
+              color="from-teal-500 to-cyan-500"
+              onClick={() => router.push('/admin/subtopics')}
+            />
+            <QuickActionCard
+              title="Quizzes"
+              description="Manage quizzes and questions"
+              icon={BookOpen}
+              color="from-accent to-primary"
+              onClick={() => router.push('/admin/quizzes')}
+            />
+            <QuickActionCard
+              title="Examinations"
+              description="Create & manage full exams"
+              icon={BookOpen}
+              color="from-red-500 to-orange-500"
+              onClick={() => router.push('/admin/exams')}
+            />
+            <QuickActionCard
+              title="Media Library"
+              description="Upload and manage media"
+              icon={BookOpen}
+              color="from-purple-500 to-pink-500"
+              onClick={() => router.push('/admin/media')}
+            />
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Analytics & Reports</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickActionCard
+              title="Analytics"
+              description="View platform analytics"
+              icon={BarChart3}
+              color="from-green-500 to-emerald-500"
+              onClick={() => router.push('/admin/analytics')}
+            />
+            <QuickActionCard
+              title="Progress Tracking"
+              description="Monitor student progress"
+              icon={TrendingUp}
+              color="from-blue-500 to-cyan-500"
+              onClick={() => router.push('/admin/progress')}
+            />
+            <QuickActionCard
+              title="Activity Logs"
+              description="View system activity"
+              icon={Activity}
+              color="from-gray-500 to-slate-500"
+              onClick={() => router.push('/admin/logs')}
+            />
+            <QuickActionCard
+              title="Orders"
+              description="Manage orders and payments"
+              icon={ShoppingCart}
+              color="from-orange-500 to-red-500"
+              onClick={() => router.push('/admin/orders')}
+            />
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Communication</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickActionCard
+              title="Notifications"
+              description="Send notifications"
+              icon={Bell}
+              color="from-yellow-500 to-orange-500"
+              onClick={() => router.push('/admin/notifications')}
+            />
+            <QuickActionCard
+              title="Emails"
+              description="Manage email campaigns"
+              icon={Bell}
+              color="from-indigo-500 to-purple-500"
+              onClick={() => router.push('/admin/emails')}
+            />
+            <QuickActionCard
+              title="Announcements"
+              description="Platform announcements"
+              icon={Bell}
+              color="from-pink-500 to-rose-500"
+              onClick={() => router.push('/admin/announcements')}
+            />
+            <QuickActionCard
+              title="Certificates"
+              description="Manage certificates"
+              icon={Award}
+              color="from-amber-500 to-yellow-500"
+              onClick={() => router.push('/admin/certificates')}
+            />
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-white mb-4">Platform Management</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickActionCard
+              title="Users"
+              description="Manage all users"
+              icon={Users}
+              color="from-primary to-secondary"
+              onClick={() => router.push('/admin/users')}
+            />
+            <QuickActionCard
+              title="Courses"
+              description="Manage courses"
+              icon={BookOpen}
+              color="from-secondary to-accent"
+              onClick={() => router.push('/admin/courses')}
+            />
+            <QuickActionCard
+              title="Content"
+              description="Edit website content"
+              icon={BookOpen}
+              color="from-teal-500 to-green-500"
+              onClick={() => router.push('/admin/content')}
+            />
+            <QuickActionCard
+              title="Badges"
+              description="Create achievement badges"
+              icon={Award}
+              color="from-violet-500 to-purple-500"
+              onClick={() => router.push('/admin/badges')}
+            />
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-white mb-4">Security & Tools</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <QuickActionCard
+              title="Security"
+              description="Monitor security"
+              icon={Settings}
+              color="from-red-500 to-pink-500"
+              onClick={() => router.push('/admin/security')}
+            />
+            <QuickActionCard
+              title="Tools"
+              description="Manage learning tools"
+              icon={Settings}
+              color="from-cyan-500 to-blue-500"
+              onClick={() => router.push('/admin/tools')}
+            />
+            <QuickActionCard
+              title="Settings"
+              description="Platform settings"
+              icon={Settings}
+              color="from-green-500 to-emerald-500"
+              onClick={() => router.push('/admin/settings')}
+            />
+            <QuickActionCard
+              title="Live Classes"
+              description="Schedule & manage live sessions"
+              icon={Activity}
+              color="from-red-500 to-orange-500"
+              onClick={() => router.push('/admin/live')}
+            />
+          </div>
         </div>
 
         {/* Recent Activity */}
@@ -180,7 +349,7 @@ export default function AdminDashboard() {
               {stats?.recentOrders?.slice(0, 5).map(order => (
                 <div key={order._id} className="flex items-center justify-between p-3 bg-dark-200/30 rounded-lg">
                   <div>
-                    <p className="text-white font-medium">${order.totalAmount}</p>
+                    <p className="text-white font-medium">₹{order.totalAmount}</p>
                     <p className="text-gray-400 text-sm">{order.courses?.length} course(s)</p>
                   </div>
                   <span className="text-xs text-gray-500">

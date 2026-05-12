@@ -36,12 +36,20 @@ exports.getLesson = async (req, res) => {
   }
 }
 
+// Normalize content: if string, wrap into content object
+function normalizeContent(content) {
+  if (!content) return { concept: '', examples: [], practice: [], summary: '' }
+  if (typeof content === 'string') return { concept: content, examples: [], practice: [], summary: '' }
+  return content
+}
+
 // Create lesson
 exports.createLesson = async (req, res) => {
   try {
     await db.read()
     
-    const newLesson = new Lesson(req.body)
+    const body = { ...req.body, content: normalizeContent(req.body.content) }
+    const newLesson = new Lesson(body)
     
     db.data.lessons = db.data.lessons || []
     db.data.lessons.push(newLesson)
@@ -66,7 +74,9 @@ exports.updateLesson = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Lesson not found' })
     }
     
-    db.data.lessons[index] = { ...db.data.lessons[index], ...req.body, updatedAt: new Date() }
+    const body = { ...req.body }
+    if (body.content !== undefined) body.content = normalizeContent(body.content)
+    db.data.lessons[index] = { ...db.data.lessons[index], ...body, updatedAt: new Date() }
     
     await db.write()
     

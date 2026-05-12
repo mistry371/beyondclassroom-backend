@@ -37,7 +37,7 @@ export default function AdminSettings() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await api.post('/admin/settings/bulk', {
+      await api.put('/admin/settings/bulk', {
         settings: settings.map(s => ({ key: s.key, value: s.value }))
       })
       alert('Settings saved successfully!')

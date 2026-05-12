@@ -6,33 +6,20 @@ exports.getSecurityData = async (req, res) => {
     await db.read();
     
     const securityData = {
-      failedLogins: [
+      failedLogins: db.data.failedLogins || [
         {
           email: 'hacker@example.com',
           ip: '192.168.1.100',
           timestamp: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          email: 'test@example.com',
-          ip: '192.168.1.101',
-          timestamp: new Date(Date.now() - 7200000).toISOString()
         }
       ],
-      blockedIPs: [
-        { address: '192.168.1.200', blockedAt: new Date(Date.now() - 86400000).toISOString() }
-      ],
-      suspiciousActivity: [
+      blockedIPs: db.data.blockedIPs || [],
+      suspiciousActivity: db.data.suspiciousActivity || [
         {
           type: 'Multiple failed logins',
           description: '5 failed login attempts from same IP',
           severity: 'high',
           timestamp: new Date(Date.now() - 3600000).toISOString()
-        },
-        {
-          type: 'Unusual access pattern',
-          description: 'Access from new location',
-          severity: 'medium',
-          timestamp: new Date(Date.now() - 7200000).toISOString()
         }
       ]
     };

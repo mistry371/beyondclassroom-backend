@@ -1,5 +1,20 @@
+# Dependencies
 node_modules/
+
+# Environment
 .env
+
+# Database (contains real user data — never commit)
 database/db.json
+
+# Logs
 *.log
+logs/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

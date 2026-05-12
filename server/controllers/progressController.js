@@ -6,7 +6,7 @@ exports.getCourseProgress = async (req, res) => {
   try {
     await db.read()
     const { courseId } = req.params
-    const userId = req.user?.id || 'guest'
+    const userId = req.user?._id || req.user?.id || 'guest'
     
     let progress = db.data.progress?.find(p => p.userId === userId && p.courseId === courseId)
     
@@ -34,12 +34,16 @@ exports.updateLessonProgress = async (req, res) => {
   try {
     await db.read()
     const { courseId, lessonId } = req.params
-    const userId = req.user?.id || 'guest'
+    const userId = req.user?._id || req.user?.id || 'guest'
     
-    const progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
+    let progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
     
-    if (progressIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Progress not found' })
+    // Auto-create progress if not found
+    if (progressIndex === -1 || progressIndex === undefined) {
+      const newProgress = new Progress({ userId, courseId, expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) })
+      db.data.progress = db.data.progress || []
+      db.data.progress.push(newProgress)
+      progressIndex = db.data.progress.length - 1
     }
     
     const progress = db.data.progress[progressIndex]
@@ -48,10 +52,15 @@ exports.updateLessonProgress = async (req, res) => {
       progress.lessonsCompleted.push(lessonId)
     }
     
+    // Calculate completion percentage based on total lessons in course
+    const courseLessons = db.data.lessons?.filter(l => {
+      const module = db.data.modules?.find(m => m._id === l.moduleId)
+      return module?.courseId === courseId
+    }) || []
+    
+    const totalLessons = courseLessons.length || 1
+    progress.completionPercentage = Math.round((progress.lessonsCompleted.length / totalLessons) * 100)
     progress.lastAccessedAt = new Date()
-    if (progress.calculateProgress) {
-      progress.calculateProgress()
-    }
     
     db.data.progress[progressIndex] = progress
     await db.write()
@@ -68,12 +77,16 @@ exports.updateQuizProgress = async (req, res) => {
     await db.read()
     const { courseId, quizId } = req.params
     const { score } = req.body
-    const userId = req.user?.id || 'guest'
+    const userId = req.user?._id || req.user?.id || 'guest'
     
-    const progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
+    let progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
     
-    if (progressIndex === -1) {
-      return res.status(404).json({ success: false, message: 'Progress not found' })
+    // Auto-create progress if not found
+    if (progressIndex === -1 || progressIndex === undefined) {
+      const newProgress = new Progress({ userId, courseId, expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) })
+      db.data.progress = db.data.progress || []
+      db.data.progress.push(newProgress)
+      progressIndex = db.data.progress.length - 1
     }
     
     const progress = db.data.progress[progressIndex]
@@ -101,7 +114,7 @@ exports.updateQuizProgress = async (req, res) => {
 exports.getAllUserProgress = async (req, res) => {
   try {
     await db.read()
-    const userId = req.user?.id || 'guest'
+    const userId = req.user?._id || req.user?.id || 'guest'
     
     const userProgress = db.data.progress?.filter(p => p.userId === userId) || []
     

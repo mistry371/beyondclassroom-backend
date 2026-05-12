@@ -258,7 +258,9 @@ export default function AdvancedLearnPage() {
                           <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent mb-3">
                             {activeLesson.title}
                           </h1>
-                          <p className="text-gray-300 mb-6 text-lg">{activeLesson.description}</p>
+                          <p className="text-gray-300 mb-6 text-lg">
+                            {typeof activeLesson.description === 'string' ? activeLesson.description : ''}
+                          </p>
 
                           <div className="flex items-center gap-4 mb-6 pb-4 border-b border-white/10">
                             <div className="flex items-center gap-2 text-gray-400">
@@ -347,7 +349,7 @@ export default function AdvancedLearnPage() {
                           </div>
 
                           {/* Summary Section */}
-                          {activeLesson.content?.summary && (
+                          {activeLesson.content?.summary && typeof activeLesson.content.summary === 'string' && (
                             <div className="mt-8 bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/30 rounded-xl p-6">
                               <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
                                 <Award className="h-5 w-5" />
@@ -373,13 +375,31 @@ export default function AdvancedLearnPage() {
                               onClick={async () => {
                                 try {
                                   await api.put(`/progress/course/${params.courseId}/lesson/${activeLesson._id}`)
+                                  // Update progress state locally instead of full re-fetch
+                                  setProgress(prev => {
+                                    const completed = prev?.lessonsCompleted || []
+                                    if (!completed.includes(activeLesson._id)) {
+                                      const newCompleted = [...completed, activeLesson._id]
+                                      const totalLessons = modules.reduce((acc, m) => acc + (m.lessonCount || 1), 0) || newCompleted.length
+                                      return {
+                                        ...prev,
+                                        lessonsCompleted: newCompleted,
+                                        completionPercentage: Math.round((newCompleted.length / Math.max(totalLessons, newCompleted.length)) * 100)
+                                      }
+                                    }
+                                    return prev
+                                  })
                                   const currentIndex = lessons.findIndex(l => l._id === activeLesson._id)
                                   if (currentIndex < lessons.length - 1) {
                                     setActiveLesson(lessons[currentIndex + 1])
                                   }
-                                  fetchCourseData()
                                 } catch (err) {
                                   console.log('Progress update failed:', err)
+                                  // Still navigate even if progress update fails
+                                  const currentIndex = lessons.findIndex(l => l._id === activeLesson._id)
+                                  if (currentIndex < lessons.length - 1) {
+                                    setActiveLesson(lessons[currentIndex + 1])
+                                  }
                                 }
                               }}
                               className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:opacity-90 transition-all font-medium shadow-lg shadow-primary/20"

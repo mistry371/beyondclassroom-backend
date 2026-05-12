@@ -1,7 +1,7 @@
 {
   "name": "math-platform-server",
   "version": "1.0.0",
-  "main": "server.js",
+  "main": "server-simple.js",
   "scripts": {
     "dev": "nodemon server-simple.js",
     "start": "node server-simple.js"
