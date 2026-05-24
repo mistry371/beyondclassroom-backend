@@ -1,6 +1,11 @@
 const { db } = require('../database/db')
 const { sendEmail } = require('./emailService')
-const { welcomeEmailTemplate, courseEnrollmentEmailTemplate, courseExpiryReminderEmailTemplate } = require('./emailTemplates')
+const {
+  welcomeEmailTemplate,
+  courseEnrollmentEmailTemplate,
+  courseExpiryReminderEmailTemplate,
+  accountActionEmailTemplate
+} = require('./emailTemplates')
 
 // Create notification
 exports.createNotification = async (userId, title, message, type = 'info') => {
@@ -74,18 +79,7 @@ exports.sendEnrollmentNotification = async (userId, userName, userEmail, courseN
       await sendEmail({
         to: userEmail,
         subject: `Enrollment Confirmed: ${courseName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #22d3ee;">Enrollment Confirmed! 🎓</h1>
-            <p>Hi ${userName},</p>
-            <p>Great news! You've successfully enrolled in:</p>
-            <h2 style="color: #a855f7;">${courseName}</h2>
-            <p>Your learning journey begins now. Access your course anytime from your dashboard.</p>
-            <p><strong>Course Access:</strong> 90 days from enrollment</p>
-            <p>Happy Learning!</p>
-            <p><strong>The Beyond Classroom Team</strong></p>
-          </div>
-        `
+        html: courseEnrollmentEmailTemplate(userName, courseName, '')
       })
     } catch (emailError) {
       console.log('Email sending failed (optional):', emailError.message)
@@ -114,17 +108,7 @@ exports.sendExpiryReminder = async (userId, userName, userEmail, courseName, day
       await sendEmail({
         to: userEmail,
         subject: `Course Expiring Soon: ${courseName}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #f59e0b;">Course Expiring Soon! ⏰</h1>
-            <p>Hi ${userName},</p>
-            <p>This is a friendly reminder that your access to:</p>
-            <h2 style="color: #a855f7;">${courseName}</h2>
-            <p>Will expire in <strong>${daysRemaining} days</strong>.</p>
-            <p>Don't lose your progress! Consider renewing your subscription to continue learning.</p>
-            <p><strong>The Beyond Classroom Team</strong></p>
-          </div>
-        `
+        html: courseExpiryReminderEmailTemplate(userName, courseName, daysRemaining)
       })
     } catch (emailError) {
       console.log('Email sending failed (optional):', emailError.message)
@@ -152,16 +136,8 @@ exports.sendAdminActionNotification = async (userId, userName, userEmail, action
     try {
       await sendEmail({
         to: userEmail,
-        subject: `Account ${action}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #22d3ee;">Account Update</h1>
-            <p>Hi ${userName},</p>
-            <p>${details}</p>
-            <p>If you have any questions, please contact our support team.</p>
-            <p><strong>The Beyond Classroom Team</strong></p>
-          </div>
-        `
+        subject: `Account ${action} - Beyond Classroom`,
+        html: accountActionEmailTemplate(userName, action, details)
       })
     } catch (emailError) {
       console.log('Email sending failed (optional):', emailError.message)

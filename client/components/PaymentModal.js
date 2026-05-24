@@ -19,26 +19,6 @@ export default function PaymentModal({ isOpen, onClose, course, onSuccess }) {
       document.body.appendChild(script)
     })
 
-  // Direct enrollment — used when Razorpay keys are not configured
-  const handleDirectEnroll = async () => {
-    setLoading(true)
-    try {
-      // Add to cart then create order (reuses existing order flow)
-      await api.post('/cart', { courseId: course._id }).catch(() => {})
-      await api.post('/orders')
-      setDone(true)
-      setTimeout(() => {
-        setDone(false)
-        onSuccess()
-        onClose()
-      }, 1500)
-    } catch (error) {
-      alert(error.response?.data?.message || 'Enrollment failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handlePayment = async () => {
     if (!course?._id) return
     setLoading(true)
@@ -46,12 +26,12 @@ export default function PaymentModal({ isOpen, onClose, course, onSuccess }) {
     try {
       const scriptLoaded = await loadRazorpayScript()
       if (!scriptLoaded) {
-        // Razorpay script failed — fall back to direct enroll
-        await handleDirectEnroll()
+        alert('Payment gateway failed to load. Please check your internet connection and try again.')
+        setLoading(false)
         return
       }
 
-      // Try to create Razorpay order
+      // Create Razorpay order
       let orderData
       try {
         const res = await api.post('/payment/create-order', {
@@ -59,17 +39,18 @@ export default function PaymentModal({ isOpen, onClose, course, onSuccess }) {
           amount: course.price,
         })
         orderData = res.data
-      } catch {
-        // Backend Razorpay not configured — fall back to direct enroll
-        await handleDirectEnroll()
+      } catch (err) {
+        alert(err.response?.data?.message || 'Failed to initiate payment. Please try again.')
+        setLoading(false)
         return
       }
 
       const { order, keyId } = orderData
-      const resolvedKey = keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_live_SRVzzcULeXSVOl'
+      const resolvedKey = keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
 
       if (!resolvedKey || !order?.id) {
-        await handleDirectEnroll()
+        alert('Payment configuration error. Please contact support.')
+        setLoading(false)
         return
       }
 

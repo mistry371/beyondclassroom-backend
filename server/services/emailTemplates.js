@@ -316,10 +316,245 @@ exports.passwordResetEmailTemplate = (userName, resetLink) => {
   `
 }
 
+// Admin notification email template
+exports.adminNewUserEmailTemplate = (userName, userEmail, registeredAt) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:30px;">
+  <h2 style="color:#1f2937;margin:0 0 16px 0;">🆕 New User Registered</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Name</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userEmail}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Registered At</td><td style="padding:8px 0;color:#1f2937;">${registeredAt}</td></tr>
+  </table>
+  <div style="margin-top:24px;">
+    <a href="https://beyondclassroom.netlify.app/admin/users" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">View in Admin Panel</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
+// Admin notification email template for new order
+exports.adminNewOrderEmailTemplate = (userName, userEmail, courseName, amount, orderId) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:30px;">
+  <h2 style="color:#1f2937;margin:0 0 16px 0;">💰 New Order Received</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Student</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;">${userEmail}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Course</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${courseName}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;color:#10b981;font-weight:700;font-size:18px;">₹${amount}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Order ID</td><td style="padding:8px 0;color:#6b7280;font-size:12px;">${orderId}</td></tr>
+  </table>
+  <div style="margin-top:24px;">
+    <a href="https://beyondclassroom.netlify.app/admin/orders" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">View Orders</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
+// Custom Request - Admin Notification
+exports.adminCustomRequestEmailTemplate = (userName, userEmail, title, deliverable, topics, budget) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:30px;">
+  <h2 style="color:#1f2937;margin:0 0 16px 0;">📋 New Custom Course Request</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Student</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;">${userEmail}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Title</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${title}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Deliverable</td><td style="padding:8px 0;color:#1f2937;">${deliverable || 'Not specified'}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Topics</td><td style="padding:8px 0;color:#1f2937;">${topics || 'Not specified'}</td></tr>
+    <tr><td style="padding:8px 0;color:#6b7280;">Budget</td><td style="padding:8px 0;color:#10b981;font-weight:700;">${budget ? '₹' + budget : 'Not specified'}</td></tr>
+  </table>
+  <div style="margin-top:24px;">
+    <a href="https://beyondclassroom.netlify.app/admin/custom-requests" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">Review Request</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
+// Custom Request - Student Quote Notification
+exports.studentCustomRequestQuotedTemplate = (userName, title, quotedPrice, adminNote) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:40px 30px;">
+  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;">Your Request Has Been Quoted! 💰</h2>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName},</p>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 30px 0;">
+    Great news! Your custom course request <strong>"${title}"</strong> has been reviewed and quoted.
+  </p>
+  <div style="background:linear-gradient(135deg,#f0f9ff,#faf5ff);border:2px solid #22d3ee;border-radius:12px;padding:30px;text-align:center;margin:30px 0;">
+    <p style="color:#6b7280;margin:0 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;">Quoted Price</p>
+    <h1 style="color:#22d3ee;font-size:48px;margin:0;font-weight:700;">₹${quotedPrice}</h1>
+  </div>
+  ${adminNote ? `<div style="background:#f9fafb;padding:20px;border-radius:8px;margin:20px 0;"><p style="color:#4b5563;margin:0;font-size:15px;"><strong>Note from Admin:</strong> ${adminNote}</p></div>` : ''}
+  <div style="text-align:center;margin:30px 0;">
+    <a href="https://beyondclassroom.netlify.app/dashboard/custom-requests" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">View & Accept</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
+// Custom Request - Student Status Update
+exports.studentCustomRequestStatusTemplate = (userName, title, status, message) => {
+  const statusConfig = {
+    reviewing: { color: '#f59e0b', icon: '🔍', label: 'Under Review' },
+    accepted:  { color: '#10b981', icon: '✅', label: 'Accepted' },
+    rejected:  { color: '#ef4444', icon: '❌', label: 'Not Fulfilled' },
+    completed: { color: '#22d3ee', icon: '🎉', label: 'Completed' },
+  }[status] || { color: '#6b7280', icon: '📋', label: status }
+
+  return `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:40px 30px;">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="display:inline-block;background:${statusConfig.color}22;border:2px solid ${statusConfig.color};border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">${statusConfig.icon}</div>
+  </div>
+  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:24px;text-align:center;">Request ${statusConfig.label}</h2>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 16px 0;">Hi ${userName},</p>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">
+    Your custom course request <strong>"${title}"</strong> status has been updated to <strong style="color:${statusConfig.color};">${statusConfig.label}</strong>.
+  </p>
+  <div style="background:#f9fafb;padding:20px;border-radius:8px;margin:20px 0;">
+    <p style="color:#4b5563;margin:0;font-size:15px;">${message}</p>
+  </div>
+  <div style="text-align:center;margin:30px 0;">
+    <a href="https://beyondclassroom.netlify.app/dashboard/custom-requests" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">View Request</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+}
+
+// Quiz Results Email Template
+exports.quizResultsEmailTemplate = (userName, quizTitle, score, totalQuestions, percentage, passed) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:40px 30px;">
+  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;">Quiz Results 📊</h2>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName}, here are your results for <strong>${quizTitle}</strong>:</p>
+  <div style="background:linear-gradient(135deg,${passed ? '#f0fdf4' : '#fef2f2'},${passed ? '#ecfdf5' : '#fff1f2'});border:2px solid ${passed ? '#10b981' : '#ef4444'};border-radius:12px;padding:30px;text-align:center;margin:30px 0;">
+    <p style="color:#6b7280;margin:0 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;">Your Score</p>
+    <h1 style="color:${passed ? '#10b981' : '#ef4444'};font-size:56px;margin:0;font-weight:700;">${percentage}%</h1>
+    <p style="color:#6b7280;margin:8px 0 0 0;font-size:16px;">${score} / ${totalQuestions} correct</p>
+    <div style="margin-top:16px;display:inline-block;background:${passed ? '#10b981' : '#ef4444'};color:white;padding:8px 24px;border-radius:20px;font-weight:700;font-size:16px;">
+      ${passed ? '🎉 PASSED' : '📚 KEEP PRACTICING'}
+    </div>
+  </div>
+  <div style="text-align:center;margin:30px 0;">
+    <a href="https://beyondclassroom.netlify.app/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Go to Dashboard</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
+// Account Action Email Template (suspend/unsuspend/warning)
+exports.accountActionEmailTemplate = (userName, action, details) => {
+  const actionConfig = {
+    suspended:   { color: '#ef4444', icon: '🚫', title: 'Account Suspended' },
+    unsuspended: { color: '#10b981', icon: '✅', title: 'Account Restored' },
+    warning:     { color: '#f59e0b', icon: '⚠️', title: 'Account Warning' },
+  }[action] || { color: '#6b7280', icon: '📋', title: 'Account Update' }
+
+  return `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:40px 30px;">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="display:inline-block;background:${actionConfig.color}22;border:2px solid ${actionConfig.color};border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">${actionConfig.icon}</div>
+  </div>
+  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:24px;text-align:center;">${actionConfig.title}</h2>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 16px 0;">Hi ${userName},</p>
+  <div style="background:#f9fafb;border-left:4px solid ${actionConfig.color};padding:20px;border-radius:4px;margin:20px 0;">
+    <p style="color:#4b5563;margin:0;font-size:15px;line-height:1.6;">${details}</p>
+  </div>
+  <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:20px 0 0 0;">
+    If you have any questions, please contact our support team.
+  </p>
+  <div style="text-align:center;margin:30px 0;">
+    <a href="https://beyondclassroom.netlify.app/contact" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Contact Support</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+}
+
+// Payment Receipt Email Template
+exports.paymentReceiptEmailTemplate = (userName, courseName, amount, orderId, paymentDate) => `
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
+<div style="max-width:600px;margin:0 auto;background:white;">
+${getEmailHeader()}
+<div style="padding:40px 30px;">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="display:inline-block;background:#10b98122;border:2px solid #10b981;border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">🧾</div>
+  </div>
+  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;text-align:center;">Payment Receipt</h2>
+  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName}, thank you for your purchase!</p>
+  <div style="background:#f9fafb;border-radius:12px;padding:24px;margin:24px 0;">
+    <table style="width:100%;border-collapse:collapse;">
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Course</td>
+        <td style="padding:12px 0;color:#1f2937;font-weight:600;text-align:right;">${courseName}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Order ID</td>
+        <td style="padding:12px 0;color:#6b7280;font-size:12px;text-align:right;">${orderId}</td>
+      </tr>
+      <tr style="border-bottom:1px solid #e5e7eb;">
+        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Date</td>
+        <td style="padding:12px 0;color:#1f2937;text-align:right;">${paymentDate}</td>
+      </tr>
+      <tr>
+        <td style="padding:16px 0;color:#1f2937;font-weight:700;font-size:16px;">Total Paid</td>
+        <td style="padding:16px 0;color:#10b981;font-weight:700;font-size:22px;text-align:right;">₹${amount}</td>
+      </tr>
+    </table>
+  </div>
+  <div style="text-align:center;margin:30px 0;">
+    <a href="https://beyondclassroom.netlify.app/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Start Learning</a>
+  </div>
+</div>
+${getEmailFooter()}
+</div></body></html>
+`
+
 module.exports = {
   otpEmailTemplate: exports.otpEmailTemplate,
   welcomeEmailTemplate: exports.welcomeEmailTemplate,
   courseEnrollmentEmailTemplate: exports.courseEnrollmentEmailTemplate,
   courseExpiryReminderEmailTemplate: exports.courseExpiryReminderEmailTemplate,
-  passwordResetEmailTemplate: exports.passwordResetEmailTemplate
+  passwordResetEmailTemplate: exports.passwordResetEmailTemplate,
+  adminNewUserEmailTemplate: exports.adminNewUserEmailTemplate,
+  adminNewOrderEmailTemplate: exports.adminNewOrderEmailTemplate,
+  adminCustomRequestEmailTemplate: exports.adminCustomRequestEmailTemplate,
+  studentCustomRequestQuotedTemplate: exports.studentCustomRequestQuotedTemplate,
+  studentCustomRequestStatusTemplate: exports.studentCustomRequestStatusTemplate,
+  quizResultsEmailTemplate: exports.quizResultsEmailTemplate,
+  accountActionEmailTemplate: exports.accountActionEmailTemplate,
+  paymentReceiptEmailTemplate: exports.paymentReceiptEmailTemplate,
 }

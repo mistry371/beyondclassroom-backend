@@ -4,7 +4,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://beyondclassroom-back
 
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000, // 30s — handles Render cold start
+  timeout: 45000, // 45s — enough for Render cold start + MongoDB connect
   headers: {
     'Content-Type': 'application/json',
   },
@@ -24,11 +24,20 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Clear stale auth data and redirect to login
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
       const currentPath = window.location.pathname
-      if (!currentPath.startsWith('/auth')) {
+
+      // Only redirect to login from pages that actually require authentication
+      // Public pages (home, about, courses, blogs, contact, tools) should never redirect
+      const publicPaths = ['/', '/about', '/team', '/packages', '/courses', '/blogs', '/contact', '/tools', '/career', '/live', '/promoter']
+      const isPublicPath = (
+        publicPaths.some(p => currentPath === p || currentPath.startsWith(p + '/'))
+        || currentPath.startsWith('/courses/')
+        || currentPath.startsWith('/blogs/')
+      ) && !currentPath.startsWith('/promoter/dashboard')
+      if (!isPublicPath && !currentPath.startsWith('/auth') && !currentPath.startsWith('/promoter/login') && !currentPath.startsWith('/promoter/register')) {
+        // Clear stale auth data and redirect to login
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
         window.location.href = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
       }
     }

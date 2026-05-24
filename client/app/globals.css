@@ -267,6 +267,38 @@ body {
   animation: borderGlow 2s ease-in-out infinite;
 }
 
+/* Beyond Classroom brand utilities */
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(8, 31, 140, 0.08);
+}
+
+.glass-dark {
+  background: rgba(5, 11, 43, 0.75);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.premium-card {
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+
+.premium-card:hover {
+  box-shadow: 0 25px 50px -12px rgba(8, 31, 140, 0.25);
+  transform: translateY(-4px);
+}
+
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 40s linear infinite;
+}
+
 /* Screen Protection */
 body {
   -webkit-user-select: none;

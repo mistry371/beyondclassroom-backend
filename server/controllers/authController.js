@@ -89,22 +89,60 @@ exports.guestLogin = async (req, res) => {
 
 exports.forgotPassword = async (req, res) => {
   try {
+    const crypto = require('crypto');
+    const { passwordResetEmailTemplate } = require('../services/emailTemplates');
     const { email } = req.body;
     const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     }
 
-    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
-    
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
+    await user.save();
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`;
+
     await sendEmail({
       to: email,
-      subject: 'Password Reset OTP',
-      text: `Your OTP for password reset is: ${resetToken}`
+      subject: 'Reset Your Password - Beyond Classroom',
+      html: passwordResetEmailTemplate(user.name, resetLink)
     });
 
-    res.json({ success: true, message: 'OTP sent to email' });
+    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Reset token and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid or expired reset link. Please request a new one.' });
+    }
+
+    user.password = newPassword;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Password reset successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

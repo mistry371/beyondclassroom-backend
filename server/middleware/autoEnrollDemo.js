@@ -5,8 +5,8 @@ async function autoEnrollDemoCourse(userId) {
   try {
     await db.read()
 
-    // Find the demo course
-    const demoCourse = db.data.courses?.find(c => c.isDemo === true || c.isFree === true)
+    // Find the demo course — only match explicitly marked demo courses, NOT by price
+    const demoCourse = db.data.courses?.find(c => c.isDemo === true)
     
     if (!demoCourse) {
       console.log('No demo course found for auto-enrollment')

@@ -7,14 +7,31 @@ const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false })
 const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false })
 
 export const metadata = {
-  title: 'MathLearn Pro - Advanced Mathematics Learning Platform',
-  description: 'Master advanced mathematics with interactive tools, comprehensive courses, and expert instruction',
+  title: 'Beyond Classroom | Premium Mathematics Education',
+  description: 'Mathematics meets personalization. Premium edtech for Grades 6–12, Boards, JEE — live classes, AI tools, and expert educators.',
+  keywords: ['mathematics', 'education', 'JEE', 'CBSE', 'online learning', 'Beyond Classroom', 'edtech'],
+  openGraph: {
+    title: 'Beyond Classroom | Premium Mathematics Education',
+    description: 'Personalized math learning with live classes, AI tutor, and 40+ tools.',
+    url: 'https://beyondclassroom.netlify.app',
+    siteName: 'Beyond Classroom',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Beyond Classroom',
+    description: 'Premium personalized mathematics education',
+  },
+  robots: { index: true, follow: true },
 }
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
+        <link rel="icon" href="/logo.jpeg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <Script
           id="mathjax-config"
           strategy="beforeInteractive"
@@ -25,16 +42,24 @@ export default function RootLayout({ children }) {
                   inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
                   displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
                 },
-                svg: {
-                  fontCache: 'global'
-                }
+                svg: { fontCache: 'global' }
               };
             `,
           }}
         />
+        <Script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" strategy="beforeInteractive" />
         <Script
-          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"
-          strategy="beforeInteractive"
+          id="structured-data"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'EducationalOrganization',
+              name: 'Beyond Classroom',
+              description: 'Premium personalized mathematics education platform',
+              url: 'https://beyondclassroom.netlify.app',
+            }),
+          }}
         />
       </head>
       <body>

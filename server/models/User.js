@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
   isGuest: { type: Boolean, default: false },
   purchasedCourses: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
   favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Course' }],
+  passwordResetToken: { type: String },
+  passwordResetExpires: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

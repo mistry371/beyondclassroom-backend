@@ -69,11 +69,10 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
       console.error('Email error details:', emailError.message);
     }
     
-    // Return OTP in response as fallback (in case email fails)
+    // Return success — OTP sent via email only (no fallback leak)
     return {
       success: true,
       message: 'OTP sent successfully to your email. Please check your inbox.',
-      otp: otpCode, // Shown as fallback if email not received
       expiresAt: otp.expiresAt
     }
   } catch (error) {

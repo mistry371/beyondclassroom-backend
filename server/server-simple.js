@@ -1,7 +1,9 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { db, initDB } = require('./database/db');
 
@@ -74,37 +76,10 @@ const protect = async (req, res, next) => {
 };
 
 // AUTH ROUTES
-app.post('/api/auth/login-precheck', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
-    await db.read();
-    const user = db.data.users.find(u => u.email === email);
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ message: 'Invalid credentials' });
-    }
-    if (user.status === 'suspended') {
-      return res.status(403).json({ message: 'Account suspended. Contact support.' });
-    }
-    res.json({ success: true, message: 'Credentials valid. OTP will be sent.' });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, otp } = req.body;
+    const { name, email, password, referralCode } = req.body;
     
-    console.log('\n' + '='.repeat(60));
-    console.log('📝 REGISTRATION REQUEST');
-    console.log('='.repeat(60));
-    console.log(`Name: ${name}`);
-    console.log(`Email: ${email}`);
-    console.log(`OTP Provided: ${otp}`);
-    console.log('='.repeat(60) + '\n');
-    
-    // Validation
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
@@ -123,31 +98,6 @@ app.post('/api/auth/register', async (req, res) => {
     const userExists = db.data.users.find(u => u.email === email);
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
-    }
-    
-    // OTP is REQUIRED for registration
-    if (!otp) {
-      return res.status(400).json({ message: 'OTP verification is required. Please verify your email first.' });
-    }
-    
-    // Check if OTP was verified (MANDATORY)
-    const otpRecord = db.data.otps?.find(o => 
-      o.email === email && 
-      o.purpose === 'registration' && 
-      o.otp === otp &&
-      o.verified === true &&
-      new Date(o.expiresAt) > new Date()
-    );
-    
-    console.log(`OTP Record Found: ${otpRecord ? 'YES' : 'NO'}`);
-    if (otpRecord) {
-      console.log(`OTP Match: ${otpRecord.otp === otp}`);
-      console.log(`OTP Verified: ${otpRecord.verified}`);
-      console.log(`OTP Expired: ${new Date(otpRecord.expiresAt) <= new Date()}`);
-    }
-    
-    if (!otpRecord) {
-      return res.status(400).json({ message: 'Invalid or expired OTP. Please verify your email first.' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -173,20 +123,34 @@ app.post('/api/auth/register', async (req, res) => {
 
     db.data.users.push(user);
     await db.write();
+
+    if (referralCode) {
+      try {
+        const referralService = require('./services/referralService');
+        await referralService.recordReferralSignup(referralCode, user);
+      } catch (refErr) {
+        console.error('Referral tracking failed:', refErr.message);
+      }
+    }
     
     // Auto-enroll in free demo course
     const { autoEnrollDemoCourse } = require('./middleware/autoEnrollDemo');
     await autoEnrollDemoCourse(user._id);
     
-    // Clean up used OTP
-    db.data.otps = db.data.otps?.filter(o => 
-      !(o.email === email && o.purpose === 'registration' && o.otp === otp)
-    ) || [];
-    await db.write();
-    
     // Send welcome notification
     const notificationService = require('./services/notificationService');
     await notificationService.sendWelcomeNotification(user._id, user.name, user.email);
+
+    // Notify admin of new registration
+    try {
+      const { adminNewUserEmailTemplate } = require('./services/emailTemplates');
+      const { sendEmail } = require('./services/emailService');
+      await sendEmail({
+        to: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
+        subject: `New User Registered: ${user.name}`,
+        html: adminNewUserEmailTemplate(user.name, user.email, new Date().toLocaleString('en-IN'))
+      });
+    } catch (_) {}
 
     const token = generateToken(user._id);
 
@@ -206,39 +170,71 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' })
+    }
+
+    await db.read()
+    const userIdx = db.data.users.findIndex(u => u.email === email)
+    if (userIdx === -1) {
+      return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' })
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex')
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+
+    db.data.users[userIdx].passwordResetToken = resetToken
+    db.data.users[userIdx].passwordResetExpires = resetExpires
+    await db.write()
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+    const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`
+
+    try {
+      const { passwordResetEmailTemplate } = require('./services/emailTemplates')
+      const { sendEmail } = require('./services/emailService')
+      await sendEmail({
+        to: email,
+        subject: 'Reset Your Password - Beyond Classroom',
+        html: passwordResetEmailTemplate(db.data.users[userIdx].name, resetLink)
+      })
+    } catch (emailErr) {
+      console.error('Password reset email failed:', emailErr.message)
+    }
+
+    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
-    const { email, otp, newPassword } = req.body
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ message: 'Email, OTP and new password are required' })
+    const { token, newPassword } = req.body
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'Reset token and new password are required' })
     }
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' })
     }
     await db.read()
 
-    // Verify OTP was verified for password_reset
-    const otpRecord = db.data.otps?.find(o =>
-      o.email === email &&
-      o.purpose === 'password_reset' &&
-      o.otp === otp &&
-      o.verified === true &&
-      new Date(o.expiresAt) > new Date()
+    const userIdx = db.data.users.findIndex(u =>
+      u.passwordResetToken === token &&
+      u.passwordResetExpires &&
+      new Date(u.passwordResetExpires) > new Date()
     )
-    if (!otpRecord) {
-      return res.status(400).json({ message: 'Invalid or expired OTP. Please restart the process.' })
-    }
-
-    const userIdx = db.data.users.findIndex(u => u.email === email)
     if (userIdx === -1) {
-      return res.status(404).json({ message: 'User not found' })
+      return res.status(400).json({ message: 'Invalid or expired reset link. Please request a new one.' })
     }
 
     db.data.users[userIdx].password = await bcrypt.hash(newPassword, 12)
     db.data.users[userIdx].updatedAt = new Date()
-
-    // Clean up used OTP
-    db.data.otps = db.data.otps.filter(o => !(o.email === email && o.purpose === 'password_reset'))
+    delete db.data.users[userIdx].passwordResetToken
+    delete db.data.users[userIdx].passwordResetExpires
     await db.write()
 
     res.json({ success: true, message: 'Password reset successfully' })
@@ -249,9 +245,8 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password, otpVerified } = req.body;
+    const { email, password } = req.body;
     
-    // Validation
     if (!email || !password) {
       return res.status(400).json({ message: 'Please provide email and password' });
     }
@@ -263,14 +258,8 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
     
-    // Check if user is suspended
     if (user.status === 'suspended') {
       return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
-    }
-
-    // OTP must be verified for login (except guest)
-    if (!otpVerified) {
-      return res.status(400).json({ message: 'OTP verification required. Please verify your OTP first.' });
     }
 
     const token = generateToken(user._id);
@@ -475,10 +464,26 @@ app.post('/api/orders', protect, async (req, res) => {
     }
 
     const courses = cart.items.map(item => item.course);
-    const totalAmount = cart.items.reduce((sum, item) => {
-      const course = db.data.courses.find(c => c._id === item.course);
-      return sum + (course?.price || 0);
-    }, 0);
+
+    // Block direct order for paid courses — must go through Razorpay payment
+    const paidCourses = courses.filter(courseId => {
+      const course = db.data.courses.find(c => c._id === courseId);
+      return course && course.price > 0 && !course.isFree && !course.isDemo;
+    });
+
+    if (paidCourses.length > 0) {
+      const paidTitles = paidCourses.map(courseId => {
+        const course = db.data.courses.find(c => c._id === courseId);
+        return course?.title || courseId;
+      });
+      return res.status(403).json({
+        message: 'Paid courses require payment. Please complete payment via the course page.',
+        paidCourses: paidTitles
+      });
+    }
+
+    // Only free/demo courses allowed here
+    const totalAmount = 0;
 
     const order = {
       _id: generateId(),
@@ -508,10 +513,7 @@ app.post('/api/orders', protect, async (req, res) => {
       const course = db.data.courses.find(c => c._id === courseId);
       if (course) {
         await notificationService.sendEnrollmentNotification(
-          req.user._id,
-          req.user.name,
-          req.user.email,
-          course.title
+          req.user._id, req.user.name, req.user.email, course.title
         );
       }
     }
@@ -615,7 +617,7 @@ app.put('/api/notifications/:id/read', protect, async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Server is running with local database' });
+  res.json({ status: 'OK', message: 'Server is running', mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected' });
 });
 
 // Zoom test endpoint (admin only — remove in production)
@@ -720,3 +722,7 @@ app.use('/api/otp', otpRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subtopics', subtopicRoutes);
 app.use('/api/exams', examRoutes);
+const customRequestRoutes = require('./routes/customRequests');
+const promoterRoutes = require('./routes/promoters');
+app.use('/api/custom-requests', customRequestRoutes);
+app.use('/api/promoters', promoterRoutes);

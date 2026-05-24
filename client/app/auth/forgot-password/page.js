@@ -1,89 +1,53 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Mail, Lock, Shield, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react'
+import { Mail, Lock, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff, KeyRound } from 'lucide-react'
 import api from '@/utils/api'
 import Link from 'next/link'
 
-export default function ForgotPasswordPage() {
+function ForgotPasswordContent() {
   const router = useRouter()
-  const [step, setStep] = useState(1) // 1: email, 2: OTP, 3: new password
+  const searchParams = useSearchParams()
+  const resetToken = searchParams.get('token')
+
+  const [step, setStep] = useState(resetToken ? 2 : 1)
   const [email, setEmail] = useState('')
-  const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [resendTimer, setResendTimer] = useState(0)
 
-  const startResendTimer = () => {
-    setResendTimer(60)
-    const interval = setInterval(() => {
-      setResendTimer(prev => {
-        if (prev <= 1) { clearInterval(interval); return 0 }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
-  // Step 1: Send OTP to email
-  const handleSendOTP = async (e) => {
+  const handleRequestReset = async (e) => {
     e.preventDefault()
     if (!email) return setError('Email is required')
     try {
       setLoading(true)
       setError('')
-      const res = await api.post('/otp/send', { email, purpose: 'password_reset' })
-      if (res.data.success) {
-        setStep(2)
-        startResendTimer()
-        if (res.data.otp) {
-          const digits = res.data.otp.toString().split('').slice(0, 6)
-          setOtp([...digits, ...Array(6).fill('')].slice(0, 6))
-        }
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to send OTP. Check your email address.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Step 2: Verify OTP
-  const handleVerifyOTP = async () => {
-    const otpCode = otp.join('')
-    if (otpCode.length !== 6) return setError('Please enter complete 6-digit OTP')
-    try {
-      setLoading(true)
-      setError('')
-      const res = await api.post('/otp/verify', { email, otp: otpCode, purpose: 'password_reset' })
+      const res = await api.post('/auth/forgot-password', { email })
       if (res.data.success) {
         setStep(3)
-      } else {
-        setError(res.data.message || 'Invalid OTP')
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'OTP verification failed')
+      setError(err.response?.data?.message || 'Failed to send reset link. Check your email address.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Step 3: Reset password
   const handleResetPassword = async (e) => {
     e.preventDefault()
     if (newPassword.length < 6) return setError('Password must be at least 6 characters')
     if (newPassword !== confirmPassword) return setError('Passwords do not match')
+    if (!resetToken) return setError('Invalid reset link. Please request a new one.')
     try {
       setLoading(true)
       setError('')
       const res = await api.post('/auth/reset-password', {
-        email,
-        otp: otp.join(''),
+        token: resetToken,
         newPassword
       })
       if (res.data.success) {
@@ -97,36 +61,26 @@ export default function ForgotPasswordPage() {
     }
   }
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return
-    const newOtp = [...otp]
-    newOtp[index] = value
-    setOtp(newOtp)
-    if (value && index < 5) document.getElementById(`fp-otp-${index + 1}`)?.focus()
+  const stepTitles = {
+    1: 'Forgot Password',
+    2: 'New Password',
+    3: 'Check Your Email',
+    4: 'Done!'
   }
 
-  const handleResend = async () => {
-    if (resendTimer > 0) return
-    try {
-      setLoading(true)
-      setOtp(['', '', '', '', '', ''])
-      const res = await api.post('/otp/send', { email, purpose: 'password_reset' })
-      if (res.data.success) {
-        startResendTimer()
-        if (res.data.otp) {
-          const digits = res.data.otp.toString().split('').slice(0, 6)
-          setOtp([...digits, ...Array(6).fill('')].slice(0, 6))
-        }
-      }
-    } catch (err) {
-      setError('Failed to resend OTP')
-    } finally {
-      setLoading(false)
-    }
+  const stepDescriptions = {
+    1: 'Enter your email and we will send a reset link',
+    2: 'Set your new password',
+    3: 'If an account exists for that email, a reset link has been sent',
+    4: 'Password reset successful! Redirecting...'
   }
 
-  const stepTitles = ['Forgot Password', 'Verify OTP', 'New Password', 'Done!']
-  const stepIcons = [<Mail key="m" className="h-8 w-8 text-white" />, <Shield key="s" className="h-8 w-8 text-white" />, <KeyRound key="k" className="h-8 w-8 text-white" />, <CheckCircle key="c" className="h-8 w-8 text-white" />]
+  const stepIcons = {
+    1: <Mail className="h-8 w-8 text-white" />,
+    2: <KeyRound className="h-8 w-8 text-white" />,
+    3: <Mail className="h-8 w-8 text-white" />,
+    4: <CheckCircle className="h-8 w-8 text-white" />
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark via-dark-100 to-dark-200 p-4">
@@ -138,22 +92,16 @@ export default function ForgotPasswordPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-dark-100/90 to-dark-200/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 p-8 w-full max-w-md"
       >
-        {/* Header */}
         <div className="text-center mb-8">
           <motion.div key={step} initial={{ scale: 0 }} animate={{ scale: 1 }}
             className="w-16 h-16 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center mx-auto mb-4"
           >
-            {stepIcons[step - 1]}
+            {stepIcons[step]}
           </motion.div>
           <h1 className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary mb-2">
-            {stepTitles[step - 1]}
+            {stepTitles[step]}
           </h1>
-          <p className="text-gray-400 text-sm">
-            {step === 1 && 'Enter your email to receive a reset OTP'}
-            {step === 2 && `OTP sent to ${email}`}
-            {step === 3 && 'Set your new password'}
-            {step === 4 && 'Password reset successful! Redirecting...'}
-          </p>
+          <p className="text-gray-400 text-sm">{stepDescriptions[step]}</p>
         </div>
 
         {error && (
@@ -166,10 +114,9 @@ export default function ForgotPasswordPage() {
         )}
 
         <AnimatePresence mode="wait">
-          {/* Step 1: Email */}
           {step === 1 && (
             <motion.form key="s1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-              onSubmit={handleSendOTP} className="space-y-5"
+              onSubmit={handleRequestReset} className="space-y-5"
             >
               <div>
                 <label className="block text-sm font-semibold text-gray-300 mb-2">Email Address</label>
@@ -184,47 +131,20 @@ export default function ForgotPasswordPage() {
               <button type="submit" disabled={loading}
                 className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {loading ? <><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Sending...</> : <><Shield className="h-5 w-5" />Send Reset OTP</>}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
               </button>
             </motion.form>
           )}
 
-          {/* Step 2: OTP */}
           {step === 2 && (
-            <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
-              <button onClick={() => { setStep(1); setError('') }} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-4 text-center">Enter 6-digit OTP</label>
-                <div className="flex gap-2 justify-center">
-                  {otp.map((digit, index) => (
-                    <input key={index} id={`fp-otp-${index}`} type="text" maxLength={1} value={digit}
-                      onChange={(e) => handleOtpChange(index, e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Backspace' && !digit && index > 0) document.getElementById(`fp-otp-${index - 1}`)?.focus() }}
-                      className="w-12 h-14 text-center text-2xl font-bold bg-dark-200/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  ))}
-                </div>
-              </div>
-              <button onClick={handleVerifyOTP} disabled={loading || otp.join('').length !== 6}
-                className="w-full bg-gradient-to-r from-primary to-secondary text-white py-3 rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {loading ? <><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Verifying...</> : <><CheckCircle className="h-5 w-5" />Verify OTP</>}
-              </button>
-              <div className="text-center">
-                <button onClick={handleResend} disabled={resendTimer > 0 || loading}
-                  className="text-sm text-primary hover:text-secondary disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
-                >
-                  {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
-                </button>
-              </div>
-            </motion.div>
-          )}
-
-          {/* Step 3: New Password */}
-          {step === 3 && (
-            <motion.form key="s3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            <motion.form key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               onSubmit={handleResetPassword} className="space-y-5"
             >
               <div>
@@ -260,12 +180,33 @@ export default function ForgotPasswordPage() {
               <button type="submit" disabled={loading}
                 className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                {loading ? <><div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>Resetting...</> : <><KeyRound className="h-5 w-5" />Reset Password</>}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    Resetting...
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="h-5 w-5" />
+                    Reset Password
+                  </>
+                )}
               </button>
             </motion.form>
           )}
 
-          {/* Step 4: Success */}
+          {step === 3 && (
+            <motion.div key="s3" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-4 space-y-4">
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-4 text-sm text-left">
+                <p className="text-primary font-medium mb-1">Check your inbox</p>
+                <p className="text-gray-400">We sent a password reset link to <strong className="text-white">{email}</strong>. The link expires in 1 hour.</p>
+              </div>
+              <Link href="/auth/login" className="inline-block text-primary hover:text-secondary text-sm font-medium">
+                Back to login
+              </Link>
+            </motion.div>
+          )}
+
           {step === 4 && (
             <motion.div key="s4" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="text-center py-6">
               <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -278,5 +219,13 @@ export default function ForgotPasswordPage() {
         </AnimatePresence>
       </motion.div>
     </div>
+  )
+}
+
+export default function ForgotPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-dark flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>}>
+      <ForgotPasswordContent />
+    </Suspense>
   )
 }

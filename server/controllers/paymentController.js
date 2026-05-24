@@ -143,6 +143,19 @@ exports.verifyPayment = async (req, res) => {
     }
     db.data.progress.push(progress)
 
+    const paymentAmount = db.data.payments[paymentIndex]?.amount || 0
+    try {
+      const referralService = require('../services/referralService')
+      await referralService.recordReferralCommission(
+        userId,
+        paymentAmount,
+        order._id,
+        razorpay_payment_id
+      )
+    } catch (refErr) {
+      console.error('Referral commission failed:', refErr.message)
+    }
+
     await db.write()
 
     res.json({

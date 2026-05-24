@@ -20,7 +20,7 @@ export default function AdminCourses() {
     description: '',
     category: 'Algebra',
     difficulty: 'Beginner',
-    price: 0,
+    price: '',
     instructor: '',
     duration: '',
     status: 'draft'
@@ -310,10 +310,13 @@ export default function AdminCourses() {
                     <input
                       type="number"
                       value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                       className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                      placeholder="e.g. 999"
+                      min="1"
                       required
                     />
+                    <p className="text-gray-500 text-xs mt-1">Enter ₹1 or more. Use isFree flag for free courses.</p>
                   </div>
                   <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2">Duration</label>
@@ -336,6 +339,18 @@ export default function AdminCourses() {
                     className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                  </select>
+                  <p className="text-gray-500 text-xs mt-1">Published courses are visible to students.</p>
                 </div>
                 <div className="flex gap-3 mt-6">
                   <button

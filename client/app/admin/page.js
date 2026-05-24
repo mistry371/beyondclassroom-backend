@@ -166,6 +166,20 @@ export default function AdminDashboard() {
               onClick={() => router.push('/admin/quizzes')}
             />
             <QuickActionCard
+              title="Custom Requests"
+              description="Manage student custom requests"
+              icon={BookOpen}
+              color="from-pink-500 to-rose-500"
+              onClick={() => router.push('/admin/custom-requests')}
+            />
+            <QuickActionCard
+              title="Promoters"
+              description="Referrals, commissions & payouts"
+              icon={Users}
+              color="from-secondary to-primary"
+              onClick={() => router.push('/admin/promoters')}
+            />
+            <QuickActionCard
               title="Examinations"
               description="Create & manage full exams"
               icon={BookOpen}

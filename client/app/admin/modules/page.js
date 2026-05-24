@@ -30,21 +30,24 @@ export default function AdminModules() {
       router.push('/')
       return
     }
-    fetchCourses()
   }, [user])
 
   useEffect(() => {
-    if (selectedCourse) {
-      fetchModules()
-    }
+    fetchCourses()
+    fetchModules()
+  }, [])
+
+  useEffect(() => {
+    fetchModules()
   }, [selectedCourse])
 
   const fetchCourses = async () => {
     try {
       const res = await api.get('/courses')
       setCourses(res.data.courses || [])
-      if (res.data.courses?.length > 0) {
-        setSelectedCourse(res.data.courses[0]._id)
+      // Don't auto-select — allow "No Course" option
+      if (res.data.courses?.length > 0 && !selectedCourse) {
+        setSelectedCourse('all')
       }
     } catch (error) {
       console.error('Failed to fetch courses:', error)
@@ -55,8 +58,14 @@ export default function AdminModules() {
 
   const fetchModules = async () => {
     try {
-      const res = await api.get(`/modules/course/${selectedCourse}`)
-      setModules(res.data.modules || [])
+      let res
+      if (selectedCourse === 'all' || !selectedCourse) {
+        res = await api.get('/modules')
+        setModules(res.data.modules || [])
+      } else {
+        res = await api.get(`/modules/course/${selectedCourse}`)
+        setModules(res.data.modules || [])
+      }
     } catch (error) {
       console.error('Failed to fetch modules:', error)
     }
@@ -140,8 +149,7 @@ export default function AdminModules() {
             </div>
             <button
               onClick={handleCreate}
-              disabled={!selectedCourse}
-              className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:opacity-90 transition-all flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               Add Module
@@ -153,12 +161,14 @@ export default function AdminModules() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Course Selector */}
         <div className="mb-6">
-          <label className="block text-gray-300 text-sm font-medium mb-2">Select Course</label>
+          <label className="block text-gray-300 text-sm font-medium mb-2">Filter by Course</label>
           <select
             value={selectedCourse}
             onChange={(e) => setSelectedCourse(e.target.value)}
             className="w-full px-4 py-3 bg-dark-100 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
           >
+            <option value="all">All Modules</option>
+            <option value="">— No Course (Standalone) —</option>
             {courses.map(course => (
               <option key={course._id} value={course._id}>{course.title}</option>
             ))}
@@ -270,6 +280,19 @@ export default function AdminModules() {
                     className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
                     required
                   />
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Assign to Course <span className="text-gray-500">(optional)</span></label>
+                  <select
+                    value={formData.courseId}
+                    onChange={(e) => setFormData({ ...formData, courseId: e.target.value })}
+                    className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                  >
+                    <option value="">— Standalone (no course) —</option>
+                    {courses.map(course => (
+                      <option key={course._id} value={course._id}>{course.title}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2">Description</label>

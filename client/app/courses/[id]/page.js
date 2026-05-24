@@ -57,7 +57,7 @@ export default function CourseDetails() {
     }
     
     // If course is free/demo, enroll directly via orders API
-    if (course.price === 0 || course.isFree || course.isDemo) {
+    if (course.isFree || course.isDemo) {
       try {
         // Add to cart first, then place order to get it into purchasedCourses
         await api.post('/cart', { courseId: course._id }).catch(() => {}) // ignore if already in cart
@@ -158,7 +158,7 @@ export default function CourseDetails() {
 
               <div className="flex items-center gap-4">
                 <div className="text-white">
-                  {course.price === 0 || course.isFree ? (
+                  {course.isFree || course.isDemo ? (
                     <span className="text-5xl font-bold text-green-400">FREE</span>
                   ) : (
                     <>
@@ -210,7 +210,7 @@ export default function CourseDetails() {
                   className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                 >
                   {user ? (
-                    course.price === 0 || course.isFree ? (
+                    course.isFree || course.isDemo ? (
                       <>
                         <PlayCircle className="h-5 w-5" />
                         Start Free Course
@@ -225,7 +225,7 @@ export default function CourseDetails() {
                     </>
                   )}
                 </button>
-                {user && course.price > 0 && !course.isFree && (
+                {user && course.price > 0 && !course.isFree && !course.isDemo && (
                   <button
                     onClick={handleAddToCart}
                     className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-white py-4 rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2"
