@@ -22,7 +22,7 @@ export default function PackagesPage() {
         <div className="max-w-4xl mx-auto px-4">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <h1 className="text-4xl md:text-6xl font-black text-white mb-4">Learning Packages</h1>
-            <p className="text-white/80 text-xl mb-8">Invest in excellence. Every plan includes our premium platform experience.</p>
+            <p className="text-white/80 text-xl mb-8">Invest in excellence. Every plan unlocks Mathematics and French courses on our premium platform.</p>
             <div className="inline-flex bg-white/10 rounded-xl p-1">
               <button
                 onClick={() => setCurrency('INR')}

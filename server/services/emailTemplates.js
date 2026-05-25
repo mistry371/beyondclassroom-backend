@@ -1,5 +1,7 @@
 // Professional Email Templates for Beyond Classroom
 
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app').replace(/\/$/, '')
+
 const getEmailHeader = () => `
   <div style="background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); padding: 40px 20px; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700;">Beyond Classroom</h1>
@@ -16,9 +18,9 @@ const getEmailFooter = () => `
       This email was sent to you because you registered on our platform.
     </p>
     <div style="margin-top: 20px;">
-      <a href="http://localhost:3000" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Home</a>
-      <a href="http://localhost:3000/courses" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Courses</a>
-      <a href="http://localhost:3000/contact" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Contact</a>
+      <a href="${FRONTEND_URL}" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Home</a>
+      <a href="${FRONTEND_URL}/courses" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Courses</a>
+      <a href="${FRONTEND_URL}/contact" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Contact</a>
     </div>
   </div>
 `
@@ -76,7 +78,7 @@ exports.otpEmailTemplate = (otpCode, purpose, expiresIn = '10 minutes') => {
           </p>
           
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:3000/contact" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
+            <a href="${FRONTEND_URL}/contact" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
               Contact Support
             </a>
           </div>
@@ -133,10 +135,10 @@ exports.welcomeEmailTemplate = (userName, userEmail) => {
           </div>
           
           <div style="text-align: center; margin: 40px 0;">
-            <a href="http://localhost:3000/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin-right: 10px;">
+            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin-right: 10px;">
               Go to Dashboard
             </a>
-            <a href="http://localhost:3000/courses" style="display: inline-block; background: white; color: #22d3ee; border: 2px solid #22d3ee; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
+            <a href="${FRONTEND_URL}/courses" style="display: inline-block; background: white; color: #22d3ee; border: 2px solid #22d3ee; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
               Browse Courses
             </a>
           </div>
@@ -148,7 +150,7 @@ exports.welcomeEmailTemplate = (userName, userEmail) => {
           </div>
           
           <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
-            Need help getting started? Check out our <a href="http://localhost:3000/about" style="color: #22d3ee; text-decoration: none;">Getting Started Guide</a> or contact our support team.
+            Need help getting started? Check out our <a href="${FRONTEND_URL}/about" style="color: #22d3ee; text-decoration: none;">Getting Started Guide</a> or contact our support team.
           </p>
         </div>
         
@@ -203,7 +205,7 @@ exports.courseEnrollmentEmailTemplate = (userName, courseName, coursePrice) => {
           </div>
           
           <div style="text-align: center; margin: 40px 0;">
-            <a href="http://localhost:3000/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
+            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
               Start Learning Now
             </a>
           </div>
@@ -254,7 +256,7 @@ exports.courseExpiryReminderEmailTemplate = (userName, courseName, daysRemaining
           </div>
           
           <div style="text-align: center; margin: 40px 0;">
-            <a href="http://localhost:3000/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
+            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
               Continue Learning
             </a>
           </div>

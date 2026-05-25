@@ -15,7 +15,7 @@ export default function BlogDetailPage() {
       author: 'Dr. Sarah Johnson',
       date: '2024-03-15',
       readTime: '8 min read',
-      category: 'Calculus',
+      category: 'Mathematics',
       content: `
         <h2>Introduction to Calculus</h2>
         <p>Calculus is one of the most powerful tools in mathematics, enabling us to understand change and motion. Whether you're studying physics, engineering, economics, or computer science, calculus provides the foundation for analyzing dynamic systems.</p>
@@ -70,7 +70,7 @@ export default function BlogDetailPage() {
       author: 'Prof. Michael Chen',
       date: '2024-03-12',
       readTime: '10 min read',
-      category: 'Linear Algebra',
+      category: 'Mathematics',
       content: `
         <h2>Why Linear Algebra Matters in AI</h2>
         <p>Linear algebra is the backbone of modern machine learning and artificial intelligence. Every neural network, every data transformation, and every optimization algorithm relies heavily on linear algebra concepts.</p>
@@ -128,7 +128,7 @@ export default function BlogDetailPage() {
       author: 'Dr. Emily Rodriguez',
       date: '2024-03-10',
       readTime: '12 min read',
-      category: 'Abstract Algebra',
+      category: 'Mathematics',
       content: `
         <h2>Introduction to Abstract Algebra</h2>
         <p>Abstract algebra is the study of algebraic structures such as groups, rings, and fields. While it may seem abstract (hence the name!), these concepts have profound applications in cryptography, coding theory, and physics.</p>

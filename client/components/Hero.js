@@ -16,8 +16,8 @@ export default function Hero() {
   const ref = useRef(null)
   const [mounted, setMounted] = useState(false)
   const [content, setContent] = useState({
-    heroTitle: 'Mathematics Meets Personalization',
-    heroSubtitle: 'Premium personalized learning for Grades 6–12, Boards, JEE & beyond — live classes, AI tools, and expert educators.',
+    heroTitle: 'Mathematics & French Meet Personalization',
+    heroSubtitle: 'Premium personalized Mathematics and French for Grades 6–12 — live classes, AI tools, and expert educators.',
   })
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })

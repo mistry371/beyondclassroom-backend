@@ -291,7 +291,7 @@ export default function AdminLiveClasses() {
                   <div className="col-span-2">
                     <label className="block text-gray-300 text-sm font-medium mb-1">Class Title *</label>
                     <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-                      placeholder="Algebra Fundamentals - Live Session" required
+                      placeholder="Mathematics Fundamentals - Live Session" required
                       className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
                     />
                   </div>

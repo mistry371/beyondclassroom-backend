@@ -136,7 +136,7 @@ exports.sanitizePromoter = (p) => ({
   email: p.email,
   phone: p.phone,
   referralCode: p.referralCode,
-  referralLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/register?ref=${p.referralCode}`,
+  referralLink: `${process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app'}/auth/register?ref=${p.referralCode}`,
   status: p.status,
   commissionRate: p.commissionRate,
   referrals: p.referrals || 0,

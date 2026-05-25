@@ -7,12 +7,15 @@ import Navbar from '@/components/Navbar'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { COURSE_CATEGORIES } from '@/lib/constants'
+import CourseCardSkeleton from '@/components/ui/CourseCardSkeleton'
 
 export default function CoursesPage() {
   const router = useRouter()
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
@@ -32,17 +35,18 @@ export default function CoursesPage() {
 
   const filteredCourses = courses.filter(course => {
     const matchesFilter = filter === 'all' || course.difficulty === filter
+    const matchesCategory = categoryFilter === 'all' || course.category === categoryFilter
     const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          course.description.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesFilter && matchesSearch
+    return matchesFilter && matchesCategory && matchesSearch
   })
 
   if (loading) {
     return (
       <div className="min-h-screen bg-dark">
         <Navbar />
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+        <div className="max-w-7xl mx-auto px-4 py-16 grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => <CourseCardSkeleton key={i} />)}
         </div>
       </div>
     )
@@ -67,8 +71,8 @@ export default function CoursesPage() {
               </span>
             </h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto mb-8">
-              Master mathematics from Grade 5 to 12 with our comprehensive courses. 
-              Learn at your own pace with expert instructors.
+              Master Mathematics and French from Grade 5 to 12 with expert-led courses.
+              Learn at your own pace with structured pathways.
             </p>
             
             {/* Search Bar */}
@@ -90,10 +94,28 @@ export default function CoursesPage() {
 
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex flex-wrap items-center gap-4 mb-6">
           <Filter className="h-5 w-5 text-primary" />
-          <span className="text-white font-semibold">Filter by level:</span>
-          <div className="flex gap-3">
+          <span className="text-white font-semibold">Subject:</span>
+          <div className="flex gap-3 flex-wrap">
+            {['all', ...COURSE_CATEGORIES].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-primary text-white'
+                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                }`}
+              >
+                {cat === 'all' ? 'All Subjects' : cat}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-4 mb-8">
+          <span className="text-white font-semibold">Level:</span>
+          <div className="flex gap-3 flex-wrap">
             {['all', 'Beginner', 'Intermediate', 'Advanced'].map((level) => (
               <button
                 key={level}

@@ -103,7 +103,7 @@ exports.forgotPassword = async (req, res) => {
     user.passwordResetExpires = Date.now() + 60 * 60 * 1000;
     await user.save();
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app';
     const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`;
 
     await sendEmail({

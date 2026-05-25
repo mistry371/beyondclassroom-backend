@@ -22,7 +22,19 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config
+    if (!config || config.__retry) {
+      // fall through
+    } else if (
+      (!error.response || error.response.status >= 500) &&
+      (config.method === 'get' || config.method === 'GET')
+    ) {
+      config.__retry = true
+      await new Promise((r) => setTimeout(r, 800))
+      return api.request(config)
+    }
+
     if (error.response?.status === 401 && typeof window !== 'undefined') {
       const currentPath = window.location.pathname
 

@@ -16,7 +16,7 @@ export default function BlogsPage() {
       excerpt: 'Learn the fundamentals of calculus and how it applies to real-world problems...',
       author: 'Dr. Sarah Johnson',
       date: '2024-03-15',
-      category: 'Calculus',
+      category: 'Mathematics',
       image: '/blog1.jpg',
     },
     {
@@ -25,7 +25,7 @@ export default function BlogsPage() {
       excerpt: 'Discover how linear algebra powers modern AI and machine learning algorithms...',
       author: 'Prof. Michael Chen',
       date: '2024-03-12',
-      category: 'Linear Algebra',
+      category: 'Mathematics',
       image: '/blog2.jpg',
     },
     {
@@ -34,7 +34,7 @@ export default function BlogsPage() {
       excerpt: 'Explore the elegant world of groups, rings, and fields in abstract algebra...',
       author: 'Dr. Emily Rodriguez',
       date: '2024-03-10',
-      category: 'Abstract Algebra',
+      category: 'Mathematics',
       image: '/blog3.jpg',
     },
     {
@@ -43,7 +43,7 @@ export default function BlogsPage() {
       excerpt: 'Master the foundations of mathematical proof and rigorous thinking...',
       author: 'Prof. James Wilson',
       date: '2024-03-08',
-      category: 'Analysis',
+      category: 'French',
       image: '/blog4.jpg',
     },
     {
@@ -52,7 +52,7 @@ export default function BlogsPage() {
       excerpt: 'How differential equations model real-world engineering problems...',
       author: 'Dr. Sarah Johnson',
       date: '2024-03-05',
-      category: 'Differential Equations',
+      category: 'Mathematics',
       image: '/blog5.jpg',
     },
     {
@@ -61,7 +61,7 @@ export default function BlogsPage() {
       excerpt: 'The fascinating connection between pure mathematics and cybersecurity...',
       author: 'Prof. Michael Chen',
       date: '2024-03-01',
-      category: 'Number Theory',
+      category: 'French',
       image: '/blog6.jpg',
     },
   ]
@@ -83,9 +83,9 @@ export default function BlogsPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center"
           >
-            <h1 className="text-5xl font-bold mb-6">Mathematics Blog</h1>
+            <h1 className="text-5xl font-bold mb-6">Learning Blog</h1>
             <p className="text-xl text-purple-100 max-w-3xl mx-auto mb-8">
-              Insights, tutorials, and stories from the world of mathematics
+              Insights, tutorials, and stories in Mathematics and French
             </p>
 
             {/* Search Bar */}

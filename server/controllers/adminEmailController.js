@@ -96,10 +96,10 @@ exports.sendEmail = async (req, res) => {
       '5':  () => passwordResetEmailTemplate('Test User', 'https://beyondclassroom.netlify.app/auth/forgot-password'),
       '6':  () => require('../services/emailTemplates').adminNewUserEmailTemplate('Test User', to, new Date().toLocaleString('en-IN')),
       '7':  () => require('../services/emailTemplates').adminNewOrderEmailTemplate('Test User', to, 'Sample Course', 999, 'ORD-TEST-001'),
-      '8':  () => adminCustomRequestEmailTemplate('Test User', to, 'Sample Request', 'Notes', 'Algebra, Calculus', '500'),
+      '8':  () => adminCustomRequestEmailTemplate('Test User', to, 'Sample Request', 'Notes', 'Mathematics, French', '500'),
       '9':  () => studentCustomRequestQuotedTemplate('Test User', 'Sample Request', '1500', 'Looks good!'),
       '10': () => studentCustomRequestStatusTemplate('Test User', 'Sample Request', 'accepted', 'Your request has been accepted!'),
-      '11': () => quizResultsEmailTemplate('Test User', 'Algebra Quiz', 8, 10, 80, true),
+      '11': () => quizResultsEmailTemplate('Test User', 'Mathematics Quiz', 8, 10, 80, true),
       '12': () => accountActionEmailTemplate('Test User', 'warning', 'Please review our community guidelines.'),
       '13': () => paymentReceiptEmailTemplate('Test User', 'Sample Course', 999, 'ORD-TEST-001', new Date().toLocaleDateString('en-IN')),
     };

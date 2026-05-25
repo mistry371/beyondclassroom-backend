@@ -138,7 +138,7 @@ export default function CustomRequestsPage() {
                 <div>
                   <label className="block text-gray-300 text-sm font-medium mb-1">Request Title *</label>
                   <input className="w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary text-sm"
-                    value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Algebra + Trigonometry Question Paper" required/>
+                    value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} placeholder="e.g. Mathematics + French Question Paper" required/>
                 </div>
                 <div>
                   <label className="block text-gray-300 text-sm font-medium mb-1">Description</label>

@@ -4,6 +4,7 @@ import { Provider } from 'react-redux'
 import { store } from '@/store/store'
 import { useEffect } from 'react'
 import { restoreAuth } from '@/store/slices/authSlice'
+import ErrorBoundary from '@/components/ErrorBoundary'
 
 function AuthRestorer({ children }) {
   useEffect(() => {
@@ -17,7 +18,9 @@ function AuthRestorer({ children }) {
 export function Providers({ children }) {
   return (
     <Provider store={store}>
-      <AuthRestorer>{children}</AuthRestorer>
+      <ErrorBoundary>
+        <AuthRestorer>{children}</AuthRestorer>
+      </ErrorBoundary>
     </Provider>
   )
 }

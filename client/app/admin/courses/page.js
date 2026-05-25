@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import { BookOpen, Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft, Search, Layers } from 'lucide-react'
 import api from '@/utils/api'
+import { COURSE_CATEGORIES } from '@/lib/constants'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function AdminCourses() {
@@ -18,7 +19,7 @@ export default function AdminCourses() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    category: 'Algebra',
+    category: 'Mathematics',
     difficulty: 'Beginner',
     price: '',
     instructor: '',
@@ -53,7 +54,7 @@ export default function AdminCourses() {
     setFormData({
       title: '',
       description: '',
-      category: 'Algebra',
+      category: 'Mathematics',
       difficulty: 'Beginner',
       price: 0,
       instructor: '',
@@ -284,9 +285,9 @@ export default function AdminCourses() {
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
                     >
-                      <option>Algebra</option>
-                      <option>Calculus</option>
-                      <option>Geometry</option>
+                      {COURSE_CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
                       <option>Statistics</option>
                       <option>Trigonometry</option>
                     </select>

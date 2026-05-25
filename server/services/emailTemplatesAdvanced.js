@@ -3,6 +3,8 @@
 // Complete Email Communication System
 // ============================================
 
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app').replace(/\/$/, '')
+
 const getEmailHeader = (title = 'Beyond Classroom') => `
   <div style="background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); padding: 40px 20px; text-align: center;">
     <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700;">${title}</h1>
@@ -19,10 +21,10 @@ const getEmailFooter = () => `
       Need help? Contact us at support@beyondclassroom.com
     </p>
     <div style="margin-top: 20px;">
-      <a href="http://localhost:3000" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Home</a>
-      <a href="http://localhost:3000/courses" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Courses</a>
-      <a href="http://localhost:3000/tools" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Tools</a>
-      <a href="http://localhost:3000/contact" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Contact</a>
+      <a href="${FRONTEND_URL}" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Home</a>
+      <a href="${FRONTEND_URL}/courses" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Courses</a>
+      <a href="${FRONTEND_URL}/tools" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Tools</a>
+      <a href="${FRONTEND_URL}/contact" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Contact</a>
     </div>
     <div style="margin-top: 20px;">
       <a href="#" style="display: inline-block; margin: 0 5px;"><img src="https://img.icons8.com/color/32/000000/facebook.png" alt="Facebook" style="width: 24px; height: 24px;"/></a>
@@ -133,10 +135,10 @@ exports.registrationConfirmationEmail = (userName, userEmail) => {
       </div>
       
       <div style="text-align: center; margin: 40px 0;">
-        <a href="http://localhost:3000/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 0 5px 10px 5px;">
+        <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 0 5px 10px 5px;">
           Go to Dashboard
         </a>
-        <a href="http://localhost:3000/courses" style="display: inline-block; background: white; color: #22d3ee; border: 2px solid #22d3ee; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 0 5px 10px 5px;">
+        <a href="${FRONTEND_URL}/courses" style="display: inline-block; background: white; color: #22d3ee; border: 2px solid #22d3ee; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin: 0 5px 10px 5px;">
           Browse Courses
         </a>
       </div>
@@ -222,7 +224,7 @@ exports.newLoginAlertEmail = (userName, device, location, loginTime, ipAddress) 
         <p style="color: #991b1b; margin: 0 0 15px 0; font-size: 14px;">
           <strong>⚠️ Wasn't you?</strong> If you don't recognize this login, your account may be compromised.
         </p>
-        <a href="http://localhost:3000/profile/security" style="display: inline-block; background: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
+        <a href="${FRONTEND_URL}/profile/security" style="display: inline-block; background: #ef4444; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px;">
           Secure My Account
         </a>
       </div>
@@ -281,7 +283,7 @@ exports.courseEnrollmentEmail = (userName, courseName, coursePrice, courseId) =>
       </div>
       
       <div style="text-align: center; margin: 40px 0;">
-        <a href="http://localhost:3000/learn/${courseId}" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
+        <a href="${FRONTEND_URL}/learn/${courseId}" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
           Start Learning Now
         </a>
       </div>

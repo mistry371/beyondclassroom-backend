@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { db, initDB } = require('./database/db');
+const { normalizeCourseCategory } = require('./constants/categories');
 
 dotenv.config();
 
@@ -190,7 +191,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     db.data.users[userIdx].passwordResetExpires = resetExpires
     await db.write()
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000'
+    const frontendUrl = process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app'
     const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`
 
     try {
@@ -344,6 +345,8 @@ app.get('/api/courses', async (req, res) => {
         c.title.toLowerCase().includes(search.toLowerCase())
       );
     }
+
+    courses = courses.map(c => ({ ...c, category: normalizeCourseCategory(c.category) }));
 
     res.json({ success: true, courses });
   } catch (error) {

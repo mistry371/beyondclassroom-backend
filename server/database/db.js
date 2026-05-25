@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const { normalizeCourseCategory } = require('../constants/categories')
 
 // ── MongoDB connection ────────────────────────────────────────────────────────
 let isConnected = false
@@ -555,6 +556,104 @@ async function initDB() {
     await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: adminUser }, { upsert: true })
   }
   console.log('✅ Admin user ready:', adminEmail)
+
+  // Normalize legacy course categories → Mathematics | French
+  if (db.data.courses?.length) {
+    let migrated = 0
+    for (const course of db.data.courses) {
+      const next = normalizeCourseCategory(course.category)
+      if (course.category !== next) {
+        course.category = next
+        migrated++
+        if (course._id) {
+          await models.courses.findOneAndUpdate(
+            { _id: course._id },
+            { $set: { category: next } },
+            { upsert: false }
+          )
+        }
+      }
+    }
+    if (migrated) console.log(`✅ Migrated ${migrated} course(s) to Mathematics/French categories`)
+  }
+
+  // Demo promoter + student accounts (idempotent)
+  const demoAccounts = [
+    {
+      _id: 'promoter-demo',
+      name: 'Demo Promoter',
+      email: 'mistryjenish1234@gmail.com',
+      password: 'Promoter@1019',
+      role: 'user',
+      status: 'active',
+      emailVerified: true,
+    },
+    {
+      _id: 'student-demo',
+      name: 'Demo Student',
+      email: 'jenscodersprivetlimited@gmail.com',
+      password: 'Student@1019',
+      role: 'user',
+      status: 'active',
+      emailVerified: true,
+    },
+  ]
+  for (const demo of demoAccounts) {
+    const hashed = await bcrypt.hash(demo.password, 12)
+    const idx = db.data.users.findIndex(u => u.email === demo.email)
+    if (idx >= 0) {
+      db.data.users[idx].password = hashed
+      db.data.users[idx].status = 'active'
+      db.data.users[idx].emailVerified = true
+      await models.users.findOneAndUpdate(
+        { _id: db.data.users[idx]._id },
+        { $set: { password: hashed, status: 'active', emailVerified: true } }
+      )
+    } else {
+      const user = {
+        _id: demo._id,
+        name: demo.name,
+        email: demo.email,
+        password: hashed,
+        role: demo.role,
+        status: 'active',
+        profilePhoto: '',
+        isGuest: false,
+        purchasedCourses: [],
+        favorites: [],
+        emailVerified: true,
+        createdAt: new Date(),
+      }
+      db.data.users.push(user)
+      await models.users.findOneAndUpdate({ _id: demo._id }, { $set: user }, { upsert: true })
+    }
+    console.log('✅ Demo account ready:', demo.email)
+  }
+
+  // Promoter profile for demo promoter email
+  const promoterEmail = 'mistryjenish1234@gmail.com'
+  const promoterUser = db.data.users.find(u => u.email === promoterEmail)
+  if (promoterUser) {
+    db.data.promoters = db.data.promoters || []
+    let promo = db.data.promoters.find(p => p.userId === promoterUser._id || p.email === promoterEmail)
+    if (!promo) {
+      promo = {
+        _id: 'promoter-demo-profile',
+        userId: promoterUser._id,
+        email: promoterEmail,
+        name: promoterUser.name || 'Demo Promoter',
+        referralCode: 'BC-PROMO-DEMO',
+        status: 'active',
+        commissionRate: 0.2,
+        totalEarnings: 0,
+        pendingPayout: 0,
+        createdAt: new Date(),
+      }
+      db.data.promoters.push(promo)
+      await models.promoters.findOneAndUpdate({ _id: promo._id }, { $set: promo }, { upsert: true })
+      console.log('✅ Demo promoter profile ready:', promo.referralCode)
+    }
+  }
 
   return db
 }

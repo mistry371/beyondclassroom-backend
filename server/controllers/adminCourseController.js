@@ -1,6 +1,17 @@
 const { db } = require('../database/db')
 const Course = require('../models/Course')
 const { logActivity } = require('./adminController')
+const { COURSE_CATEGORIES, normalizeCourseCategory } = require('../constants/categories')
+
+function assertValidCategory(category) {
+  const normalized = normalizeCourseCategory(category)
+  if (!COURSE_CATEGORIES.includes(normalized)) {
+    const err = new Error('Category must be Mathematics or French')
+    err.statusCode = 400
+    throw err
+  }
+  return normalized
+}
 
 // Get all courses for admin
 exports.getAllCourses = async (req, res) => {
@@ -45,8 +56,10 @@ exports.createCourse = async (req, res) => {
   try {
     await db.read()
     
+    const category = assertValidCategory(req.body.category)
     const newCourse = new Course({
       ...req.body,
+      category,
       status: req.body.status || 'draft',
       enrolledCount: 0,
       rating: 0
@@ -81,9 +94,13 @@ exports.updateCourse = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Course not found' })
     }
     
+    const category = req.body.category
+      ? assertValidCategory(req.body.category)
+      : db.data.courses[courseIndex].category
     const updatedCourse = {
       ...db.data.courses[courseIndex],
       ...req.body,
+      category,
       updatedAt: new Date()
     }
     

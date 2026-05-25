@@ -1,7 +1,7 @@
 export const brand = {
   name: 'Beyond Classroom',
-  tagline: 'Mathematics Meets Personalization',
-  description: 'Premium personalized mathematics education for Grades 6–12, Boards, and competitive exams.',
+  tagline: 'Mathematics & French Meet Personalization',
+  description: 'Premium personalized Mathematics and French education for Grades 6–12, Boards, and competitive exams.',
 }
 
 export const stats = [
@@ -70,9 +70,9 @@ export const reviews = [
 ]
 
 export const team = [
-  { name: 'Dr. Ananya Verma', role: 'Founder & Chief Educator', degree: 'PhD Mathematics, IIT Delhi', experience: '15+ years', expertise: ['Calculus', 'JEE Advanced', 'Curriculum Design'], initials: 'AV' },
-  { name: 'Prof. Rohit Malhotra', role: 'Head of Academics', degree: 'MSc Mathematics, IISc', experience: '12+ years', expertise: ['Algebra', 'Board Exams', 'Assessment'], initials: 'RM' },
-  { name: 'Dr. Meera Iyer', role: 'Senior Mathematics Educator', degree: 'PhD Applied Math, Stanford', experience: '10+ years', expertise: ['Statistics', 'Data Science Math', 'Class 11-12'], initials: 'MI' },
+  { name: 'Dr. Ananya Verma', role: 'Founder & Chief Educator', degree: 'PhD Mathematics, IIT Delhi', experience: '15+ years', expertise: ['Mathematics', 'JEE Advanced', 'Curriculum Design'], initials: 'AV' },
+  { name: 'Prof. Rohit Malhotra', role: 'Head of Academics', degree: 'MSc Mathematics, IISc', experience: '12+ years', expertise: ['Mathematics', 'Board Exams', 'Assessment'], initials: 'RM' },
+  { name: 'Dr. Meera Iyer', role: 'Senior French & Math Educator', degree: 'PhD Applied Math, Stanford', experience: '10+ years', expertise: ['French', 'Mathematics', 'Class 11-12'], initials: 'MI' },
   { name: 'Prof. Karan Desai', role: 'Competitive Exam Specialist', degree: 'IIT Bombay, Mathematics', experience: '14+ years', expertise: ['JEE Main', 'Olympiad', 'Problem Solving'], initials: 'KD' },
   { name: 'Dr. Sunita Rao', role: 'Middle School Lead', degree: 'MEd Mathematics, NCERT', experience: '18+ years', expertise: ['Class 6-8', 'Foundations', 'Engagement'], initials: 'SR' },
   { name: 'Prof. Amit Khanna', role: 'Live Learning Director', degree: 'MSc, BHU Mathematics', experience: '11+ years', expertise: ['Live Classes', 'Doubt Solving', 'Mentorship'], initials: 'AK' },
@@ -125,5 +125,5 @@ export const recentActivity = [
   'Aarav from Mumbai joined Pro Scholar',
   'Sneha from Bangalore started Elite package',
   'Rohan from Delhi enrolled in Class 10 course',
-  'Ananya from Pune completed Algebra module',
+  'Ananya from Pune completed Mathematics module',
 ]

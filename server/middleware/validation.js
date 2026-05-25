@@ -64,7 +64,8 @@ exports.courseValidation = [
   
   body('category')
     .trim()
-    .notEmpty().withMessage('Category is required'),
+    .notEmpty().withMessage('Category is required')
+    .isIn(['Mathematics', 'French']).withMessage('Category must be Mathematics or French'),
   
   body('difficulty')
     .trim()

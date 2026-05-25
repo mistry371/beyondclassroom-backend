@@ -2,8 +2,14 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    domains: ['localhost'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'beyondclassroom.netlify.app' },
+      { protocol: 'https', hostname: 'beyondclassroom-backend.onrender.com' },
+      { protocol: 'https', hostname: '**.netlify.app' },
+    ],
   },
+  compress: true,
+  poweredByHeader: false,
 }
 
 module.exports = nextConfig

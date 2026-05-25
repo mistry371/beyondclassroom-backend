@@ -7,12 +7,12 @@ const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false })
 const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false })
 
 export const metadata = {
-  title: 'Beyond Classroom | Premium Mathematics Education',
-  description: 'Mathematics meets personalization. Premium edtech for Grades 6–12, Boards, JEE — live classes, AI tools, and expert educators.',
-  keywords: ['mathematics', 'education', 'JEE', 'CBSE', 'online learning', 'Beyond Classroom', 'edtech'],
+  title: 'Beyond Classroom | Premium Mathematics & French Education',
+  description: 'Mathematics and French meet personalization. Premium edtech for Grades 6–12 — live classes, AI tools, and expert educators.',
+  keywords: ['mathematics', 'french', 'education', 'JEE', 'CBSE', 'online learning', 'Beyond Classroom', 'edtech'],
   openGraph: {
-    title: 'Beyond Classroom | Premium Mathematics Education',
-    description: 'Personalized math learning with live classes, AI tutor, and 40+ tools.',
+    title: 'Beyond Classroom | Premium Mathematics & French Education',
+    description: 'Personalized Mathematics and French learning with live classes, AI tutor, and 40+ tools.',
     url: 'https://beyondclassroom.netlify.app',
     siteName: 'Beyond Classroom',
     type: 'website',
@@ -20,7 +20,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Beyond Classroom',
-    description: 'Premium personalized mathematics education',
+    description: 'Premium personalized Mathematics and French education',
   },
   robots: { index: true, follow: true },
 }
@@ -56,7 +56,7 @@ export default function RootLayout({ children }) {
               '@context': 'https://schema.org',
               '@type': 'EducationalOrganization',
               name: 'Beyond Classroom',
-              description: 'Premium personalized mathematics education platform',
+              description: 'Premium personalized Mathematics and French education platform',
               url: 'https://beyondclassroom.netlify.app',
             }),
           }}
