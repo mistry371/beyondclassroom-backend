@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { Clock, Users, Star, ShoppingCart, BookOpen, Award, CheckCircle, PlayCircle, Lock } from 'lucide-react'
+import { Clock, Star, ShoppingCart, BookOpen, Award, CheckCircle, PlayCircle, Lock } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import PaymentModal from '@/components/PaymentModal'
 import api from '@/utils/api'
@@ -15,7 +15,6 @@ export default function CourseDetails() {
   const { user } = useSelector((state) => state.auth)
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
 
   useEffect(() => {
@@ -246,46 +245,10 @@ export default function CourseDetails() {
         </div>
       </div>
 
-      {/* Tabs Section */}
+      {/* Details Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
-          {/* Tab Headers */}
-          <div className="flex border-b border-white/10">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`px-8 py-4 font-semibold transition-all ${
-                activeTab === 'overview'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setActiveTab('curriculum')}
-              className={`px-8 py-4 font-semibold transition-all ${
-                activeTab === 'curriculum'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Curriculum
-            </button>
-            <button
-              onClick={() => setActiveTab('instructor')}
-              className={`px-8 py-4 font-semibold transition-all ${
-                activeTab === 'instructor'
-                  ? 'text-primary border-b-2 border-primary'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              Instructor
-            </button>
-          </div>
-
-          {/* Tab Content */}
           <div className="p-8">
-            {activeTab === 'overview' && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -328,69 +291,6 @@ export default function CourseDetails() {
                   </ul>
                 </div>
               </motion.div>
-            )}
-
-            {activeTab === 'curriculum' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
-              >
-                <h2 className="text-3xl font-bold text-white mb-6">Course Curriculum</h2>
-                {course.topics?.map((topic, index) => (
-                  <div
-                    key={index}
-                    className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 hover:bg-white/10 transition-all"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="bg-gradient-to-r from-primary to-secondary text-white w-10 h-10 rounded-lg flex items-center justify-center font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-semibold text-white">{topic}</h3>
-                          <p className="text-gray-400 text-sm">Module {index + 1}</p>
-                        </div>
-                      </div>
-                      <Lock className="h-5 w-5 text-gray-500" />
-                    </div>
-                  </div>
-                ))}
-              </motion.div>
-            )}
-
-            {activeTab === 'instructor' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <h2 className="text-3xl font-bold text-white mb-6">Meet Your Instructor</h2>
-                <div className="flex items-start gap-6">
-                  <div className="bg-gradient-to-br from-primary to-secondary w-24 h-24 rounded-full flex items-center justify-center text-white text-3xl font-bold flex-shrink-0">
-                    {course.instructor?.charAt(0) || 'I'}
-                  </div>
-                  <div>
-                    <h3 className="text-2xl font-bold text-white mb-2">{course.instructor}</h3>
-                    <p className="text-gray-300 leading-relaxed">
-                      Expert mathematics educator with years of experience in teaching students from Grade 5-12. 
-                      Specialized in making complex mathematical concepts easy to understand through practical examples 
-                      and interactive learning methods.
-                    </p>
-                    <div className="flex items-center gap-6 mt-4 text-gray-400">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        <span>{course.enrolledCount || 0} Students</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Star className="h-5 w-5 text-yellow-400 fill-current" />
-                        <span>{course.rating || 4.8} Rating</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
           </div>
         </div>
       </div>

@@ -15,6 +15,7 @@ export default function LearnPage() {
   const [progress, setProgress] = useState(null)
   const [expandedModules, setExpandedModules] = useState([0])
   const [loading, setLoading] = useState(true)
+  const [hasAccess, setHasAccess] = useState(true)
 
   useEffect(() => {
     fetchCourseData()
@@ -27,6 +28,10 @@ export default function LearnPage() {
 
       const modulesRes = await api.get(`/modules/course/${params.courseId}`)
       setModules(modulesRes.data.modules || [])
+      const profileRes = await api.get('/profile')
+      const purchasedIds = (profileRes.data?.user?.purchasedCourses || []).map((c) => c?._id || c)
+      const freeCourse = courseRes.data.course?.isFree || courseRes.data.course?.isDemo
+      setHasAccess(freeCourse || purchasedIds.includes(params.courseId))
 
       try {
         const progressRes = await api.get(`/progress/course/${params.courseId}`)
@@ -72,11 +77,13 @@ export default function LearnPage() {
   }
 
   const handleStartLesson = (lessonId, moduleIndex) => {
+    if (!hasAccess) return
     if (!isModuleUnlocked(moduleIndex)) return
     router.push(`/learn/${params.courseId}/lesson/${lessonId}`)
   }
 
   const handleStartQuiz = (quizId, moduleIndex) => {
+    if (!hasAccess) return
     if (!isModuleUnlocked(moduleIndex)) return
     router.push(`/learn/${params.courseId}/quiz/${quizId}`)
   }
@@ -173,6 +180,13 @@ export default function LearnPage() {
       {/* Course Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-4">
+          {!hasAccess && (
+            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-2xl p-6">
+              <h3 className="text-2xl font-bold text-white mb-2">Purchase to Unlock</h3>
+              <p className="text-gray-300 mb-4">You can preview structure, but lessons and quizzes are locked until purchase.</p>
+              <button onClick={() => router.push(`/courses/${params.courseId}`)} className="px-5 py-2 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold">Unlock Course</button>
+            </div>
+          )}
           {modules.length === 0 ? (
             <div className="bg-gradient-to-br from-dark-100/80 to-dark/80 backdrop-blur-xl rounded-2xl border border-white/10 p-12 text-center">
               <BookOpen className="h-16 w-16 text-gray-600 mx-auto mb-4" />
@@ -191,7 +205,7 @@ export default function LearnPage() {
                 {/* Module Header */}
                 <button
                   onClick={() => isModuleUnlocked(moduleIndex) && toggleModule(moduleIndex)}
-                  className={`w-full p-6 flex items-center justify-between transition-all ${isModuleUnlocked(moduleIndex) ? 'hover:bg-white/5' : 'cursor-not-allowed opacity-70'}`}
+                  className={`w-full p-6 flex items-center justify-between transition-all ${(isModuleUnlocked(moduleIndex) && hasAccess) ? 'hover:bg-white/5' : 'cursor-not-allowed opacity-70'}`}
                 >
                   <div className="flex items-center gap-4 flex-1 text-left">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg flex-shrink-0 ${
@@ -279,12 +293,13 @@ export default function LearnPage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: lessonIndex * 0.05 }}
-                            className={`flex items-center justify-between p-4 rounded-xl transition-all ${
+                            className={`flex items-center justify-between p-4 rounded-xl transition-all relative ${
                               isLessonCompleted(lesson._id)
                                 ? 'bg-green-500/10 border border-green-500/30'
                                 : 'bg-white/5 border border-white/10 hover:border-primary/30'
                             }`}
                           >
+                            {!hasAccess && <div className="absolute inset-0 backdrop-blur-[2px] bg-black/30 rounded-xl" />}
                             <div className="flex items-center gap-4 flex-1 min-w-0">
                               {isLessonCompleted(lesson._id) ? (
                                 <CheckCircle className="h-5 w-5 text-green-400 flex-shrink-0" />

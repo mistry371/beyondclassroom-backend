@@ -6,7 +6,7 @@ const courseSchema = new mongoose.Schema({
   category: { type: String, required: true },
   difficulty: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced'], required: true },
   price: { type: Number, required: true, default: 0 },
-  instructor: { type: String, required: true },
+  instructor: { type: String, default: '' },
   duration: { type: String, required: true },
   topics: [{ type: String }],
   content: [{

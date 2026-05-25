@@ -8,8 +8,11 @@ class Subtopic {
     this.content = data.content || ''
     this.order = data.order || 0
     this.isPublished = data.isPublished !== false
-    // Document attachment (stored as base64 or URL)
-    this.document = data.document || null  // { name, size, type, data (base64) }
+    // Multi-document attachment (stored as base64 or URL)
+    this.documents = Array.isArray(data.documents)
+      ? data.documents
+      : (data.document ? [data.document] : [])
+    this.document = this.documents[0] || null
     this.createdAt = data.createdAt || new Date()
     this.updatedAt = data.updatedAt || new Date()
   }

@@ -1,7 +1,24 @@
 const { db } = require('../database/db')
 const Subtopic = require('../models/Subtopic')
 
-const MAX_DOC_SIZE = 2 * 1024 * 1024 // 2 MB in bytes
+const MAX_DOC_SIZE = 5 * 1024 * 1024 // 5 MB
+const MAX_DOC_COUNT = 20
+
+const normalizeDocuments = (body = {}) => {
+  if (Array.isArray(body.documents)) return body.documents
+  if (body.document) return [body.document]
+  return []
+}
+
+const validateDocuments = (documents) => {
+  if (documents.length > MAX_DOC_COUNT) return `Maximum ${MAX_DOC_COUNT} documents allowed`
+  for (const doc of documents) {
+    if (!doc?.data) continue
+    const approxBytes = Math.ceil(doc.data.length * 0.75)
+    if (approxBytes > MAX_DOC_SIZE) return 'Each document must be 5 MB or smaller'
+  }
+  return null
+}
 
 // Get all subtopics for a lesson
 exports.getSubtopicsByLesson = async (req, res) => {
@@ -36,17 +53,11 @@ exports.getSubtopic = async (req, res) => {
 exports.createSubtopic = async (req, res) => {
   try {
     await db.read()
+    const documents = normalizeDocuments(req.body)
+    const validationError = validateDocuments(documents)
+    if (validationError) return res.status(400).json({ success: false, message: validationError })
 
-    // Validate document size if provided
-    if (req.body.document?.data) {
-      // base64 string length * 0.75 ≈ actual byte size
-      const approxBytes = Math.ceil(req.body.document.data.length * 0.75)
-      if (approxBytes > MAX_DOC_SIZE) {
-        return res.status(400).json({ success: false, message: 'Document exceeds 2 MB limit' })
-      }
-    }
-
-    const newSubtopic = new Subtopic(req.body)
+    const newSubtopic = new Subtopic({ ...req.body, documents })
     db.data.subtopics = db.data.subtopics || []
     db.data.subtopics.push(newSubtopic)
     await db.write()
@@ -62,14 +73,9 @@ exports.updateSubtopic = async (req, res) => {
   try {
     await db.read()
     const { subtopicId } = req.params
-
-    // Validate document size if provided
-    if (req.body.document?.data) {
-      const approxBytes = Math.ceil(req.body.document.data.length * 0.75)
-      if (approxBytes > MAX_DOC_SIZE) {
-        return res.status(400).json({ success: false, message: 'Document exceeds 2 MB limit' })
-      }
-    }
+    const documents = normalizeDocuments(req.body)
+    const validationError = validateDocuments(documents)
+    if (validationError) return res.status(400).json({ success: false, message: validationError })
 
     const index = (db.data.subtopics || []).findIndex(s => s._id === subtopicId)
     if (index === -1) {
@@ -79,7 +85,9 @@ exports.updateSubtopic = async (req, res) => {
     db.data.subtopics[index] = {
       ...db.data.subtopics[index],
       ...req.body,
-      updatedAt: new Date()
+      documents,
+      document: documents[0] || null,
+      updatedAt: new Date(),
     }
     await db.write()
 

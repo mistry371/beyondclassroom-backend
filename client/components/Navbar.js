@@ -15,10 +15,7 @@ const publicLinks = [
   { href: '/team', label: 'Team' },
   { href: '/packages', label: 'Packages' },
   { href: '/courses', label: 'Courses' },
-  { href: '/tools', label: 'Tools' },
-  { href: '/live', label: 'Live', live: true },
-  { href: '/promoter', label: 'Promote' },
-  { href: '/blogs', label: 'Blogs' },
+  { href: '/contact', label: 'Contact Us' },
 ]
 
 export default function Navbar() {

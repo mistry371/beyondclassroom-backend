@@ -22,7 +22,6 @@ export default function AdminCourses() {
     category: 'Mathematics',
     difficulty: 'Beginner',
     price: '',
-    instructor: '',
     duration: '',
     status: 'draft'
   })
@@ -53,7 +52,6 @@ export default function AdminCourses() {
       category: 'Mathematics',
       difficulty: 'Beginner',
       price: 0,
-      instructor: '',
       duration: '',
       status: 'draft'
     })
@@ -68,7 +66,6 @@ export default function AdminCourses() {
       category: course.category,
       difficulty: course.difficulty,
       price: course.price,
-      instructor: course.instructor,
       duration: course.duration,
       status: course.status || 'draft'
     })
@@ -326,16 +323,6 @@ export default function AdminCourses() {
                       required
                     />
                   </div>
-                </div>
-                <div>
-                  <label className="block text-gray-300 text-sm font-medium mb-2">Instructor</label>
-                  <input
-                    type="text"
-                    value={formData.instructor}
-                    onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
-                    className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
-                    required
-                  />
                 </div>
                 <div>
                   <label className="block text-gray-300 text-sm font-medium mb-2">Status</label>

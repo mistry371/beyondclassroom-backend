@@ -10,14 +10,31 @@ const generateToken = (id) => {
 
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, password } = req.body;
+    const normalizedPhone = String(phone || '').replace(/\D/g, '');
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : '';
 
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (!name || !normalizedPhone || !password) {
+      return res.status(400).json({ message: 'Name, mobile number and password are required' });
+    }
+    if (normalizedPhone.length < 10) {
+      return res.status(400).json({ message: 'Please enter a valid mobile number' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
 
-    const user = await User.create({ name, email, password });
+    const userExists = await User.findOne({
+      $or: [
+        { phone: normalizedPhone },
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+      ],
+    });
+    if (userExists) {
+      return res.status(400).json({ message: 'User already exists with this mobile/email' });
+    }
+
+    const user = await User.create({ name, phone: normalizedPhone, email: normalizedEmail || undefined, password });
     
     const token = generateToken(user._id);
 
@@ -28,6 +45,7 @@ exports.register = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role
       }
     });
@@ -38,9 +56,17 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, mobileNumber, password } = req.body;
+    const normalizedPhone = String(phone || mobileNumber || '').replace(/\D/g, '');
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : '';
 
-    const user = await User.findOne({ email });
+    if ((!normalizedPhone && !normalizedEmail) || !password) {
+      return res.status(400).json({ message: 'Mobile/email and password are required' });
+    }
+
+    const user = await User.findOne(
+      normalizedPhone ? { phone: normalizedPhone } : { email: normalizedEmail }
+    );
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -54,6 +80,7 @@ exports.login = async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role
       }
     });
