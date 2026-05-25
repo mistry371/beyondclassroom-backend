@@ -15,6 +15,7 @@ export default function AdminDashboard() {
   const { user, isAuthenticated } = useSelector(state => state.auth)
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
 
   useEffect(() => {
     // Check authentication and role
@@ -34,11 +35,13 @@ export default function AdminDashboard() {
   }, [user, isAuthenticated])
 
   const fetchDashboardStats = async () => {
+    setFetchError('')
     try {
       const res = await api.get('/admin/dashboard/stats')
-      setStats(res.data.stats)
+      setStats(res.data.stats || {})
     } catch (error) {
-      console.error('Failed to fetch stats:', error)
+      setFetchError(error.userMessage || 'Failed to load dashboard. Please refresh.')
+      setStats({})
     } finally {
       setLoading(false)
     }
@@ -47,7 +50,19 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
+        <p className="sr-only">Loading admin dashboard</p>
+      </div>
+    )
+  }
+
+  if (fetchError && !stats?.totalUsers) {
+    return (
+      <div className="min-h-screen bg-dark flex flex-col items-center justify-center gap-4 px-4">
+        <p className="text-red-400 text-center max-w-md">{fetchError}</p>
+        <button type="button" onClick={() => { setLoading(true); fetchDashboardStats() }} className="px-6 py-3 bg-primary rounded-xl text-white font-semibold">
+          Retry
+        </button>
       </div>
     )
   }
@@ -69,7 +84,7 @@ export default function AdminDashboard() {
     },
     {
       title: 'Total Revenue',
-      value: `₹${stats?.totalRevenue?.toFixed(2) || 0}`,
+      value: `₹${Number(stats?.totalRevenue || 0).toFixed(2)}`,
       icon: DollarSign,
       color: 'from-green-500 to-emerald-500',
       change: 0

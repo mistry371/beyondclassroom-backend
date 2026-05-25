@@ -1,4 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit'
+import { invalidateCache } from '@/lib/apiCache'
 
 // Load initial state from localStorage
 const loadFromLocalStorage = () => {
@@ -14,8 +15,10 @@ const loadFromLocalStorage = () => {
           loading: false,
         }
       }
-    } catch (error) {
-      console.error('Error loading from localStorage:', error)
+    } catch {
+      // corrupt storage — clear
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
     }
   }
   return {
@@ -48,6 +51,7 @@ const authSlice = createSlice({
       if (typeof window !== 'undefined') {
         localStorage.removeItem('token')
         localStorage.removeItem('user')
+        invalidateCache('')
       }
     },
     setLoading: (state, action) => {
@@ -64,8 +68,9 @@ const authSlice = createSlice({
             state.token = token
             state.isAuthenticated = true
           }
-        } catch (error) {
-          console.error('Error restoring auth:', error)
+        } catch {
+          localStorage.removeItem('token')
+          localStorage.removeItem('user')
         }
       }
     },

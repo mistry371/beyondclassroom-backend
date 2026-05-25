@@ -61,9 +61,9 @@ export default function AdminAnalytics() {
 
   const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b']
 
-  const userGrowthData = analytics?.userGrowth || []
-  const coursePopularityData = analytics?.coursePopularity || []
-  const revenueData = analytics?.revenue || []
+  const userGrowthData = analytics?.userGrowth?.length ? analytics.userGrowth : [{ date: '—', users: 0 }]
+  const coursePopularityData = analytics?.coursePopularity?.length ? analytics.coursePopularity : [{ name: 'No data', enrollments: 0 }]
+  const revenueData = analytics?.revenue?.length ? analytics.revenue : [{ date: '—', revenue: 0 }]
 
   return (
     <div className="min-h-screen bg-dark">

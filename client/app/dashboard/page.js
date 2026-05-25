@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { BookOpen, TrendingUp, Award, Clock, PlayCircle, Lock, AlertTriangle, ShoppingCart } from 'lucide-react'
 import Navbar from '@/components/Navbar'
+import EmptyState from '@/components/ui/EmptyState'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
 
@@ -14,6 +15,7 @@ export default function Dashboard() {
   const [purchasedCourses, setPurchasedCourses] = useState([])
   const [progress, setProgress] = useState([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [trialStatus, setTrialStatus] = useState(null)
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function Dashboard() {
         setTrialStatus(trialRes.data)
       } catch {}
     } catch (error) {
-      console.error('Failed to fetch dashboard data:', error)
+      setFetchError(error.userMessage || 'Could not load your dashboard.')
     } finally {
       setLoading(false)
     }
@@ -93,6 +95,12 @@ export default function Dashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {fetchError && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-300 text-sm flex justify-between items-center gap-4 flex-wrap">
+            <span>{fetchError}</span>
+            <button type="button" onClick={() => { setLoading(true); fetchDashboardData() }} className="font-semibold underline text-white">Retry</button>
+          </div>
+        )}
         {/* Trial Banner */}
         {trialStatus && !trialStatus.hasPurchasedCourses && (
           trialStatus.trialExpired ? (
@@ -216,7 +224,7 @@ export default function Dashboard() {
               <h3 className="text-xl font-bold text-white mb-2">No Courses Yet</h3>
               <p className="text-gray-400 mb-6">Start your learning journey by enrolling in a course</p>
               <button
-                onClick={() => router.push('/')}
+                onClick={() => router.push('/courses')}
                 className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:opacity-90 transition-all"
               >
                 Browse Courses
