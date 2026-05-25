@@ -4,8 +4,9 @@ services:
     env: node
     region: singapore
     plan: free
+    rootDir: .
     buildCommand: npm install
-    startCommand: node server-simple.js
+    startCommand: npm start
     envVars:
       - key: PORT
         value: 5000
