@@ -68,6 +68,11 @@ export default function Dashboard() {
     return courseProgress?.completionPercentage || 0
   }
 
+  const avgProgress = useMemo(() => {
+    if (progress.length === 0) return 0
+    return Math.round(progress.reduce((sum, p) => sum + (p?.completionPercentage || 0), 0) / progress.length)
+  }, [progress])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark flex items-center justify-center">
@@ -329,7 +334,3 @@ export default function Dashboard() {
     </div>
   )
 }
-  const avgProgress = useMemo(() => {
-    if (progress.length === 0) return 0
-    return Math.round(progress.reduce((sum, p) => sum + (p?.completionPercentage || 0), 0) / progress.length)
-  }, [progress])
