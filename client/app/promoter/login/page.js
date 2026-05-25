@@ -10,7 +10,7 @@ import promoterApi, { savePromoterSession } from '@/utils/promoterApi'
 
 export default function PromoterLoginPage() {
   const router = useRouter()
-  const [phone, setPhone] = useState('')
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -21,8 +21,11 @@ export default function PromoterLoginPage() {
     try {
       setLoading(true)
       setError('')
+      const value = loginId.trim()
+      const isEmail = value.includes('@')
       const res = await promoterApi.post('/promoters/login', {
-        phone: phone.trim(),
+        phone: isEmail ? '' : value,
+        email: isEmail ? value.toLowerCase() : '',
         password,
       }, { timeout: 45000 })
       if (res.data.success) {
@@ -59,12 +62,12 @@ export default function PromoterLoginPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="text-white/80 text-sm font-medium mb-2 block">Mobile Number</label>
+              <label className="text-white/80 text-sm font-medium mb-2 block">Mobile Number (or Email)</label>
               <div className="relative">
                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required
+                <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)} required
                   className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-secondary"
-                  placeholder="9876543210"
+                  placeholder="9876543210 or email@example.com"
                 />
               </div>
             </div>

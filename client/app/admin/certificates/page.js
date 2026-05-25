@@ -94,7 +94,6 @@ export default function AdminCertificates() {
   }
 
   const handleDownload = async (cert, format = 'html') => {
-    if (format === 'html') {
     const certHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -152,6 +151,7 @@ export default function AdminCertificates() {
 </body>
 </html>`
 
+    if (format === 'html') {
       const blob = new Blob([certHtml], { type: 'text/html' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
