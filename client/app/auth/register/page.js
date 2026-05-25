@@ -36,12 +36,19 @@ function RegisterContent() {
       setLoading(true)
       setError('')
 
-      const payload = { ...data }
+      const payload = {
+        ...data,
+        email: data.email?.toLowerCase().trim(),
+      }
       if (referralCode) payload.referralCode = referralCode
 
-      const response = await api.post('/auth/register', payload)
+      const response = await api.post('/auth/register', payload, { timeout: 30000 })
       sessionStorage.removeItem('referralCode')
-      dispatch(setCredentials(response.data))
+      const payloadRes = response.data
+      dispatch(setCredentials({
+        token: payloadRes.token,
+        user: { ...payloadRes.user, _id: payloadRes.user?.id || payloadRes.user?._id },
+      }))
 
       const urlParams = new URLSearchParams(window.location.search)
       const redirectUrl = urlParams.get('redirect')
@@ -49,7 +56,7 @@ function RegisterContent() {
       if (redirectUrl) {
         router.push(redirectUrl)
       } else {
-        const userRole = response.data.user?.role
+        const userRole = payloadRes.user?.role
         if (userRole === 'admin' || userRole === 'super_admin') {
           router.push('/admin')
         } else {

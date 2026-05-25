@@ -33,6 +33,23 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Initialize database then start server
+app.post('/api/system/reseed-demo', async (req, res) => {
+  try {
+    const key = process.env.DEMO_RESEED_KEY || 'beyondclassroom-reseed';
+    if (req.body?.key !== key && req.query?.key !== key) {
+      return res.status(403).json({ success: false, message: 'Invalid reseed key' });
+    }
+    const { seedLaunchDemo } = require('./services/launchDemoSeed');
+    await seedLaunchDemo();
+    res.json({
+      success: true,
+      message: 'Demo accounts updated (student, promoter passwords reset)',
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 initDB().then(async () => {
   try {
     const { seedLaunchDemo } = require('./services/launchDemoSeed');
@@ -102,7 +119,8 @@ app.post('/api/auth/register', async (req, res) => {
     
     await db.read();
     
-    const userExists = db.data.users.find(u => u.email === email);
+    const emailNorm = String(email).toLowerCase().trim();
+    const userExists = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
@@ -113,7 +131,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = {
       _id: generateId(),
       name,
-      email,
+      email: emailNorm,
       password: hashedPassword,
       role: 'user',
       status: 'active',
@@ -259,7 +277,8 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     await db.read();
-    const user = db.data.users.find(u => u.email === email);
+    const emailNorm = String(email).toLowerCase().trim();
+    const user = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
     
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -283,6 +302,7 @@ app.post('/api/auth/login', async (req, res) => {
       success: true,
       token,
       user: {
+        _id: user._id,
         id: user._id,
         name: user.name,
         email: user.email,

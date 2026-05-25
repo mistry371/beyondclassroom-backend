@@ -322,8 +322,9 @@ img {
   pointer-events: none;
 }
 
-/* Allow pointer events on interactive images */
-img.interactive, button img, a img {
+/* Allow pointer events on interactive images and form controls */
+img.interactive, button img, a img,
+input, textarea, select, button, a, label {
   pointer-events: auto;
 }
 

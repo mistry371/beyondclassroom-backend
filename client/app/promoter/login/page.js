@@ -21,13 +21,16 @@ export default function PromoterLoginPage() {
     try {
       setLoading(true)
       setError('')
-      const res = await promoterApi.post('/promoters/login', { email, password })
+      const res = await promoterApi.post('/promoters/login', {
+        email: email.toLowerCase().trim(),
+        password,
+      }, { timeout: 30000 })
       if (res.data.success) {
         savePromoterSession(res.data.token, res.data.promoter)
         router.push('/promoter/dashboard')
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed')
+      setError(err.userMessage || err.response?.data?.message || 'Login failed')
     } finally {
       setLoading(false)
     }

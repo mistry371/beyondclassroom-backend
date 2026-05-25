@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 
 const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false, loading: () => null })
 const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false, loading: () => null })
+const ClientChrome = dynamic(() => import('@/components/ClientChrome'), { ssr: false, loading: () => null })
 
 const SITE_URL = 'https://beyondclassroom.netlify.app'
 
@@ -61,8 +62,7 @@ export default function RootLayout({ children }) {
       <body>
         <Providers>
           {children}
-          <AITutor />
-          <ScreenProtection />
+          <ClientChrome />
         </Providers>
       </body>
     </html>

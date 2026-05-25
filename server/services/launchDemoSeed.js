@@ -2,7 +2,20 @@
  * Idempotent launch demo data — makes dashboards investor-demo ready.
  */
 const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose')
 const { db } = require('../database/db')
+
+async function upsertCollection(collectionName, doc) {
+  if (!doc?._id) return
+  const conn = mongoose.connection
+  if (conn?.readyState === 1) {
+    await conn.collection(collectionName).updateOne(
+      { _id: doc._id },
+      { $set: doc },
+      { upsert: true }
+    )
+  }
+}
 
 const genId = () => Date.now().toString() + Math.random().toString(36).slice(2, 9)
 
@@ -201,6 +214,11 @@ async function seedLaunchDemo() {
   }
 
   await db.write()
+
+  // Force-sync demo credentials to MongoDB (fixes stale hashes on Render)
+  await upsertCollection('promoters', promoter)
+  await upsertCollection('users', student)
+
   console.log('✅ Launch demo data seeded (promoter, student, referrals, orders, progress)')
 }
 

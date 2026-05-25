@@ -23,8 +23,18 @@ function LoginContent() {
     try {
       setLoading(true)
       setError('')
-      const response = await api.post('/auth/login', data)
-      dispatch(setCredentials(response.data))
+      const response = await api.post('/auth/login', {
+        email: data.email?.toLowerCase().trim(),
+        password: data.password,
+      }, { timeout: 30000 })
+      const payload = response.data
+      dispatch(setCredentials({
+        token: payload.token,
+        user: {
+          ...payload.user,
+          _id: payload.user?.id || payload.user?._id,
+        },
+      }))
 
       const redirect = searchParams.get('redirect')
       if (redirect) {
@@ -32,7 +42,7 @@ function LoginContent() {
         return
       }
 
-      const userRole = response.data.user?.role
+      const userRole = payload.user?.role
       if (userRole === 'admin' || userRole === 'super_admin') {
         router.push('/admin')
       } else {
