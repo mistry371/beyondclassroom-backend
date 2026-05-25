@@ -48,15 +48,15 @@ export default function PromoterRegisterPage() {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
-              { key: 'name', icon: User, label: 'Full Name', type: 'text' },
-              { key: 'email', icon: Mail, label: 'Email', type: 'email' },
-              { key: 'phone', icon: Phone, label: 'Phone', type: 'tel' },
-            ].map(({ key, icon: Icon, label, type }) => (
+              { key: 'name', icon: User, label: 'Full Name', type: 'text', required: true },
+              { key: 'phone', icon: Phone, label: 'Mobile Number', type: 'tel', required: true },
+              { key: 'email', icon: Mail, label: 'Email (Optional)', type: 'email', required: false },
+            ].map(({ key, icon: Icon, label, type, required }) => (
               <div key={key}>
                 <label className="text-white/80 text-sm mb-1 block">{label}</label>
                 <div className="relative">
                   <Icon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-white/40" />
-                  <input type={type} required value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  <input type={type} required={required} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-secondary"
                   />
                 </div>

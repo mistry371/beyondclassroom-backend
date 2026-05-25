@@ -21,7 +21,6 @@ export default function AdminCustomRequests() {
   const [form, setForm] = useState({ status:'', adminNote:'', quotedPrice:'' })
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) { router.push('/'); return }
     api.get('/custom-requests/admin').then(r => setRequests(r.data.requests || [])).catch(console.error).finally(() => setLoading(false))
   }, [user])
 

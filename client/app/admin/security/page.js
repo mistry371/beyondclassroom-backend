@@ -18,10 +18,6 @@ export default function AdminSecurity() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchSecurityData()
   }, [user])
 

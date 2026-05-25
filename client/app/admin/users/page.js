@@ -28,10 +28,6 @@ export default function AdminUsers() {
   })
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchUsers()
   }, [user, search, roleFilter])
 

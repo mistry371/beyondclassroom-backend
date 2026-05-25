@@ -16,10 +16,6 @@ export default function AdminTools() {
   const [categoryFilter, setCategoryFilter] = useState('All')
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchTools()
   }, [user])
 

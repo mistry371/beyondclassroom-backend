@@ -16,10 +16,6 @@ export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general')
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchSettings()
   }, [user])
 

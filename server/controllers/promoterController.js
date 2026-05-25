@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { db } = require('../database/db')
 const referralService = require('../services/referralService')
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -22,18 +23,29 @@ const ensureUniqueCode = async (name) => {
 exports.register = async (req, res) => {
   try {
     const { name, email, phone, password } = req.body
-    if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: 'Name, email and password are required' })
+    const phoneNorm = normalizePhone(phone)
+    const emailNorm = email ? String(email).toLowerCase().trim() : ''
+    if (!name || !phoneNorm || !password) {
+      return res.status(400).json({ success: false, message: 'Name, mobile number and password are required' })
+    }
+    if (phoneNorm.length < 10) {
+      return res.status(400).json({ success: false, message: 'Please enter a valid mobile number' })
     }
     if (password.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' })
     }
 
     await db.read()
-    if (db.data.promoters?.some((p) => p.email === email.toLowerCase())) {
+    if (db.data.promoters?.some((p) => normalizePhone(p.phone) === phoneNorm)) {
+      return res.status(400).json({ success: false, message: 'Mobile number already registered as promoter' })
+    }
+    if (db.data.users?.some((u) => normalizePhone(u.phone) === phoneNorm)) {
+      return res.status(400).json({ success: false, message: 'Mobile number already used for student account' })
+    }
+    if (emailNorm && db.data.promoters?.some((p) => p.email === emailNorm)) {
       return res.status(400).json({ success: false, message: 'Email already registered as promoter' })
     }
-    if (db.data.users?.some((u) => u.email === email.toLowerCase())) {
+    if (emailNorm && db.data.users?.some((u) => u.email === emailNorm)) {
       return res.status(400).json({ success: false, message: 'Email already used for student account' })
     }
 
@@ -41,8 +53,8 @@ exports.register = async (req, res) => {
     const promoter = {
       _id: generateId(),
       name: name.trim(),
-      email: email.toLowerCase().trim(),
-      phone: phone || '',
+      email: emailNorm || null,
+      phone: phoneNorm,
       password: await bcrypt.hash(password, 12),
       referralCode,
       status: 'active',
@@ -75,13 +87,33 @@ exports.register = async (req, res) => {
 
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password required' })
+    const { phone, mobileNumber, email, password } = req.body
+    const phoneNorm = normalizePhone(phone || mobileNumber)
+    const emailNorm = email ? String(email).toLowerCase().trim() : ''
+    if ((!phoneNorm && !emailNorm) || !password) {
+      return res.status(400).json({ success: false, message: 'Mobile number and password required' })
     }
 
     await db.read()
-    const promoter = db.data.promoters?.find((p) => p.email === email.toLowerCase().trim())
+    let promoter = null
+    if (phoneNorm) {
+      promoter = db.data.promoters?.find((p) => normalizePhone(p.phone) === phoneNorm)
+    }
+    if (!promoter && emailNorm) {
+      promoter = db.data.promoters?.find((p) => p.email === emailNorm)
+    }
+    if (!promoter) {
+      const userAccount = db.data.users?.find((u) =>
+        (phoneNorm && normalizePhone(u.phone) === phoneNorm) ||
+        (emailNorm && u.email?.toLowerCase().trim() === emailNorm)
+      )
+      if (userAccount) {
+        return res.status(400).json({
+          success: false,
+          message: 'This email belongs to student/admin panel. Please use the correct login panel.',
+        })
+      }
+    }
     if (!promoter || !(await bcrypt.compare(password, promoter.password))) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' })
     }

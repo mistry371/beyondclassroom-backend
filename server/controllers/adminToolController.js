@@ -48,12 +48,16 @@ exports.getTools = async (req, res) => {
     await db.read();
     // Always sync — ensure all 40 tools exist, preserving existing enabled states
     const existing = db.data.tools || [];
-    db.data.tools = DEFAULT_TOOLS.map(dt => {
+    const nextTools = DEFAULT_TOOLS.map(dt => {
       const found = existing.find(t => t._id === dt._id);
       return found ? { ...dt, enabled: found.enabled } : dt;
     });
-    await db.write();
-    res.json({ tools: db.data.tools });
+    const changed = JSON.stringify(existing) !== JSON.stringify(nextTools);
+    db.data.tools = nextTools;
+    if (changed) {
+      await db.write();
+    }
+    res.json({ tools: nextTools });
   } catch (error) {
     console.error('Get tools error:', error);
     res.status(500).json({ message: 'Server error' });

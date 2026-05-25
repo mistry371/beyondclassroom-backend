@@ -14,7 +14,6 @@ export default function ExamAnalytics() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) { router.push('/'); return }
     api.get('/exams/admin/' + params.examId + '/analytics')
       .then(r => setData(r.data.analytics))
       .catch(console.error)

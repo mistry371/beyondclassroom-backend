@@ -16,7 +16,7 @@ export default function AdminPromotersPage() {
   useEffect(() => {
     if (authLoading) return
     if (!isAdmin) {
-      router.push('/admin')
+      router.replace('/auth/login?redirect=%2Fadmin%2Fpromoters')
       return
     }
     loadData()

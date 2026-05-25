@@ -16,10 +16,6 @@ export default function AdminAnalytics() {
   const [dateRange, setDateRange] = useState('30')
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchAnalytics()
   }, [user, dateRange])
 

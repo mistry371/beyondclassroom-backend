@@ -16,10 +16,6 @@ export default function AdminMedia() {
   const [filterType, setFilterType] = useState('all')
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchMedia()
   }, [user])
 
@@ -38,7 +34,25 @@ export default function AdminMedia() {
     const files = e.target.files
     if (!files.length) return
 
-    const formData = new FormData()
+    for (let file of files) {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          await api.post('/admin/media/upload', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: reader.result
+          })
+          fetchMedia()
+        } catch (error) {
+          alert('Upload failed: ' + (error.response?.data?.message || error.message))
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+    return
+    /* const formData = new FormData()
     for (let file of files) {
       formData.append('files', file)
     }
@@ -50,7 +64,7 @@ export default function AdminMedia() {
       fetchMedia()
     } catch (error) {
       alert('Upload failed')
-    }
+    } */
   }
 
   const handleDelete = async (mediaId) => {

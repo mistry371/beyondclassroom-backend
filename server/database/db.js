@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema({
   _id: { type: String },
   name: String,
   email: { type: String, unique: true, sparse: true },
+  phone: { type: String, sparse: true },
   password: String,
   role: { type: String, default: 'user' },
   status: { type: String, default: 'active' },
@@ -427,6 +428,7 @@ const models = {
   badges:             mongoose.models.DbBadge             || mongoose.model('DbBadge',             badgeSchema,             'badges'),
   emailLogs:          mongoose.models.DbEmailLog          || mongoose.model('DbEmailLog',          emailLogSchema,          'emailLogs'),
   adminNotifications: mongoose.models.DbAdminNotification || mongoose.model('DbAdminNotification', adminNotificationSchema, 'adminNotifications'),
+  siteContents:       mongoose.models.DbSiteContent       || mongoose.model('DbSiteContent',       siteContentSchema,       'siteContents'),
   blockedIPs:         mongoose.models.DbBlockedIP         || mongoose.model('DbBlockedIP',         blockedIPSchema,         'blockedIPs'),
   promoters:          mongoose.models.DbPromoter          || mongoose.model('DbPromoter',          promoterSchema,          'promoters'),
   referrals:          mongoose.models.DbReferral          || mongoose.model('DbReferral',          referralSchema,          'referrals'),
@@ -446,48 +448,96 @@ function makeCollectionProxy(collectionName) {
 }
 
 // ── db object — compatible with existing code ─────────────────────────────────
+// ── db object — compatible with existing code ─────────────────────────────────
 const db = {
   _data: {},
+  _lastStateJson: {},
+  _lastRead: 0,
   
-  async read() {
-    // Load all collections into memory cache
+  async read(force = false) {
     await connectMongo()
+    const now = Date.now()
+    // 15-second cache TTL to reduce repeated full-DB reads under burst traffic
+    if (!force && this._lastRead && (now - this._lastRead < 15000) && Object.keys(this._data).length > 0) {
+      return
+    }
+    
     const colls = Object.keys(models)
     const results = await Promise.all(
       colls.map(c => models[c].find({}).lean())
     )
     colls.forEach((c, i) => {
       this._data[c] = results[i]
+      this._lastStateJson[c] = JSON.stringify(results[i])
     })
     // Special: content and siteContent
     this._data.content = this._data.content || {}
-    this._data.siteContent = this._data.siteContent?.[0]?.data || null
+    this._data.siteContent = this._data.siteContents?.[0]?.data || null
     this._data.trials = this._data.trials || []
     this._data.blockedIPs = this._data.blockedIPs || []
     this._data.payments = this._data.payments || []
+    
+    this._lastRead = now
   },
 
   async write() {
     await connectMongo()
-    // Write all dirty collections back to MongoDB
     const colls = Object.keys(models)
     for (const c of colls) {
       if (!this._data[c] || !Array.isArray(this._data[c])) continue
+      
+      const currentJson = JSON.stringify(this._data[c])
+      const oldJson = this._lastStateJson[c]
+      
+      // Skip if unchanged
+      if (currentJson === oldJson) continue
+      
       const Model = models[c]
+      const oldDocs = oldJson ? JSON.parse(oldJson) : []
+      const oldDocsMap = new Map(oldDocs.map(d => [d._id, JSON.stringify(d)]))
+      const currentIds = new Set(this._data[c].map(d => d._id).filter(Boolean))
+      
+      // Update/Insert docs
       for (const doc of this._data[c]) {
         if (!doc._id) continue
-        await Model.findOneAndUpdate(
-          { _id: doc._id },
-          { $set: doc },
-          { upsert: true, new: true }
-        ).lean()
+        const docJson = JSON.stringify(doc)
+        const cachedDocJson = oldDocsMap.get(doc._id)
+        
+        if (docJson !== cachedDocJson) {
+          await Model.findOneAndUpdate(
+            { _id: doc._id },
+            { $set: doc },
+            { upsert: true, new: true }
+          ).lean()
+        }
       }
+      
       // Delete removed docs
-      const currentIds = this._data[c].map(d => d._id).filter(Boolean)
-      if (currentIds.length > 0) {
-        await Model.deleteMany({ _id: { $nin: currentIds } })
+      const oldIds = oldDocs.map(d => d._id).filter(Boolean)
+      const removedIds = oldIds.filter(id => !currentIds.has(id))
+      if (removedIds.length > 0) {
+        await Model.deleteMany({ _id: { $in: removedIds } })
       }
+      
+      // Sync the snapshot state
+      this._lastStateJson[c] = currentJson
     }
+
+    // Persist siteContent singleton into siteContents collection
+    if (this._data.siteContent && typeof this._data.siteContent === 'object') {
+      const siteDoc = {
+        _id: 'site-content',
+        data: this._data.siteContent,
+        updatedAt: new Date(),
+      }
+      await models.siteContents.findOneAndUpdate(
+        { _id: 'site-content' },
+        { $set: siteDoc },
+        { upsert: true, new: true }
+      )
+    }
+    // Since our local cache is already up-to-date, reset the last read timestamp
+    this._lastRead = Date.now()
   },
 
   get data() {
@@ -527,17 +577,21 @@ async function initDB() {
   // Admin user
   const adminEmail = 'mistryjenish1003@gmail.com'
   db.data.users = db.data.users.filter(u => !(u.email === adminEmail && u._id !== 'admin-default'))
+  const adminPassword = 'Jenish@1019'
+  const adminHash = await bcrypt.hash(adminPassword, 12)
   const adminIdx = db.data.users.findIndex(u => u._id === 'admin-default')
   if (adminIdx >= 0) {
     db.data.users[adminIdx].email = adminEmail
     db.data.users[adminIdx].role  = 'admin'
+    db.data.users[adminIdx].password = adminHash
+    db.data.users[adminIdx].status = 'active'
     await models.users.findOneAndUpdate(
       { _id: 'admin-default' },
-      { $set: { email: adminEmail, role: 'admin' } },
+      { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } },
       { upsert: false }
     )
   } else {
-    const hashedPassword = await bcrypt.hash('Jenish@1019', 12)
+    const hashedPassword = adminHash
     const adminUser = {
       _id:              'admin-default',
       name:             'Jenish Mistry',

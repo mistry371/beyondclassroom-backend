@@ -19,10 +19,6 @@ export default function AdminBadges() {
   const [formData, setFormData] = useState(EMPTY_FORM)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchBadges()
   }, [user])
 

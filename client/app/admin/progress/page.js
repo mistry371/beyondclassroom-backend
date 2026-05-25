@@ -17,10 +17,6 @@ export default function AdminProgress() {
   const [courseFilter, setCourseFilter] = useState('all')
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchAll()
   }, [user])
 

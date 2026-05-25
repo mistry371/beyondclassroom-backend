@@ -19,10 +19,6 @@ export default function AdminContent() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchContent()
   }, [user])
 

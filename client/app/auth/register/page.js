@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useDispatch } from 'react-redux'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { Mail, Lock, User, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, User, ArrowLeft, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react'
 import { setCredentials } from '@/store/slices/authSlice'
 import api from '@/utils/api'
 import Link from 'next/link'
@@ -38,7 +38,8 @@ function RegisterContent() {
 
       const payload = {
         ...data,
-        email: data.email?.toLowerCase().trim(),
+        phone: data.phone?.trim(),
+        email: data.email?.toLowerCase().trim() || '',
       }
       if (referralCode) payload.referralCode = referralCode
 
@@ -132,12 +133,28 @@ function RegisterContent() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Mobile Number</label>
+            <div className="relative">
+              <Phone className="absolute left-3 top-3 h-5 w-5 text-gray-500" />
+              <input
+                {...register('phone', {
+                  required: 'Mobile number is required',
+                  minLength: { value: 10, message: 'Minimum 10 digits' }
+                })}
+                type="tel"
+                className="w-full pl-10 pr-4 py-3 bg-dark-200/50 border border-gray-600 text-white rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                placeholder="9876543210"
+              />
+            </div>
+            {errors.phone && <p className="text-red-400 text-sm mt-1">{errors.phone.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Email (Optional)</label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-5 w-5 text-gray-500" />
               <input
                 {...register('email', {
-                  required: 'Email is required',
                   pattern: {
                     value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
                     message: 'Invalid email address'

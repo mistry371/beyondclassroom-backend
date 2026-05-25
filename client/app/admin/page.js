@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useSelector } from 'react-redux'
+import { useAdminAuth } from '@/hooks/useAdminAuth'
 import {
   Users, BookOpen, DollarSign, TrendingUp, Activity,
   ShoppingCart, Award, Bell, Settings, BarChart3,
@@ -12,39 +11,15 @@ import api from '@/utils/api'
 import { motion } from 'framer-motion'
 
 export default function AdminDashboard() {
-  const router = useRouter()
-  const { user, isAuthenticated } = useSelector((state) => state.auth)
+  const { authReady, user } = useAdminAuth()
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
   const [fetchError, setFetchError] = useState('')
-  const [authReady, setAuthReady] = useState(false)
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const token = localStorage.getItem('token')
-    let storedUser = null
-    try {
-      const raw = localStorage.getItem('user')
-      storedUser = raw ? JSON.parse(raw) : null
-    } catch {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-    }
-
-    if (!token || !storedUser) {
-      router.replace('/auth/login?redirect=/admin')
-      return
-    }
-
-    if (storedUser.role !== 'admin' && storedUser.role !== 'super_admin') {
-      router.replace('/dashboard')
-      return
-    }
-
-    setAuthReady(true)
+    if (!authReady) return
     fetchDashboardStats()
-  }, [router])
+  }, [authReady])
 
   const fetchDashboardStats = async () => {
     setStatsLoading(true)
@@ -58,14 +33,6 @@ export default function AdminDashboard() {
     } finally {
       setStatsLoading(false)
     }
-  }
-
-  if (!authReady) {
-    return (
-      <div className="min-h-screen bg-dark flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary" />
-      </div>
-    )
   }
 
   const statCards = [

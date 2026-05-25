@@ -34,10 +34,6 @@ export default function AdminQuizzes() {
   })
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      router.push('/')
-      return
-    }
     fetchModules()
   }, [user])
 

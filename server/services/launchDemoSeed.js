@@ -24,10 +24,13 @@ async function seedLaunchDemo() {
 
   const studentEmail = 'jenscodersprivetlimited@gmail.com'
   const promoterEmail = 'mistryjenish1234@gmail.com'
+  const adminEmail = 'mistryjenish1003@gmail.com'
 
   // ── Promoter account (promoters collection — NOT users) ──
   const promoHash = await bcrypt.hash('Promoter@1019', 12)
-  let promoter = db.data.promoters?.find((p) => p.email === promoterEmail)
+  let promoter = db.data.promoters?.find(
+    (p) => p.email?.toLowerCase().trim() === promoterEmail
+  )
   if (!promoter) {
     promoter = {
       _id: 'promoter-demo-profile',
@@ -67,7 +70,9 @@ async function seedLaunchDemo() {
 
   // ── Student account + enrollments ──
   const studentHash = await bcrypt.hash('Student@1019', 12)
-  let student = db.data.users?.find((u) => u.email === studentEmail)
+  let student = db.data.users?.find(
+    (u) => u.email?.toLowerCase().trim() === studentEmail
+  )
   const courseIds = (db.data.courses || []).slice(0, 3).map((c) => c._id)
 
   if (!student) {
@@ -213,13 +218,47 @@ async function seedLaunchDemo() {
     )
   }
 
+  // Admin demo password (fixes stale hash when admin already exists in MongoDB)
+  const adminHash = await bcrypt.hash('Jenish@1019', 12)
+  db.data.users = db.data.users || []
+  let adminUser = db.data.users.find((u) => u._id === 'admin-default')
+  if (!adminUser) {
+    adminUser = db.data.users.find(
+      (u) => u.email?.toLowerCase().trim() === adminEmail
+    )
+  }
+  if (adminUser) {
+    adminUser._id = adminUser._id || 'admin-default'
+    adminUser.email = adminEmail
+    adminUser.role = 'admin'
+    adminUser.password = adminHash
+    adminUser.status = 'active'
+  } else {
+    adminUser = {
+      _id: 'admin-default',
+      name: 'Jenish Mistry',
+      email: adminEmail,
+      password: adminHash,
+      role: 'admin',
+      status: 'active',
+      profilePhoto: '',
+      isGuest: false,
+      purchasedCourses: [],
+      favorites: [],
+      emailVerified: true,
+      createdAt: new Date(),
+    }
+    db.data.users.push(adminUser)
+  }
+
   await db.write()
 
   // Force-sync demo credentials to MongoDB (fixes stale hashes on Render)
   await upsertCollection('promoters', promoter)
   await upsertCollection('users', student)
+  await upsertCollection('users', adminUser)
 
-  console.log('✅ Launch demo data seeded (promoter, student, referrals, orders, progress)')
+  console.log('✅ Launch demo data seeded (admin, promoter, student, referrals, orders, progress)')
 }
 
 module.exports = { seedLaunchDemo }

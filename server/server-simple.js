@@ -29,8 +29,8 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize database then start server
 app.post('/api/system/reseed-demo', async (req, res) => {
@@ -67,6 +67,7 @@ initDB().then(async () => {
 
 // Helper functions
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11);
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'your_jwt_secret', {
@@ -102,27 +103,41 @@ const protect = async (req, res, next) => {
 // AUTH ROUTES
 app.post('/api/auth/register', async (req, res) => {
   try {
-    const { name, email, password, referralCode } = req.body;
+    const { name, phone, email, password, referralCode } = req.body;
+    const phoneNorm = normalizePhone(phone);
+    const emailNorm = email ? String(email).toLowerCase().trim() : '';
     
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Please provide all required fields' });
+    if (!name || !phoneNorm || !password) {
+      return res.status(400).json({ message: 'Please provide name, mobile number and password' });
+    }
+
+    if (phoneNorm.length < 10) {
+      return res.status(400).json({ message: 'Please provide a valid mobile number' });
     }
     
     if (password.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
     
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({ message: 'Please provide a valid email' });
+    if (emailNorm) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailNorm)) {
+        return res.status(400).json({ message: 'Please provide a valid email' });
+      }
     }
     
     await db.read();
     
-    const emailNorm = String(email).toLowerCase().trim();
-    const userExists = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
-    if (userExists) {
-      return res.status(400).json({ message: 'User already exists' });
+    const phoneExists = db.data.users.find(u => normalizePhone(u.phone) === phoneNorm);
+    if (phoneExists) {
+      return res.status(400).json({ message: 'Mobile number already registered' });
+    }
+
+    if (emailNorm) {
+      const emailExists = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
+      if (emailExists) {
+        return res.status(400).json({ message: 'Email already registered' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -131,7 +146,8 @@ app.post('/api/auth/register', async (req, res) => {
     const user = {
       _id: generateId(),
       name,
-      email: emailNorm,
+      email: emailNorm || null,
+      phone: phoneNorm,
       password: hashedPassword,
       role: 'user',
       status: 'active',
@@ -185,7 +201,8 @@ app.post('/api/auth/register', async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email,
+        email: user.email || null,
+        phone: user.phone,
         role: user.role,
         emailVerified: user.emailVerified
       }
@@ -203,7 +220,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     await db.read()
-    const userIdx = db.data.users.findIndex(u => u.email === email)
+    const emailNorm = String(email).toLowerCase().trim()
+    const userIdx = db.data.users.findIndex(u => u.email?.toLowerCase().trim() === emailNorm)
     if (userIdx === -1) {
       return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' })
     }
@@ -270,15 +288,22 @@ app.post('/api/auth/reset-password', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { phone, mobileNumber, email, password } = req.body;
+    const phoneNorm = normalizePhone(phone || mobileNumber);
+    const emailNorm = email ? String(email).toLowerCase().trim() : '';
     
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Please provide email and password' });
+    if ((!phoneNorm && !emailNorm) || !password) {
+      return res.status(400).json({ message: 'Please provide mobile number and password' });
     }
 
     await db.read();
-    const emailNorm = String(email).toLowerCase().trim();
-    const user = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
+    let user = null;
+    if (phoneNorm) {
+      user = db.data.users.find(u => normalizePhone(u.phone) === phoneNorm);
+    }
+    if (!user && emailNorm) {
+      user = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
+    }
     
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -305,7 +330,8 @@ app.post('/api/auth/login', async (req, res) => {
         _id: user._id,
         id: user._id,
         name: user.name,
-        email: user.email,
+        email: user.email || null,
+        phone: user.phone,
         role: user.role,
         trialEndsAt: user.trialEndsAt || null,
         trialExpired: user.trialExpired || false,

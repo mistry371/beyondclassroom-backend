@@ -18,6 +18,7 @@ const ZOOM_CLIENT_ID    = process.env.ZOOM_CLIENT_ID;
 const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET;
 const ZOOM_USER_ID      = process.env.ZOOM_USER_ID || 'me';
 const ZOOM_PMI_LINK     = process.env.ZOOM_PMI_LINK;
+const ZOOM_HTTP_TIMEOUT_MS = parseInt(process.env.ZOOM_HTTP_TIMEOUT_MS || '12000', 10);
 
 // API mode: all three must be set and Account ID must not be placeholder
 const isApiConfigured = () => !!(
@@ -70,6 +71,7 @@ async function getAccessToken() {
     });
 
     req.on('error', reject);
+    req.setTimeout(ZOOM_HTTP_TIMEOUT_MS, () => req.destroy(new Error('Zoom token request timeout')));
     req.write(body);
     req.end();
   });
@@ -95,6 +97,10 @@ async function getZoomUserId(token) {
       });
     });
     req.on('error', () => resolve('me'));
+    req.setTimeout(ZOOM_HTTP_TIMEOUT_MS, () => {
+      req.destroy(new Error('Zoom user lookup timeout'));
+      resolve('me');
+    });
     req.end();
   });
 }
@@ -154,6 +160,7 @@ async function createMeetingViaApi({ title, date, time, duration, topic }) {
     });
 
     req.on('error', reject);
+    req.setTimeout(ZOOM_HTTP_TIMEOUT_MS, () => req.destroy(new Error('Zoom meeting create timeout')));
     req.write(meetingData);
     req.end();
   });
@@ -228,6 +235,7 @@ async function deleteMeeting(meetingId) {
         res.on('end', resolve);
       });
       req.on('error', reject);
+      req.setTimeout(ZOOM_HTTP_TIMEOUT_MS, () => req.destroy(new Error('Zoom delete timeout')));
       req.end();
     });
   } catch (error) {

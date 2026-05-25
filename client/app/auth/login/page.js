@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useDispatch } from 'react-redux'
 import { useForm } from 'react-hook-form'
 import { motion } from 'framer-motion'
-import { Mail, Lock, LogIn, Home, ArrowLeft, AlertCircle, Eye, EyeOff } from 'lucide-react'
+import { Lock, LogIn, Home, ArrowLeft, AlertCircle, Eye, EyeOff, Phone } from 'lucide-react'
 import { setCredentials } from '@/store/slices/authSlice'
 import api from '@/utils/api'
 import Link from 'next/link'
@@ -23,10 +23,13 @@ function LoginContent() {
     try {
       setLoading(true)
       setError('')
+      const loginId = (data.loginId || '').trim()
+      const isEmail = loginId.includes('@')
       const response = await api.post('/auth/login', {
-        email: data.email?.toLowerCase().trim(),
+        phone: isEmail ? '' : loginId,
+        email: isEmail ? loginId.toLowerCase() : '',
         password: data.password,
-      }, { timeout: 30000 })
+      }, { timeout: 45000 })
       const payload = response.data
       dispatch(setCredentials({
         token: payload.token,
@@ -50,7 +53,7 @@ function LoginContent() {
       }
     } catch (err) {
       if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
-        setError('Request timed out. Server may be busy — please try again.')
+        setError('Server is busy or waking up. Please wait 30-60 seconds and try again.')
       } else {
         setError(err.response?.data?.message || 'Login failed. Please check your credentials.')
       }
@@ -112,17 +115,17 @@ function LoginContent() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">Email Address</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">Mobile Number (Admin can use email)</label>
             <div className="relative">
-              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+              <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
               <input
-                {...register('email', { required: 'Email is required', pattern: { value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i, message: 'Invalid email' } })}
-                type="email"
+                {...register('loginId', { required: 'Mobile number or email is required' })}
+                type="text"
                 className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                placeholder="your@email.com"
+                placeholder="9876543210"
               />
             </div>
-            {errors.email && <p className="text-red-400 text-sm mt-2">⚠ {errors.email.message}</p>}
+            {errors.loginId && <p className="text-red-400 text-sm mt-2">⚠ {errors.loginId.message}</p>}
           </div>
 
           <div>

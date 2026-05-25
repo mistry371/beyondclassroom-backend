@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Navbar from '@/components/Navbar'
-import api from '@/utils/api'
+import promoterApi from '@/utils/promoterApi'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import SectionHeader from '@/components/marketing/SectionHeader'
 import PremiumButton from '@/components/marketing/PremiumButton'
@@ -24,7 +24,7 @@ export default function PromoterLandingPage() {
   const estimated = Math.round(referrals * avgPackage * commission)
 
   useEffect(() => {
-    api.get('/promoters/leaderboard?limit=5')
+    promoterApi.get('/promoters/leaderboard?limit=5')
       .then((res) => {
         if (res.data.success && res.data.leaderboard?.length) {
           setLeaderboard(res.data.leaderboard)

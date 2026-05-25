@@ -41,6 +41,13 @@ api.interceptors.response.use(
           || currentPath.startsWith('/blogs/'))
         && !currentPath.startsWith('/promoter/dashboard')
       const isAuthPage = currentPath.startsWith('/auth') || currentPath.startsWith('/promoter/login') || currentPath.startsWith('/promoter/register')
+      const hasToken = !!localStorage.getItem('token')
+
+      // Avoid logout loop on admin while session exists (e.g. transient API errors)
+      if (currentPath.startsWith('/admin') && hasToken) {
+        error.userMessage = error.userMessage || 'Request failed. Refresh the page or sign in again.'
+        return Promise.reject(error)
+      }
 
       if (!isPublicPath && !isAuthPage) {
         localStorage.removeItem('token')

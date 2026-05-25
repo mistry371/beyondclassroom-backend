@@ -234,7 +234,6 @@ export default function AdminEmails() {
   const [sendResult, setSendResult] = useState(null)
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) { router.push('/'); return }
     fetchEmails()
   }, [user])
 

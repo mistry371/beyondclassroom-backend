@@ -55,41 +55,25 @@ exports.uploadMedia = async (req, res) => {
       db.data.media = [];
     }
 
-    // Handle uploaded files (multipart/form-data via multer or raw body)
-    const files = req.files || []
-    const newMediaItems = []
-
-    if (files.length > 0) {
-      for (const file of files) {
-        const newMedia = {
-          _id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
-          name: file.originalname || file.name || 'uploaded-file',
-          url: `/uploads/${file.filename || file.originalname}`,
-          type: file.mimetype || 'application/octet-stream',
-          size: file.size || 0,
-          uploadedBy: req.user._id,
-          createdAt: new Date().toISOString()
-        }
-        db.data.media.push(newMedia)
-        newMediaItems.push(newMedia)
-      }
-    } else {
-      // Fallback: simulate upload entry from body
-      const newMedia = {
-        _id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
-        name: req.body.name || 'uploaded-file',
-        url: req.body.url || 'https://via.placeholder.com/400x300',
-        type: req.body.type || 'image/jpeg',
-        size: req.body.size || 0,
-        uploadedBy: req.user._id,
-        createdAt: new Date().toISOString()
-      }
-      db.data.media.push(newMedia)
-      newMediaItems.push(newMedia)
+    const { name, type, size, dataUrl } = req.body;
+    if (!dataUrl) {
+      return res.status(400).json({ message: 'No file data provided' });
     }
 
-    await db.write()
-    res.status(201).json({ media: newMediaItems[0], files: newMediaItems })
+    const newMedia = {
+      _id: Date.now().toString() + Math.random().toString(36).slice(2, 9),
+      name: name || 'uploaded-file',
+      url: dataUrl,
+      type: type || 'image/jpeg',
+      size: size || 0,
+      uploadedBy: req.user._id,
+      createdAt: new Date().toISOString()
+    };
+
+    db.data.media.push(newMedia);
+    await db.write();
+
+    res.status(201).json({ media: newMedia, files: [newMedia] });
   } catch (error) {
     console.error('Upload media error:', error);
     res.status(500).json({ message: 'Server error' });

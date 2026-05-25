@@ -26,7 +26,6 @@ function ExamBuilder({ isEdit }) {
   })
 
   useEffect(() => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) { router.push('/'); return }
     if (isEdit && params?.examId) loadExam()
   }, [user])
 
