@@ -36,11 +36,19 @@ exports.getLesson = async (req, res) => {
   }
 }
 
-// Normalize content: if string, wrap into content object
+// Normalize content to plain string for backward compatibility with legacy schemas.
 function normalizeContent(content) {
-  if (!content) return { concept: '', examples: [], practice: [], summary: '' }
-  if (typeof content === 'string') return { concept: content, examples: [], practice: [], summary: '' }
-  return content
+  if (!content) return ''
+  if (typeof content === 'string') return content
+  if (typeof content === 'object') {
+    return (
+      content.concept ||
+      content.summary ||
+      content.description ||
+      JSON.stringify(content)
+    )
+  }
+  return String(content)
 }
 
 // Create lesson
