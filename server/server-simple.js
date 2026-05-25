@@ -146,7 +146,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = {
       _id: generateId(),
       name,
-      email: emailNorm || null,
+      email: emailNorm || undefined,
       phone: phoneNorm,
       password: hashedPassword,
       role: 'user',
@@ -161,6 +161,7 @@ app.post('/api/auth/register', async (req, res) => {
       trialExpired: false,
       createdAt: new Date()
     };
+    if (!emailNorm) delete user.email;
 
     db.data.users.push(user);
     await db.write();
