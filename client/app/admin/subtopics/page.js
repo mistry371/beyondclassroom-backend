@@ -8,7 +8,7 @@ import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
 
 const MAX_DOC_BYTES = 5 * 1024 * 1024
-const MAX_DOC_COUNT = 20
+const MAX_DOC_COUNT = 30
 
 function AdminSubtopicsContent() {
   const router = useRouter()

@@ -16,6 +16,17 @@ export default function CourseDetails() {
   const [course, setCourse] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [modules, setModules] = useState([])
+  const [customization, setCustomization] = useState({
+    difficultyLevel: 'Beginner',
+    worksheetType: 'Standard',
+    practiceType: 'Mixed',
+    languagePreference: 'English',
+    learningStyle: 'Visual',
+    gradeLevel: '',
+    notes: '',
+  })
+  const [requestLoading, setRequestLoading] = useState(false)
 
   useEffect(() => {
     fetchCourse()
@@ -25,10 +36,52 @@ export default function CourseDetails() {
     try {
       const response = await api.get(`/courses/${params.id}`)
       setCourse(response.data.course)
+      if (user) {
+        const mRes = await api.get(`/modules/course/${params.id}`).catch(() => ({ data: { modules: [] } }))
+        const mods = mRes.data.modules || []
+        const withChildren = await Promise.all(mods.map(async (m) => {
+          const lRes = await api.get(`/lessons/module/${m._id}`).catch(() => ({ data: { lessons: [] } }))
+          const lessons = lRes.data.lessons || []
+          const lessonsWithSubtopics = await Promise.all(lessons.map(async (l) => {
+            const sRes = await api.get(`/subtopics/lesson/${l._id}`).catch(() => ({ data: { subtopics: [] } }))
+            return { ...l, subtopics: sRes.data.subtopics || [] }
+          }))
+          return { ...m, lessons: lessonsWithSubtopics }
+        }))
+        setModules(withChildren)
+      }
     } catch (error) {
       console.error('Fetch course failed:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCustomizationRequest = async (e) => {
+    e.preventDefault()
+    if (!user) return router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
+    try {
+      setRequestLoading(true)
+      await api.post('/custom-course-requests', {
+        title: `Customization Request - ${course.title}`,
+        deliverable: customization.practiceType,
+        selectedTopics: modules.map((m) => ({
+          moduleId: m._id,
+          moduleTitle: m.title,
+          lessons: (m.lessons || []).map((l) => ({
+            lessonId: l._id,
+            lessonTitle: l.title,
+            subtopics: (l.subtopics || []).map((s) => ({ subtopicId: s._id, subtopicTitle: s.title })),
+          })),
+        })),
+        budget: Number(course.price || 0),
+        ...customization,
+      })
+      alert('Customization request sent to admin successfully.')
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to send request')
+    } finally {
+      setRequestLoading(false)
     }
   }
 
@@ -294,6 +347,48 @@ export default function CourseDetails() {
           </div>
         </div>
       </div>
+
+      {user && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+          <div className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl border border-white/10 p-8 relative overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none opacity-10 text-white text-2xl font-bold flex items-center justify-center rotate-[-20deg]">
+              BeyondClassroom Copyright - View Only
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Course Structure Preview (View Only)</h2>
+            <p className="text-gray-400 mb-6">Modules, topics, subtopics and files are visible with protected preview.</p>
+            <div className="space-y-4 mb-8">
+              {modules.map((m) => (
+                <div key={m._id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+                  <h3 className="text-white font-semibold">{m.title}</h3>
+                  {(m.lessons || []).map((l) => (
+                    <div key={l._id} className="ml-4 mt-3 border-l border-white/10 pl-3">
+                      <p className="text-gray-200">{l.title}</p>
+                      {(l.subtopics || []).map((s) => (
+                        <div key={s._id} className="ml-3 mt-2 text-sm text-gray-400">
+                          <p>{s.title}</p>
+                          <p>Files: {(s.documents || (s.document ? [s.document] : [])).length} (view only)</p>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+
+            <h2 className="text-2xl font-bold text-white mb-4">Customize This Course</h2>
+            <form onSubmit={handleCustomizationRequest} className="grid md:grid-cols-2 gap-4">
+              <input value={customization.difficultyLevel} onChange={(e) => setCustomization({ ...customization, difficultyLevel: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Difficulty Level" />
+              <input value={customization.worksheetType} onChange={(e) => setCustomization({ ...customization, worksheetType: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Worksheet Type" />
+              <input value={customization.practiceType} onChange={(e) => setCustomization({ ...customization, practiceType: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Practice Type" />
+              <input value={customization.languagePreference} onChange={(e) => setCustomization({ ...customization, languagePreference: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Language Preference" />
+              <input value={customization.learningStyle} onChange={(e) => setCustomization({ ...customization, learningStyle: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Learning Style" />
+              <input value={customization.gradeLevel} onChange={(e) => setCustomization({ ...customization, gradeLevel: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Grade Level" />
+              <textarea value={customization.notes} onChange={(e) => setCustomization({ ...customization, notes: e.target.value })} className="md:col-span-2 px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" rows={4} placeholder="Add selected module/topic/subtopic preferences" />
+              <button disabled={requestLoading} className="md:col-span-2 px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold">{requestLoading ? 'Sending...' : 'Send Customization Request to Admin'}</button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Payment Modal */}
       <PaymentModal

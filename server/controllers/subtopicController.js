@@ -2,7 +2,7 @@ const { db } = require('../database/db')
 const Subtopic = require('../models/Subtopic')
 
 const MAX_DOC_SIZE = 5 * 1024 * 1024 // 5 MB
-const MAX_DOC_COUNT = 20
+const MAX_DOC_COUNT = 30
 
 const normalizeDocuments = (body = {}) => {
   if (Array.isArray(body.documents)) return body.documents
