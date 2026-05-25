@@ -551,6 +551,10 @@ const db = {
 // ── initDB — connect + seed admin ─────────────────────────────────────────────
 async function initDB() {
   await connectMongo()
+  const usersCollection = mongoose.connection.collection('users')
+  try { await usersCollection.dropIndex('email_1') } catch (_) {}
+  try { await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true, partialFilterExpression: { email: { $type: 'string', $ne: '' } } }) } catch (_) {}
+  try { await usersCollection.createIndex({ phone: 1 }, { unique: true, sparse: true, partialFilterExpression: { phone: { $type: 'string', $ne: '' } } }) } catch (_) {}
   await db.read()
 
   // Ensure settings exist

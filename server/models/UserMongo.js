@@ -11,8 +11,10 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: false,
     unique: true,
+    sparse: true,
+    default: undefined,
     lowercase: true,
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email']
@@ -39,7 +41,9 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    default: ''
+    unique: true,
+    sparse: true,
+    default: undefined
   },
   grade: {
     type: Number,
