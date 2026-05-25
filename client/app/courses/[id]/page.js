@@ -28,6 +28,7 @@ export default function CourseDetails() {
   })
   const [requestLoading, setRequestLoading] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
+  const [selectedMap, setSelectedMap] = useState({})
 
   useEffect(() => {
     fetchCourse()
@@ -63,18 +64,21 @@ export default function CourseDetails() {
     if (!user) return router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
     try {
       setRequestLoading(true)
+      const selectedTopics = modules.map((m) => {
+        const selectedLessons = (m.lessons || []).map((l) => {
+          const selectedSubtopics = (l.subtopics || []).filter((s) => selectedMap[s._id]).map((s) => ({ subtopicId: s._id, subtopicTitle: s.title }))
+          if (!selectedMap[l._id] && selectedSubtopics.length === 0) return null
+          return { lessonId: l._id, lessonTitle: l.title, subtopics: selectedSubtopics }
+        }).filter(Boolean)
+        if (!selectedMap[m._id] && selectedLessons.length === 0) return null
+        return { moduleId: m._id, moduleTitle: m.title, lessons: selectedLessons }
+      }).filter(Boolean)
+      if (selectedTopics.length === 0) return alert('Please select at least one module/topic/subtopic.')
+
       await api.post('/custom-course-requests', {
         title: `Customization Request - ${course.title}`,
         deliverable: customization.practiceType,
-        selectedTopics: modules.map((m) => ({
-          moduleId: m._id,
-          moduleTitle: m.title,
-          lessons: (m.lessons || []).map((l) => ({
-            lessonId: l._id,
-            lessonTitle: l.title,
-            subtopics: (l.subtopics || []).map((s) => ({ subtopicId: s._id, subtopicTitle: s.title })),
-          })),
-        })),
+        selectedTopics,
         budget: Number(course.price || 0),
         ...customization,
       })
@@ -360,13 +364,22 @@ export default function CourseDetails() {
             <div className="space-y-4 mb-8">
               {modules.map((m) => (
                 <div key={m._id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <h3 className="text-white font-semibold">{m.title}</h3>
+                  <label className="text-white font-semibold flex items-center gap-2">
+                    <input type="checkbox" checked={!!selectedMap[m._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [m._id]: e.target.checked }))} />
+                    {m.title}
+                  </label>
                   {(m.lessons || []).map((l) => (
                     <div key={l._id} className="ml-4 mt-3 border-l border-white/10 pl-3">
-                      <p className="text-gray-200">{l.title}</p>
+                      <label className="text-gray-200 flex items-center gap-2">
+                        <input type="checkbox" checked={!!selectedMap[l._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [l._id]: e.target.checked }))} />
+                        {l.title}
+                      </label>
                       {(l.subtopics || []).map((s) => (
                         <div key={s._id} className="ml-3 mt-2 text-sm text-gray-400">
-                          <p>{s.title}</p>
+                          <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={!!selectedMap[s._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [s._id]: e.target.checked }))} />
+                            {s.title}
+                          </label>
                           <p>Files: {(s.documents || (s.document ? [s.document] : [])).length} (view only)</p>
                           <div className="mt-2 space-y-2">
                             {(s.documents || (s.document ? [s.document] : [])).map((doc, idx) => (
@@ -376,7 +389,7 @@ export default function CourseDetails() {
                                 onClick={() => setPreviewDoc(doc)}
                                 className="px-3 py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 transition-all text-xs"
                               >
-                                View {doc?.name || `File ${idx + 1}`}
+                                Secure View {doc?.name || `File ${idx + 1}`}
                               </button>
                             ))}
                           </div>
@@ -425,6 +438,7 @@ export default function CourseDetails() {
               title="Document Preview"
               className="w-full h-[calc(80vh-56px)]"
               src={`data:${previewDoc?.type || 'application/pdf'};base64,${previewDoc?.data || ''}`}
+              sandbox="allow-same-origin"
             />
           </div>
         </div>
@@ -432,3 +446,21 @@ export default function CourseDetails() {
     </div>
   )
 }
+  useEffect(() => {
+    if (!previewDoc) return
+    const block = (e) => {
+      if (e.type === 'contextmenu') e.preventDefault()
+      const k = e.key?.toLowerCase()
+      const ctrl = e.ctrlKey || e.metaKey
+      if (ctrl && ['s', 'p', 'u', 'c', 'v'].includes(k)) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    document.addEventListener('contextmenu', block, true)
+    document.addEventListener('keydown', block, true)
+    return () => {
+      document.removeEventListener('contextmenu', block, true)
+      document.removeEventListener('keydown', block, true)
+    }
+  }, [previewDoc])

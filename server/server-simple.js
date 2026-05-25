@@ -69,8 +69,8 @@ initDB().then(async () => {
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11);
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'your_jwt_secret', {
+const generateToken = (id, sid) => {
+  return jwt.sign({ id, sid }, process.env.JWT_SECRET || 'your_jwt_secret', {
     expiresIn: '7d'
   });
 };
@@ -92,6 +92,9 @@ const protect = async (req, res, next) => {
     
     if (!req.user) {
       return res.status(401).json({ message: 'User not found' });
+    }
+    if (req.user.role === 'user' && req.user.activeSessionId && decoded.sid !== req.user.activeSessionId) {
+      return res.status(401).json({ message: 'Session expired. Logged in from another device.' });
     }
 
     next();
@@ -163,10 +166,11 @@ app.post('/api/auth/register', async (req, res) => {
     };
     if (!emailNorm) delete user.email;
 
+    user.activeSessionId = generateId()
     db.data.users.push(user);
     await db.write();
 
-    const token = generateToken(user._id);
+    const token = generateToken(user._id, user.activeSessionId);
 
     res.status(201).json({
       success: true,
@@ -324,7 +328,9 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
     }
 
-    const token = generateToken(user._id);
+    user.activeSessionId = generateId()
+    await db.write()
+    const token = generateToken(user._id, user.activeSessionId);
 
     // Write activity log async (do not block login response)
     setImmediate(async () => {
