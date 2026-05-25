@@ -44,7 +44,7 @@ export default function Hero() {
 
   return (
     <div ref={ref} className="relative overflow-hidden min-h-[92vh] flex items-center bg-navy-gradient">
-      <FloatingMathSymbols count={14} />
+      <FloatingMathSymbols count={mounted && typeof window !== 'undefined' && window.innerWidth < 768 ? 6 : 10} />
       <motion.div style={{ y }} className="absolute inset-0 pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-primary rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob" />
         <div className="absolute top-40 right-10 w-96 h-96 bg-secondary rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-blob animation-delay-2000" />

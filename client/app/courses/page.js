@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Clock, Users, Star, TrendingUp, BookOpen, Award, Filter, Search } from 'lucide-react'
 import Navbar from '@/components/Navbar'
-import api from '@/utils/api'
+import { cachedGet } from '@/utils/api'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { COURSE_CATEGORIES } from '@/lib/constants'
@@ -24,7 +24,7 @@ export default function CoursesPage() {
 
   const fetchCourses = async () => {
     try {
-      const response = await api.get('/courses')
+      const response = await cachedGet('/courses', 120000)
       setCourses(response.data.courses || [])
     } catch (error) {
       console.error('Fetch courses failed:', error)

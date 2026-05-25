@@ -29,12 +29,17 @@ export default function StickyCTA() {
           <div className="bg-brand-gradient rounded-2xl p-4 shadow-premium flex items-center gap-4 border border-white/20">
             <Sparkles className="h-8 w-8 text-white flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-sm">Start your 3-day free trial</p>
-              <p className="text-white/80 text-xs">Join 50,000+ students mastering math</p>
+              <p className="text-white font-bold text-sm">Start Learning Today</p>
+              <p className="text-white/80 text-xs">Free trial · Mathematics & French</p>
             </div>
-            <Link href="/auth/register" className="px-4 py-2 bg-white text-primary rounded-xl font-bold text-sm whitespace-nowrap hover:scale-105 transition-transform">
-              Join Free
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Link href="/auth/register" className="px-4 py-2 bg-white text-primary rounded-xl font-bold text-sm whitespace-nowrap hover:scale-105 transition-transform magnetic-btn">
+                Join Free
+              </Link>
+              <Link href="/courses" className="hidden sm:block px-3 py-2 border border-white/40 text-white rounded-xl font-semibold text-xs whitespace-nowrap hover:bg-white/10">
+                Practice
+              </Link>
+            </div>
             <button onClick={() => setDismissed(true)} className="text-white/80 hover:text-white p-1" aria-label="Dismiss">
               <X className="h-5 w-5" />
             </button>

@@ -5,6 +5,12 @@ import Image from 'next/image'
 import { Mail, Phone, MapPin, Facebook, Instagram, Youtube, Linkedin } from 'lucide-react'
 
 const links = {
+  Subjects: [
+    { href: '/learn/mathematics', label: 'Mathematics' },
+    { href: '/learn/french', label: 'French' },
+    { href: '/grades/grade-10', label: 'Class 10 Hub' },
+    { href: '/grades/grade-12', label: 'Class 12 Hub' },
+  ],
   Platform: [
     { href: '/courses', label: 'Courses' },
     { href: '/packages', label: 'Packages' },
@@ -29,14 +35,17 @@ export default function Footer() {
   return (
     <footer className="bg-navy text-white border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-10">
           <div className="lg:col-span-2">
             <Link href="/" className="flex items-center gap-3 mb-6">
               <Image src="/logo.jpeg" alt="Beyond Classroom" width={48} height={48} className="rounded-xl interactive" />
               <span className="text-xl font-bold bg-brand-gradient bg-clip-text text-transparent">Beyond Classroom</span>
             </Link>
-            <p className="text-white/70 mb-6 max-w-sm leading-relaxed">
-              Mathematics meets personalization. Premium edtech for Grades 6–12, Boards, and competitive excellence.
+            <p className="text-white/70 mb-4 max-w-sm leading-relaxed">
+              Mathematics & French meet personalization. Premium edtech for Grades 6–12, Boards, and competitive excellence.
+            </p>
+            <p className="text-white/50 text-xs mb-6 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-secondary" /> Secure Razorpay payments · Verified educators
             </p>
             <div className="flex gap-4">
               {[Facebook, Instagram, Youtube, Linkedin].map((Icon, i) => (

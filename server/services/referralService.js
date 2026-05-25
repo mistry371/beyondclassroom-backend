@@ -191,12 +191,24 @@ exports.getPromoterDashboard = async (promoterId) => {
   const max = Math.max(...weeklyPerformance, 1)
   const chartBars = weeklyPerformance.map((v) => Math.round((v / max) * 100))
 
+  const totalReferrals = referrals.length
+  const converted = referrals.filter((r) => r.status === 'paid').length
+  const conversionRate = totalReferrals ? Math.round((converted / totalReferrals) * 100) : 0
+
+  const badges = []
+  if ((promoter.referrals || 0) >= 1) badges.push({ id: 'first', label: 'First Referral', icon: '🎯' })
+  if ((promoter.referrals || 0) >= 10) badges.push({ id: 'ten', label: '10 Referrals', icon: '🔥' })
+  if ((promoter.earnings || 0) >= 10000) badges.push({ id: 'earner', label: '₹10K Earner', icon: '💰' })
+  if ((promoter.streak || 0) >= 7) badges.push({ id: 'streak', label: '7-Day Streak', icon: '⚡' })
+
   return {
     promoter: exports.sanitizePromoter(promoter),
     referrals,
     payouts,
     history,
     chartBars,
+    conversionRate,
+    badges,
   }
 }
 

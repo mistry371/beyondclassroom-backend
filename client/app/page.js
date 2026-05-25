@@ -15,7 +15,10 @@ import {
   Sparkles, Shield, TrendingUp, Target, Zap, CheckCircle, Gift,
 } from 'lucide-react'
 import Link from 'next/link'
-import api from '@/utils/api'
+import { cachedGet } from '@/utils/api'
+import LiveStatsBar from '@/components/marketing/LiveStatsBar'
+import TrustSection from '@/components/marketing/TrustSection'
+import CourseCardSkeleton from '@/components/ui/CourseCardSkeleton'
 import { stats, packages as packageData, promoterBenefits } from '@/data/marketingContent'
 
 export default function Home() {
@@ -23,7 +26,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/courses')
+    cachedGet('/courses', 120000)
       .then((res) => setCourses(res.data.courses || []))
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -34,6 +37,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-soft-gradient pb-20 md:pb-0">
       <Navbar />
+      <LiveStatsBar />
       <Hero />
 
       {/* Stats */}
@@ -156,8 +160,8 @@ export default function Home() {
             subtitle="Master mathematics from Class 6 to 12, JEE, and Board exams with structured excellence."
           />
           {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-primary" />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[1, 2, 3, 4, 5, 6].map((i) => <CourseCardSkeleton key={i} />)}
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -291,16 +295,18 @@ export default function Home() {
         </div>
       </section>
 
+      <TrustSection />
+
       {/* Final CTA */}
       <section className="py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-brand-gradient" />
         <div className="relative max-w-4xl mx-auto px-4 text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Ready to Transform Your Math Journey?</h2>
-            <p className="text-xl text-white/90 mb-10">Join thousands of students. Start your 3-day free trial today.</p>
+            <h2 className="text-4xl md:text-5xl font-black text-white mb-6">Ready to Excel in Mathematics & French?</h2>
+            <p className="text-xl text-white/90 mb-10">Parents trust us. Students love us. Start your 3-day free trial — no card required.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <PremiumButton href="/auth/register" variant="white">Get Started Free</PremiumButton>
-              <PremiumButton href="/tools" variant="secondary">Explore Math Tools</PremiumButton>
+              <PremiumButton href="/auth/register" variant="white">Start Learning Today</PremiumButton>
+              <PremiumButton href="/courses" variant="secondary">Get Personalized Practice</PremiumButton>
             </div>
           </motion.div>
         </div>

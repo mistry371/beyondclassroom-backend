@@ -57,9 +57,12 @@ export default function PackagesPage() {
                 }`}
               >
                 {pkg.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-4 py-1.5 bg-accent text-white text-sm font-bold rounded-full shadow-lg">
-                    <Star className="h-4 w-4 fill-white" /> Most Popular
-                  </div>
+                  <>
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-4 py-1.5 bg-accent text-white text-sm font-bold rounded-full shadow-lg animate-glow">
+                      <Star className="h-4 w-4 fill-white" /> Most Popular
+                    </div>
+                    <p className="text-center text-xs font-semibold text-white/90 mb-2">Save 40% vs monthly tutoring</p>
+                  </>
                 )}
                 <h3 className={`text-2xl font-bold mb-2 ${pkg.popular ? 'text-white' : 'text-ink'}`}>{pkg.name}</h3>
                 <div className={`text-5xl font-black mb-1 ${pkg.popular ? 'text-white' : 'text-primary'}`}>

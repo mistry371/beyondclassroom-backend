@@ -326,3 +326,38 @@ img {
 img.interactive, button img, a img {
   pointer-events: auto;
 }
+
+/* Phase 2 — performance & micro-interactions */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.scroll-smooth-touch {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.magnetic-btn {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.magnetic-btn:hover {
+  box-shadow: 0 12px 40px rgba(8, 31, 140, 0.35);
+}
+
+.shadow-glow-pulse {
+  box-shadow: 0 0 24px rgba(0, 166, 81, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  .animate-marquee,
+  .animate-blob,
+  .animate-float,
+  .animate-glow {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
