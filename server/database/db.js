@@ -122,7 +122,7 @@ const lessonSchema = new mongoose.Schema({
   moduleId: String,
   courseId: String,
   title: String,
-  content: String,
+  content: mongoose.Schema.Types.Mixed,
   videoUrl: String,
   duration: String,
   order: Number,
