@@ -166,34 +166,6 @@ app.post('/api/auth/register', async (req, res) => {
     db.data.users.push(user);
     await db.write();
 
-    if (referralCode) {
-      try {
-        const referralService = require('./services/referralService');
-        await referralService.recordReferralSignup(referralCode, user);
-      } catch (refErr) {
-        console.error('Referral tracking failed:', refErr.message);
-      }
-    }
-    
-    // Auto-enroll in free demo course
-    const { autoEnrollDemoCourse } = require('./middleware/autoEnrollDemo');
-    await autoEnrollDemoCourse(user._id);
-    
-    // Send welcome notification
-    const notificationService = require('./services/notificationService');
-    await notificationService.sendWelcomeNotification(user._id, user.name, user.email);
-
-    // Notify admin of new registration
-    try {
-      const { adminNewUserEmailTemplate } = require('./services/emailTemplates');
-      const { sendEmail } = require('./services/emailService');
-      await sendEmail({
-        to: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
-        subject: `New User Registered: ${user.name}`,
-        html: adminNewUserEmailTemplate(user.name, user.email, new Date().toLocaleString('en-IN'))
-      });
-    } catch (_) {}
-
     const token = generateToken(user._id);
 
     res.status(201).json({
@@ -206,6 +178,44 @@ app.post('/api/auth/register', async (req, res) => {
         phone: user.phone,
         role: user.role,
         emailVerified: user.emailVerified
+      }
+    });
+
+    // Run heavy tasks after response to keep signup fast
+    setImmediate(async () => {
+      if (referralCode) {
+        try {
+          const referralService = require('./services/referralService');
+          await referralService.recordReferralSignup(referralCode, user);
+        } catch (refErr) {
+          console.error('Referral tracking failed:', refErr.message);
+        }
+      }
+
+      try {
+        const { autoEnrollDemoCourse } = require('./middleware/autoEnrollDemo');
+        await autoEnrollDemoCourse(user._id);
+      } catch (enrollErr) {
+        console.error('Auto-enroll failed:', enrollErr.message);
+      }
+
+      try {
+        const notificationService = require('./services/notificationService');
+        await notificationService.sendWelcomeNotification(user._id, user.name, user.email);
+      } catch (notifyErr) {
+        console.error('Welcome notification failed:', notifyErr.message);
+      }
+
+      try {
+        const { adminNewUserEmailTemplate } = require('./services/emailTemplates');
+        const { sendEmail } = require('./services/emailService');
+        await sendEmail({
+          to: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
+          subject: `New User Registered: ${user.name}`,
+          html: adminNewUserEmailTemplate(user.name, user.email, new Date().toLocaleString('en-IN'))
+        });
+      } catch (emailErr) {
+        console.error('Admin notify email failed:', emailErr.message);
       }
     });
   } catch (error) {
@@ -316,13 +326,15 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = generateToken(user._id);
 
-    // Write activity log
-    try {
-      const ActivityLog = require('./models/ActivityLog');
-      db.data.activityLogs = db.data.activityLogs || [];
-      db.data.activityLogs.push(new ActivityLog({ userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email}` }));
-      await db.write();
-    } catch (_) {}
+    // Write activity log async (do not block login response)
+    setImmediate(async () => {
+      try {
+        const ActivityLog = require('./models/ActivityLog');
+        db.data.activityLogs = db.data.activityLogs || [];
+        db.data.activityLogs.push(new ActivityLog({ userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email || user.phone}` }));
+        await db.write();
+      } catch (_) {}
+    });
 
     res.json({
       success: true,

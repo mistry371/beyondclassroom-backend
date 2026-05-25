@@ -457,8 +457,8 @@ const db = {
   async read(force = false) {
     await connectMongo()
     const now = Date.now()
-    // 15-second cache TTL to reduce repeated full-DB reads under burst traffic
-    if (!force && this._lastRead && (now - this._lastRead < 15000) && Object.keys(this._data).length > 0) {
+    // 60-second cache TTL to reduce repeated full-DB reads under burst traffic
+    if (!force && this._lastRead && (now - this._lastRead < 60000) && Object.keys(this._data).length > 0) {
       return
     }
     
