@@ -87,7 +87,7 @@ exports.deleteMedia = async (req, res) => {
     
     const mediaIndex = db.data.media?.findIndex(m => m._id === req.params.id);
     
-    if (mediaIndex === -1) {
+    if (mediaIndex === -1 || mediaIndex === undefined) {
       return res.status(404).json({ message: 'Media not found' });
     }
 

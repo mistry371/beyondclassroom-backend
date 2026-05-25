@@ -73,7 +73,7 @@ exports.deleteAnnouncement = async (req, res) => {
     
     const index = db.data.announcements?.findIndex(a => a._id === req.params.id);
     
-    if (index === -1) {
+    if (index === -1 || index === undefined) {
       return res.status(404).json({ message: 'Announcement not found' });
     }
 

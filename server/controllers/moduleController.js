@@ -80,7 +80,7 @@ exports.updateModule = async (req, res) => {
     
     const index = db.data.modules?.findIndex(m => m._id === moduleId)
     
-    if (index === -1) {
+    if (index === -1 || index === undefined) {
       return res.status(404).json({ success: false, message: 'Module not found' })
     }
     

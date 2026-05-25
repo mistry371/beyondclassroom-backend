@@ -78,7 +78,7 @@ exports.updateLesson = async (req, res) => {
     
     const index = db.data.lessons?.findIndex(l => l._id === lessonId)
     
-    if (index === -1) {
+    if (index === -1 || index === undefined) {
       return res.status(404).json({ success: false, message: 'Lesson not found' })
     }
     

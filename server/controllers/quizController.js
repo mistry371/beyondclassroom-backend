@@ -114,7 +114,7 @@ exports.updateQuiz = async (req, res) => {
     await db.read()
     const { quizId } = req.params
     const index = db.data.quizzes?.findIndex(q => q._id === quizId)
-    if (index === -1) {
+    if (index === -1 || index === undefined) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
     const totalPoints = (req.body.questions || db.data.quizzes[index].questions || []).reduce((sum, q) => sum + (q.points || 10), 0) || 100

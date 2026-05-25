@@ -73,7 +73,7 @@ exports.deleteNotification = async (req, res) => {
     
     const index = db.data.adminNotifications?.findIndex(n => n._id === req.params.id);
     
-    if (index === -1) {
+    if (index === -1 || index === undefined) {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
