@@ -27,6 +27,7 @@ export default function CourseDetails() {
     notes: '',
   })
   const [requestLoading, setRequestLoading] = useState(false)
+  const [previewDoc, setPreviewDoc] = useState(null)
 
   useEffect(() => {
     fetchCourse()
@@ -367,6 +368,18 @@ export default function CourseDetails() {
                         <div key={s._id} className="ml-3 mt-2 text-sm text-gray-400">
                           <p>{s.title}</p>
                           <p>Files: {(s.documents || (s.document ? [s.document] : [])).length} (view only)</p>
+                          <div className="mt-2 space-y-2">
+                            {(s.documents || (s.document ? [s.document] : [])).map((doc, idx) => (
+                              <button
+                                key={`${doc?.name || 'file'}-${idx}`}
+                                type="button"
+                                onClick={() => setPreviewDoc(doc)}
+                                className="px-3 py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 transition-all text-xs"
+                              >
+                                View {doc?.name || `File ${idx + 1}`}
+                              </button>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -397,6 +410,25 @@ export default function CourseDetails() {
         course={course}
         onSuccess={handlePaymentSuccess}
       />
+
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center" onClick={() => setPreviewDoc(null)}>
+          <div className="bg-dark-100 border border-white/10 rounded-2xl w-full max-w-4xl h-[80vh] relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10 text-3xl font-bold text-white rotate-[-20deg]">
+              BeyondClassroom Copyright - View Only
+            </div>
+            <div className="flex items-center justify-between p-3 border-b border-white/10">
+              <p className="text-white text-sm truncate">{previewDoc?.name || 'File Preview'}</p>
+              <button onClick={() => setPreviewDoc(null)} className="text-gray-300 hover:text-white">Close</button>
+            </div>
+            <iframe
+              title="Document Preview"
+              className="w-full h-[calc(80vh-56px)]"
+              src={`data:${previewDoc?.type || 'application/pdf'};base64,${previewDoc?.data || ''}`}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
