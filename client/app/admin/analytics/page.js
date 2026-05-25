@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import { ArrowLeft, Users, BookOpen, DollarSign, TrendingUp, Download } from 'lucide-react'
 import api from '@/utils/api'
+import { cachedGet } from '@/utils/api'
 import { motion } from 'framer-motion'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
@@ -21,7 +22,7 @@ export default function AdminAnalytics() {
 
   const fetchAnalytics = async () => {
     try {
-      const res = await api.get(`/admin/analytics?days=${dateRange}`)
+      const res = await cachedGet(`/admin/analytics?days=${dateRange}`, 30 * 1000)
       setAnalytics(res.data.analytics)
     } catch (error) {
       console.error('Failed to fetch analytics:', error)
@@ -57,9 +58,9 @@ export default function AdminAnalytics() {
 
   const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b']
 
-  const userGrowthData = analytics?.userGrowth?.length ? analytics.userGrowth : [{ date: '—', users: 0 }]
-  const coursePopularityData = analytics?.coursePopularity?.length ? analytics.coursePopularity : [{ name: 'No data', enrollments: 0 }]
-  const revenueData = analytics?.revenue?.length ? analytics.revenue : [{ date: '—', revenue: 0 }]
+  const userGrowthData = useMemo(() => analytics?.userGrowth?.length ? analytics.userGrowth : [{ date: '—', users: 0 }], [analytics])
+  const coursePopularityData = useMemo(() => analytics?.coursePopularity?.length ? analytics.coursePopularity : [{ name: 'No data', enrollments: 0 }], [analytics])
+  const revenueData = useMemo(() => analytics?.revenue?.length ? analytics.revenue : [{ date: '—', revenue: 0 }], [analytics])
 
   return (
     <div className="min-h-screen bg-dark">

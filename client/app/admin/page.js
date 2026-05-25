@@ -8,6 +8,7 @@ import {
   ShoppingCart, Award, Bell, Settings, BarChart3,
 } from 'lucide-react'
 import api from '@/utils/api'
+import { cachedGet } from '@/utils/api'
 import { motion } from 'framer-motion'
 
 export default function AdminDashboard() {
@@ -25,7 +26,7 @@ export default function AdminDashboard() {
     setStatsLoading(true)
     setFetchError('')
     try {
-      const res = await api.get('/admin/dashboard/stats', { timeout: 25000 })
+      const res = await cachedGet('/admin/dashboard/stats', 30 * 1000)
       setStats(res.data.stats || {})
     } catch (error) {
       setFetchError(error.userMessage || 'Stats could not load. You can still use the menu below.')

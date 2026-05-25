@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSelector } from 'react-redux'
 import { useRouter } from 'next/navigation'
 import { BookOpen, TrendingUp, Award, Clock, PlayCircle, Lock, AlertTriangle, ShoppingCart } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import EmptyState from '@/components/ui/EmptyState'
 import api from '@/utils/api'
+import { cachedGet } from '@/utils/api'
 import { motion } from 'framer-motion'
 
 export default function Dashboard() {
@@ -28,14 +29,14 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const profileRes = await api.get('/profile')
+      const profileRes = await cachedGet('/profile', 30 * 1000)
       const userCourses = profileRes.data.user.purchasedCourses || []
 
       const courses = await Promise.all(
         userCourses.map(async (item) => {
           if (item && typeof item === 'object' && item._id) return item
           try {
-            const res = await api.get(`/courses/${item}`)
+            const res = await cachedGet(`/courses/${item}`, 60 * 1000)
             return res.data.course
           } catch { return null }
         })
@@ -45,14 +46,14 @@ export default function Dashboard() {
 
       const progressResults = await Promise.all(
         validCourses.map(course =>
-          api.get(`/progress/course/${course._id}`).catch(() => null)
+          cachedGet(`/progress/course/${course._id}`, 20 * 1000).catch(() => null)
         )
       )
       setProgress(progressResults.filter(r => r !== null).map(r => r.data.progress))
 
       // Fetch trial status
       try {
-        const trialRes = await api.get('/trial/status')
+        const trialRes = await cachedGet('/trial/status', 20 * 1000)
         setTrialStatus(trialRes.data)
       } catch {}
     } catch (error) {
@@ -183,9 +184,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-gray-400 text-sm">Avg. Progress</p>
                 <p className="text-3xl font-bold text-white">
-                  {progress.length > 0 
-                    ? Math.round(progress.reduce((sum, p) => sum + (p?.completionPercentage || 0), 0) / progress.length)
-                    : 0}%
+                  {avgProgress}%
                 </p>
               </div>
             </div>
@@ -330,3 +329,7 @@ export default function Dashboard() {
     </div>
   )
 }
+  const avgProgress = useMemo(() => {
+    if (progress.length === 0) return 0
+    return Math.round(progress.reduce((sum, p) => sum + (p?.completionPercentage || 0), 0) / progress.length)
+  }, [progress])
