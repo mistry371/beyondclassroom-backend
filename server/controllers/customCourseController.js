@@ -18,6 +18,8 @@ exports.createRequest = async (req, res) => {
       userId,
       userName: user.name,
       userEmail: user.email,
+      assignedToUserId: userId,
+      assignedToUserName: user.name,
     })
     db.data.customCourseRequests = db.data.customCourseRequests || []
     db.data.customCourseRequests.push(req2)
@@ -70,7 +72,15 @@ exports.updateRequest = async (req, res) => {
     const idx = (db.data.customCourseRequests || []).findIndex(r => r._id === req.params.id)
     if (idx === -1) return res.status(404).json({ success: false, message: 'Request not found' })
     const old = db.data.customCourseRequests[idx]
-    db.data.customCourseRequests[idx] = { ...old, ...req.body, updatedAt: new Date() }
+    const assignedToUserId = req.body.assignedToUserId || old.assignedToUserId || old.userId
+    const assignedUser = db.data.users.find(u => u._id === assignedToUserId)
+    db.data.customCourseRequests[idx] = {
+      ...old,
+      ...req.body,
+      assignedToUserId,
+      assignedToUserName: assignedUser?.name || old.assignedToUserName || old.userName,
+      updatedAt: new Date()
+    }
     await db.write()
 
     // Email student when status changes

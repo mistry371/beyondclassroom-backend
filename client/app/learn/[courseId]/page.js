@@ -23,24 +23,37 @@ export default function LearnPage() {
 
   const fetchCourseData = async () => {
     try {
-      const courseRes = await api.get(`/courses/${params.courseId}`)
-      setCourse(courseRes.data.course)
+      const [courseRes, modulesRes] = await Promise.all([
+        api.get(`/courses/${params.courseId}`),
+        api.get(`/modules/course/${params.courseId}`),
+      ])
 
-      const modulesRes = await api.get(`/modules/course/${params.courseId}`)
+      const courseData = courseRes.data.course
+      setCourse(courseData)
       setModules(modulesRes.data.modules || [])
-      const profileRes = await api.get('/profile')
-      const purchasedIds = (profileRes.data?.user?.purchasedCourses || []).map((c) => c?._id || c)
-      const freeCourse = courseRes.data.course?.isFree || courseRes.data.course?.isDemo
-      setHasAccess(freeCourse || purchasedIds.includes(params.courseId))
+
+      const freeCourse = courseData?.isFree || courseData?.isDemo
+
+      // Try to get profile — may fail if not logged in (guest/unauthenticated)
+      try {
+        const profileRes = await api.get('/profile')
+        const purchasedIds = (profileRes.data?.user?.purchasedCourses || []).map((c) => c?._id || c)
+        setHasAccess(freeCourse || purchasedIds.includes(params.courseId))
+      } catch (_) {
+        // Not logged in — only free/demo courses accessible
+        setHasAccess(!!freeCourse)
+      }
 
       try {
         const progressRes = await api.get(`/progress/course/${params.courseId}`)
         setProgress(progressRes.data.progress)
-      } catch (err) {
-        console.log('No progress yet')
+      } catch (_) {
+        // No progress yet — not an error
       }
     } catch (error) {
       console.error('Failed to fetch course data:', error)
+      // Don't leave blank — show course not found
+      setCourse(null)
     } finally {
       setLoading(false)
     }

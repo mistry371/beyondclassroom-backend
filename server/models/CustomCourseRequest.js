@@ -14,6 +14,9 @@ class CustomCourseRequest {
     this.quotedPrice = data.quotedPrice || null
     this.paymentStatus = data.paymentStatus || 'unpaid'  // unpaid | paid
     this.paymentId = data.paymentId || null
+    this.assignedToUserId = data.assignedToUserId || this.userId
+    this.assignedToUserName = data.assignedToUserName || this.userName
+    this.deliveryItems = data.deliveryItems || [] // [{title,type,url,note}]
     this.createdAt = data.createdAt || new Date()
     this.updatedAt = data.updatedAt || new Date()
   }

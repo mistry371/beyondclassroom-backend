@@ -1,31 +1,25 @@
 'use client'
 
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { Calculator, TrendingUp, Award, Sparkles, Zap, Brain, Rocket, Shield, Users, Star } from 'lucide-react'
-import Link from 'next/link'
+import { ArrowRight, BookOpen, Calculator, CheckCircle2, GraduationCap, Languages, PlayCircle, ShieldCheck, Sparkles, Star, Target, Users } from 'lucide-react'
 import Image from 'next/image'
-import { useRef, useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '@/utils/api'
-import FloatingMathSymbols from '@/components/marketing/FloatingMathSymbols'
 import AnimatedCounter from '@/components/marketing/AnimatedCounter'
 import PremiumButton from '@/components/marketing/PremiumButton'
-import { trustBadges } from '@/data/marketingContent'
-import { brand } from '@/data/marketingContent'
+import { brand, trustBadges } from '@/data/marketingContent'
 
 export default function Hero() {
   const ref = useRef(null)
-  const [mounted, setMounted] = useState(false)
   const [content, setContent] = useState({
-    heroTitle: 'Mathematics & French Meet Personalization',
-    heroSubtitle: 'Premium personalized Mathematics and French for Grades 6–12 — live classes, AI tools, and expert educators.',
+    heroTitle: 'Beyond Classroom',
+    heroSubtitle: 'Premium Mathematics and French learning for Grades 6-12 with live mentoring, smart practice, and personalized course paths.',
   })
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
-  const y = useTransform(scrollYProgress, [0, 1], ['0%', '40%'])
-  const opacity = useTransform(scrollYProgress, [0, 1], [1, 0])
+  const y = useTransform(scrollYProgress, [0, 1], ['0%', '10%'])
 
   useEffect(() => {
-    setMounted(true)
     api.get('/admin/content')
       .then((res) => {
         const c = res.data.content
@@ -35,147 +29,124 @@ export default function Hero() {
       .catch(() => {})
   }, [])
 
-  const features = [
-    { icon: Brain, title: 'AI-Powered', desc: 'Adaptive learning paths', color: 'from-primary to-secondary' },
-    { icon: Calculator, title: '40+ Tools', desc: 'Professional calculators', color: 'from-secondary to-accent' },
-    { icon: Rocket, title: 'Fast Track', desc: '10× faster mastery', color: 'from-brandPurple to-brandPink' },
-    { icon: Award, title: 'Certified', desc: 'Recognized excellence', color: 'from-primary to-brandPurple' },
+  const learningTracks = [
+    { icon: Calculator, label: 'Mathematics', detail: 'Boards, JEE, foundations' },
+    { icon: Languages, label: 'French', detail: 'School curriculum and fluency' },
+    { icon: Target, label: 'Custom Practice', detail: 'Topic-wise worksheets' },
   ]
 
   return (
-    <div ref={ref} className="relative overflow-hidden min-h-[92vh] flex items-center bg-navy-gradient">
-      <FloatingMathSymbols count={mounted && typeof window !== 'undefined' && window.innerWidth < 768 ? 6 : 10} />
+    <section ref={ref} className="relative min-h-[86vh] overflow-hidden bg-academic">
+      <div className="absolute inset-0 hero-grid opacity-70" />
       <motion.div style={{ y }} className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-96 h-96 bg-primary rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob" />
-        <div className="absolute top-40 right-10 w-96 h-96 bg-secondary rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-blob animation-delay-2000" />
-        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-brandPurple rounded-full mix-blend-screen filter blur-[100px] opacity-25 animate-blob animation-delay-4000" />
+        <div className="absolute left-[8%] top-24 h-64 w-64 rounded-full bg-secondary/15 blur-3xl" />
+        <div className="absolute right-[9%] top-16 h-72 w-72 rounded-full bg-primary/12 blur-3xl" />
+        <div className="absolute bottom-10 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-brandPink/10 blur-3xl" />
       </motion.div>
 
-      <motion.div style={{ opacity }} className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 z-10 w-full">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="inline-flex items-center gap-2 glass-dark rounded-full px-5 py-2.5 mb-6"
-            >
-              <Image src="/logo.jpeg" alt="" width={28} height={28} className="rounded-lg interactive" />
-              <Sparkles className="h-4 w-4 text-secondary" />
-              <span className="text-white/90 font-semibold text-sm">{brand.name}</span>
-              <Zap className="h-4 w-4 text-accent" />
-            </motion.div>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-14 sm:px-6 lg:grid-cols-[1.02fr_0.98fr] lg:px-8 lg:pb-24 lg:pt-20">
+        <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65 }}>
+          <div className="mb-6 inline-flex items-center gap-3 rounded-full border border-primary/10 bg-white/80 px-4 py-2 shadow-sm backdrop-blur-xl">
+            <Image src="/logo.jpeg" alt="" width={30} height={30} className="interactive rounded-lg" />
+            <span className="text-sm font-bold text-primary">{brand.tagline}</span>
+            <Sparkles className="h-4 w-4 text-accent" />
+          </div>
 
-            <p className="text-secondary font-bold text-sm uppercase tracking-widest mb-3">{brand.tagline}</p>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-[1.1] mb-6">
-              <span className="bg-brand-gradient bg-clip-text text-transparent">{content.heroTitle}</span>
-            </h1>
-            <p className="text-lg md:text-xl text-white/75 mb-8 max-w-xl leading-relaxed">{content.heroSubtitle}</p>
+          <h1 className="max-w-4xl text-5xl font-black leading-[1.02] text-navy sm:text-6xl lg:text-7xl">
+            {content.heroTitle}
+            <span className="block bg-brand-gradient bg-clip-text text-transparent">Learning beyond ordinary classrooms.</span>
+          </h1>
 
-            <div className="flex flex-wrap gap-2 mb-8">
-              {trustBadges.slice(0, 4).map((badge) => (
-                <span key={badge} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 text-white/90 text-xs font-medium border border-white/10">
-                  <Shield className="h-3.5 w-3.5 text-secondary" />
-                  {badge}
-                </span>
-              ))}
-            </div>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-muted sm:text-xl">
+            {content.heroSubtitle}
+          </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-10">
-              <PremiumButton href="/auth/register" variant="primary">
-                <Rocket className="h-5 w-5" /> Start Free Trial
-              </PremiumButton>
-              <PremiumButton href="/courses" variant="secondary">
-                <BookIcon /> Explore Courses
-              </PremiumButton>
-            </div>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <PremiumButton href="/auth/register" variant="primary">
+              Start Free Trial <ArrowRight className="h-5 w-5" />
+            </PremiumButton>
+            <PremiumButton href="/courses" variant="light">
+              <PlayCircle className="h-5 w-5" /> Explore Courses
+            </PremiumButton>
+          </div>
 
-            <div className="grid grid-cols-3 gap-4 max-w-md">
-              <div className="glass-dark rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-white">
-                  <AnimatedCounter value={50000} suffix="+" />
+          <div className="mt-7 flex flex-wrap gap-2">
+            {trustBadges.slice(0, 5).map((badge) => (
+              <span key={badge} className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-white px-3 py-2 text-xs font-semibold text-ink shadow-sm">
+                <ShieldCheck className="h-3.5 w-3.5 text-secondary" />
+                {badge}
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-10 grid max-w-2xl grid-cols-3 overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-premium">
+            {[
+              { value: 50000, suffix: '+', label: 'Students' },
+              { value: 95, suffix: '%', label: 'Success' },
+              { value: 40, suffix: '+', label: 'Tools' },
+            ].map((stat) => (
+              <div key={stat.label} className="border-r border-primary/10 p-4 text-center last:border-r-0 sm:p-5">
+                <div className="text-2xl font-black text-primary sm:text-3xl">
+                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
                 </div>
-                <div className="text-white/60 text-xs mt-1">Students</div>
+                <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">{stat.label}</div>
               </div>
-              <div className="glass-dark rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-secondary">
-                  <AnimatedCounter value={95} suffix="%" />
-                </div>
-                <div className="text-white/60 text-xs mt-1">Success</div>
-              </div>
-              <div className="glass-dark rounded-xl p-4 text-center">
-                <div className="text-2xl font-black text-white flex items-center justify-center gap-0.5">
-                  4.9<Star className="h-4 w-4 fill-accent text-accent" />
-                </div>
-                <div className="text-white/60 text-xs mt-1">Rating</div>
-              </div>
-            </div>
-          </motion.div>
+            ))}
+          </div>
+        </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="relative hidden lg:block"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 bg-brand-gradient rounded-3xl blur-2xl opacity-40" />
-              <div className="relative glass-dark rounded-3xl p-8 border border-white/10">
-                <div className="grid grid-cols-2 gap-4">
-                  {features.map((f, i) => {
-                    const Icon = f.icon
-                    return (
-                      <motion.div
-                        key={i}
-                        whileHover={{ scale: 1.03, y: -4 }}
-                        className={`bg-gradient-to-br ${f.color} p-5 rounded-2xl text-white`}
-                      >
-                        <Icon className="h-8 w-8 mb-3 opacity-90" />
-                        <h3 className="font-bold">{f.title}</h3>
-                        <p className="text-white/80 text-sm">{f.desc}</p>
-                      </motion.div>
-                    )
-                  })}
+        <motion.div initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
+          <div className="relative rounded-[2rem] border border-primary/10 bg-white p-4 shadow-premium">
+            <div className="rounded-[1.5rem] bg-gradient-to-br from-[#F8FAFC] via-white to-[#EFFFF6] p-5 sm:p-7">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-widest text-secondary">Student Growth OS</p>
+                  <h2 className="mt-2 text-2xl font-black text-navy">Personalized weekly plan</h2>
                 </div>
-                <div className="mt-6 flex items-center gap-3 p-4 bg-white/5 rounded-xl">
-                  <Users className="h-10 w-10 text-secondary" />
-                  <div>
-                    <p className="text-white font-semibold">Live now: 240+ students in class</p>
-                    <p className="text-white/60 text-sm">Join interactive sessions today</p>
-                  </div>
-                  <span className="ml-auto w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                <div className="rounded-2xl bg-brand-gradient p-3 text-white shadow-glow">
+                  <GraduationCap className="h-7 w-7" />
                 </div>
               </div>
-            </div>
-          </motion.div>
-        </div>
 
-        {mounted && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 lg:hidden"
-          >
-            {features.map((f, i) => {
-              const Icon = f.icon
-              return (
-                <div key={i} className="glass-dark rounded-xl p-4 text-center">
-                  <Icon className="h-6 w-6 text-secondary mx-auto mb-2" />
-                  <p className="text-white text-sm font-semibold">{f.title}</p>
+              <div className="mt-7 space-y-4">
+                {learningTracks.map((track, index) => (
+                  <motion.div
+                    key={track.label}
+                    initial={{ opacity: 0, x: 18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.25 + index * 0.08 }}
+                    className="rounded-2xl border border-primary/10 bg-white p-4 shadow-sm"
+                  >
+                    <div className="flex items-center gap-4">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <track.icon className="h-6 w-6" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-ink">{track.label}</p>
+                        <p className="text-sm text-muted">{track.detail}</p>
+                      </div>
+                      <CheckCircle2 className="h-5 w-5 text-secondary" />
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="rounded-2xl bg-navy p-5 text-white">
+                  <Users className="mb-4 h-6 w-6 text-secondary" />
+                  <p className="text-3xl font-black">240+</p>
+                  <p className="text-sm text-white/70">Live learners today</p>
                 </div>
-              )
-            })}
-          </motion.div>
-        )}
-      </motion.div>
-    </div>
+                <div className="rounded-2xl border border-accent/20 bg-accent/10 p-5">
+                  <Star className="mb-4 h-6 w-6 fill-accent text-accent" />
+                  <p className="text-3xl font-black text-navy">4.9</p>
+                  <p className="text-sm font-medium text-muted">Parent rating</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
   )
-}
-
-function BookIcon() {
-  return <TrendingUp className="h-5 w-5" />
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useRouter, usePathname } from 'next/navigation'
-import { Bell, ShoppingCart, LogOut, Menu, X } from 'lucide-react'
+import { Bell, ShoppingCart, LogOut, Menu, X, ArrowRight } from 'lucide-react'
 import { logout } from '@/store/slices/authSlice'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 const publicLinks = [
   { href: '/', label: 'Home' },
   { href: '/about', label: 'About' },
-  { href: '/team', label: 'Team' },
+  { href: '/team', label: 'Faculty' },
   { href: '/packages', label: 'Packages' },
   { href: '/courses', label: 'Courses' },
   { href: '/contact', label: 'Contact Us' },
@@ -38,38 +38,39 @@ export default function Navbar() {
   }
 
   const navBg = isMarketing && !pathname?.startsWith('/dashboard')
-    ? 'bg-white/90 border-primary/10 shadow-sm'
-    : 'bg-dark-100 border-primary/20'
+    ? 'bg-white/85 border-primary/10 shadow-sm'
+    : 'bg-white/90 border-primary/10 shadow-sm'
 
-  const linkClass = isMarketing
-    ? 'text-muted hover:text-primary'
-    : 'text-gray-300 hover:text-primary'
+  const linkClass = 'text-muted hover:text-primary'
 
   return (
     <nav className={`${navBg} border-b sticky top-0 z-50 backdrop-blur-xl`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <Link href={user ? dashboardLink : '/'} className="flex items-center space-x-2">
-            <Image src="/logo.jpeg" alt="Beyond Classroom" width={40} height={40} className="rounded-lg interactive" />
-            <span className="text-lg font-bold bg-brand-gradient bg-clip-text text-transparent hidden sm:inline">
+          <Link href={user ? dashboardLink : '/'} className="flex items-center space-x-3">
+            <Image src="/logo.jpeg" alt="Beyond Classroom" width={42} height={42} className="rounded-xl interactive shadow-sm" />
+            <span className="hidden text-lg font-black tracking-tight bg-brand-gradient bg-clip-text text-transparent sm:inline">
               Beyond Classroom
             </span>
           </Link>
 
-          <div className="hidden lg:flex items-center space-x-5">
+          <div className="hidden lg:flex items-center space-x-1 rounded-full border border-primary/10 bg-white/70 px-2 py-2 shadow-sm">
             {!isAdmin && publicLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`${linkClass} transition-colors text-sm font-medium flex items-center gap-1 ${pathname === link.href ? 'text-primary font-semibold' : ''}`}
+                className={`${linkClass} rounded-full px-4 py-2 text-sm font-semibold transition-colors ${pathname === link.href ? 'bg-primary/10 text-primary' : ''}`}
               >
                 {link.live && <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />}
                 {link.label}
               </Link>
             ))}
+          </div>
+
+          <div className="hidden lg:flex items-center space-x-4">
             {user && (
               <>
-                <Link href={dashboardLink} className={`${linkClass} font-semibold`}>{dashboardText}</Link>
+                <Link href={dashboardLink} className="font-bold text-primary">{dashboardText}</Link>
                 {!isAdmin && (
                   <>
                     <Link href="/profile" className={linkClass}>My Learning</Link>
@@ -102,16 +103,16 @@ export default function Navbar() {
               </>
             )}
             {!user && (
-              <div className="flex items-center space-x-3 ml-2">
+              <div className="flex items-center space-x-3">
                 <Link href="/auth/login" className={`${linkClass} font-semibold`}>Sign In</Link>
-                <Link href="/auth/register" className="bg-brand-gradient text-white px-4 py-2 rounded-xl hover:opacity-90 transition-all font-semibold text-sm shadow-premium">
-                  Sign Up Free
+                <Link href="/auth/register" className="inline-flex items-center gap-2 bg-brand-gradient text-white px-5 py-2.5 rounded-full hover:opacity-95 transition-all font-bold text-sm shadow-premium">
+                  Sign Up Free <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
             )}
           </div>
 
-          <button onClick={() => setShowMenu(!showMenu)} className="lg:hidden text-ink p-2">
+          <button onClick={() => setShowMenu(!showMenu)} className="lg:hidden text-ink p-2 rounded-xl border border-primary/10 bg-white">
             {showMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>

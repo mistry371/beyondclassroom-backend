@@ -117,6 +117,18 @@ export default function CustomRequestsPage() {
                   {req.quotedPrice && <span className="text-purple-400 font-bold">Quoted: Rs.{req.quotedPrice}</span>}
                 </div>
                 {req.adminNote && <p className="mt-3 text-sm text-yellow-300 bg-yellow-500/10 rounded-lg px-3 py-2">{req.adminNote}</p>}
+                {(req.deliveryItems || []).length > 0 && (
+                  <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                    <p className="text-green-300 text-sm font-semibold mb-2">Delivered by Admin</p>
+                    <div className="space-y-2">
+                      {req.deliveryItems.map((d, idx) => (
+                        <a key={`${d.url}-${idx}`} href={d.url} target="_blank" rel="noreferrer" className="block text-sm text-green-200 underline">
+                          {d.title} ({d.type}) {d.note ? `- ${d.note}` : ''}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <p className="text-gray-500 text-xs mt-3">{new Date(req.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</p>
               </motion.div>
             ))}

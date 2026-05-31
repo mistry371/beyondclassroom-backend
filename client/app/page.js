@@ -35,7 +35,7 @@ export default function Home() {
   const statIcons = [Users, BookOpen, Calculator, Award]
 
   return (
-    <div className="min-h-screen bg-soft-gradient pb-20 md:pb-0">
+    <div className="min-h-screen bg-academic pb-20 md:pb-0">
       <Navbar />
       <LiveStatsBar />
       <Hero />
@@ -101,7 +101,7 @@ export default function Home() {
       </section>
 
       {/* Packages preview */}
-      <section className="py-20 bg-soft-gradient">
+      <section className="py-20 premium-section">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <SectionHeader
             badge="Pricing"
@@ -213,8 +213,8 @@ export default function Home() {
       </section>
 
       {/* Promoter CTA */}
-      <section className="py-20 bg-navy relative overflow-hidden">
-        <div className="absolute inset-0 bg-brand-gradient opacity-20" />
+      <section className="py-20 relative overflow-hidden premium-section">
+        <div className="absolute inset-0 hero-grid opacity-70" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -222,36 +222,35 @@ export default function Home() {
                 badge="Earn With Us"
                 title="Become a Beyond Classroom Promoter"
                 subtitle="Share quality education, grow your network, and earn generous commissions."
-                light
                 center={false}
               />
               <div className="grid sm:grid-cols-2 gap-4">
                 {promoterBenefits.map((b) => (
-                  <div key={b.title} className="glass-dark rounded-xl p-4">
+                  <div key={b.title} className="glass-card rounded-xl p-4">
                     <Gift className="h-6 w-6 text-secondary mb-2" />
-                    <p className="text-white font-semibold text-sm">{b.title}</p>
-                    <p className="text-white/60 text-xs mt-1">{b.desc}</p>
+                    <p className="text-navy font-semibold text-sm">{b.title}</p>
+                    <p className="text-muted text-xs mt-1">{b.desc}</p>
                   </div>
                 ))}
               </div>
               <div className="mt-8 flex flex-wrap gap-4">
                 <PremiumButton href="/promoter" variant="primary">Explore Promoter Program</PremiumButton>
-                <PremiumButton href="/promoter/register" variant="secondary">Join as Promoter</PremiumButton>
+                <PremiumButton href="/promoter/register" variant="light">Join as Promoter</PremiumButton>
               </div>
             </div>
-            <div className="glass-dark rounded-3xl p-8 border border-white/10">
+            <div className="rounded-3xl p-8 border border-primary/10 bg-white shadow-premium">
               <div className="flex items-center gap-3 mb-6">
                 <TrendingUp className="h-10 w-10 text-secondary" />
                 <div>
-                  <p className="text-white font-bold text-2xl">Up to 25%</p>
-                  <p className="text-white/60 text-sm">Commission per referral</p>
+                  <p className="text-navy font-bold text-2xl">Up to 25%</p>
+                  <p className="text-muted text-sm">Commission per referral</p>
                 </div>
               </div>
               <div className="space-y-4">
                 {['Generate unique referral link', 'Track students & earnings', 'Withdraw via secure payouts'].map((step, i) => (
                   <div key={step} className="flex items-center gap-3">
                     <span className="w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center text-white font-bold text-sm">{i + 1}</span>
-                    <span className="text-white/90">{step}</span>
+                    <span className="text-ink font-medium">{step}</span>
                   </div>
                 ))}
               </div>
@@ -269,7 +268,7 @@ export default function Home() {
       </section>
 
       {/* Partners */}
-      <section className="py-16 bg-soft-gradient overflow-hidden">
+      <section className="py-16 premium-section overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
           <SectionHeader badge="Partners" title="Trusted Institutional Collaborations" subtitle="Partnering with schools and education networks nationwide." />
         </div>

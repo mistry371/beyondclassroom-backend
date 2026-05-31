@@ -18,18 +18,25 @@ export default function AdminCustomRequests() {
   const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState({ status:'', adminNote:'', quotedPrice:'' })
+  const [form, setForm] = useState({ status:'', adminNote:'', quotedPrice:'', assignedToUserId:'', deliveryTitle:'', deliveryType:'question_paper', deliveryUrl:'', deliveryNote:'' })
 
   useEffect(() => {
     api.get('/custom-requests/admin').then(r => setRequests(r.data.requests || [])).catch(console.error).finally(() => setLoading(false))
   }, [user])
 
-  const openEdit = (req) => { setSelected(req); setForm({ status: req.status, adminNote: req.adminNote || '', quotedPrice: req.quotedPrice || '' }) }
+  const openEdit = (req) => { setSelected(req); setForm({ status: req.status, adminNote: req.adminNote || '', quotedPrice: req.quotedPrice || '', assignedToUserId: req.assignedToUserId || req.userId || '', deliveryTitle:'', deliveryType:'question_paper', deliveryUrl:'', deliveryNote:'' }) }
 
   const handleUpdate = async (e) => {
     e.preventDefault()
     try {
-      await api.put('/custom-requests/admin/' + selected._id, form)
+      const payload = { status: form.status, adminNote: form.adminNote, quotedPrice: form.quotedPrice, assignedToUserId: form.assignedToUserId }
+      if (form.deliveryUrl && form.deliveryTitle) {
+        payload.deliveryItems = [
+          ...(selected.deliveryItems || []),
+          { title: form.deliveryTitle, type: form.deliveryType, url: form.deliveryUrl, note: form.deliveryNote }
+        ]
+      }
+      await api.put('/custom-requests/admin/' + selected._id, payload)
       setSelected(null)
       const r = await api.get('/custom-requests/admin')
       setRequests(r.data.requests || [])
@@ -114,6 +121,25 @@ export default function AdminCustomRequests() {
                 <label className="block text-gray-300 text-sm mb-1">Quoted Price (Rs.)</label>
                 <input type="number" className="w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
                   value={form.quotedPrice} onChange={e => setForm(f => ({...f, quotedPrice: e.target.value}))} placeholder="e.g. 499"/>
+              </div>
+              <div>
+                <label className="block text-gray-300 text-sm mb-1">Assign To Student ID</label>
+                <input className="w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
+                  value={form.assignedToUserId} onChange={e => setForm(f => ({...f, assignedToUserId: e.target.value}))} placeholder="Default requester userId"/>
+              </div>
+              <div className="border border-white/10 rounded-lg p-3">
+                <p className="text-gray-300 text-sm font-semibold mb-2">Upload/Deliver Custom Material (Link)</p>
+                <input className="w-full mb-2 px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm" value={form.deliveryTitle} onChange={e => setForm(f => ({...f, deliveryTitle: e.target.value}))} placeholder="Title e.g. Merged Paper Set 1"/>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  <select className="px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm" value={form.deliveryType} onChange={e => setForm(f => ({...f, deliveryType: e.target.value}))}>
+                    <option value="question_paper">Question Paper</option>
+                    <option value="notes">Notes</option>
+                    <option value="worksheet">Worksheet</option>
+                    <option value="other">Other</option>
+                  </select>
+                  <input className="px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm" value={form.deliveryUrl} onChange={e => setForm(f => ({...f, deliveryUrl: e.target.value}))} placeholder="https://drive.google.com/..."/>
+                </div>
+                <input className="w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm" value={form.deliveryNote} onChange={e => setForm(f => ({...f, deliveryNote: e.target.value}))} placeholder="Short note for student"/>
               </div>
               <div>
                 <label className="block text-gray-300 text-sm mb-1">Note to Student</label>

@@ -18,6 +18,7 @@ export default function PremiumButton({
     accent: 'bg-accent-gradient text-white shadow-glow-pink hover:scale-[1.02]',
     outline: 'border-2 border-primary text-primary hover:bg-primary hover:text-white',
     white: 'bg-white text-primary shadow-premium hover:scale-[1.02]',
+    light: 'bg-white text-primary border border-primary/10 shadow-premium hover:border-secondary/40 hover:text-secondary hover:scale-[1.02]',
   }
 
   const classes = `${base} ${variants[variant]} ${className}`

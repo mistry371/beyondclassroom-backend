@@ -8,12 +8,11 @@ export default function ScreenProtection() {
   const { user } = useSelector(state => state.auth)
   const pathname = usePathname()
 
-  // Only apply protection on student learning pages
   const isProtectedPage = pathname?.startsWith('/learn/')
 
   useEffect(() => {
-    if (!isProtectedPage) return  // no protection outside learn pages
-    // ── 1. Global CSS: disable selection, drag, highlight ─────────────────
+    if (!isProtectedPage) return
+
     const css = document.createElement('style')
     css.id = 'sp-css'
     css.textContent = `
@@ -26,7 +25,6 @@ export default function ScreenProtection() {
     `
     document.head.appendChild(css)
 
-    // ── 2. Watermark overlay (user name + email, semi-transparent) ─────────
     const wm = document.createElement('div')
     wm.id = 'sp-watermark'
     const wmLabel = 'Beyond Classroom'
@@ -42,7 +40,6 @@ export default function ScreenProtection() {
     wm.textContent = wmText
     document.body.appendChild(wm)
 
-    // ── 3. Invisible forensic watermark in DOM ─────────────────────────────
     const fw = document.createElement('div')
     fw.id = 'sp-forensic'
     fw.style.cssText = 'position:fixed;opacity:0;font-size:1px;color:transparent;pointer-events:none;z-index:-1;'
@@ -50,67 +47,53 @@ export default function ScreenProtection() {
     fw.textContent = 'USER:' + (user?._id || 'guest') + '|' + (user?.email || '') + '|' + Date.now()
     document.body.appendChild(fw)
 
-    // ── 4. Black overlay (shown on blur/visibility change) ─────────────────
     const overlay = overlayRef.current
     const showOverlay = () => { if (overlay) overlay.style.display = 'flex' }
     const hideOverlay = () => { if (overlay) overlay.style.display = 'none' }
-    const flashOverlay = () => { showOverlay(); setTimeout(hideOverlay, 500) }
+    const flashOverlay = () => {
+      showOverlay()
+      setTimeout(hideOverlay, 450)
+    }
 
-    // ── 5. Block ALL keyboard shortcuts ───────────────────────────────────
     const blockKeys = (e) => {
       const k = e.key?.toLowerCase() || ''
       const ctrl = e.ctrlKey || e.metaKey
       const shift = e.shiftKey
       const alt = e.altKey
 
-      // Allow all input inside Razorpay iframe or any input/textarea
       const tag = e.target?.tagName?.toLowerCase()
       const isInput = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable
-      if (isInput) return  // don't block typing in any input field
+      if (isInput) return
 
-      // PrintScreen (all variants)
       if (k === 'printscreen' || k === 'print' || k === 'snapshot') {
         e.preventDefault(); e.stopPropagation(); flashOverlay(); return false
       }
-      // Alt+PrintScreen
       if (alt && (k === 'printscreen' || k === 'print')) {
         e.preventDefault(); e.stopPropagation(); flashOverlay(); return false
       }
-      // Win+Shift+S (Snipping Tool)
       if (e.metaKey && shift && k === 's') {
         e.preventDefault(); e.stopPropagation(); flashOverlay(); return false
       }
-      // Ctrl+Shift+S
       if (ctrl && shift && k === 's') {
         e.preventDefault(); e.stopPropagation(); return false
       }
-      // Ctrl combos (only block non-input shortcuts)
-      if (ctrl && ['a','s','p','u','j','n','t','w','r'].includes(k)) {
+      if (ctrl && ['a', 's', 'p', 'u', 'j', 'n', 't', 'w', 'r'].includes(k)) {
         e.preventDefault(); e.stopPropagation(); return false
       }
-      // F keys
-      if (['f12','f11','f10','f5'].includes(k)) {
+      if (['f12', 'f11', 'f10', 'f5'].includes(k)) {
         e.preventDefault(); e.stopPropagation(); return false
       }
-      // DevTools
-      if (ctrl && shift && ['i','j','c','k','e','m','p'].includes(k)) {
+      if (ctrl && shift && ['i', 'j', 'c', 'k', 'e', 'm', 'p'].includes(k)) {
         e.preventDefault(); e.stopPropagation(); return false
       }
     }
 
-    // ── 6. Block right-click ───────────────────────────────────────────────
     const blockCtxMenu = (e) => e.preventDefault()
-
-    // ── 7. Block drag ──────────────────────────────────────────────────────
     const blockDrag = (e) => e.preventDefault()
-
-    // ── 8. Block copy/cut/paste events ────────────────────────────────────
     const blockClipboard = (e) => e.preventDefault()
+    const blockPrint = () => flashOverlay()
+    const blockSelect = (e) => e.preventDefault()
 
-    // ── 9. Block print ────────────────────────────────────────────────────
-    const blockPrint = () => { flashOverlay() }
-
-    // ── 10. Block Screen Capture API ──────────────────────────────────────
     if (navigator.mediaDevices) {
       try {
         Object.defineProperty(navigator.mediaDevices, 'getDisplayMedia', {
@@ -120,51 +103,13 @@ export default function ScreenProtection() {
           },
           writable: false, configurable: false
         })
-      } catch(_) {}
+      } catch (_) {}
     }
 
-    // ── 11. DevTools detection (size-based, with delay to avoid false positives) ──
-    let devtoolsOpen = false
-    let devtoolsCheckCount = 0
-    const detectDevTools = () => {
-      // Skip first 5 checks (3s) to let page fully load and avoid false positives
-      devtoolsCheckCount++
-      if (devtoolsCheckCount < 5) return
-      const threshold = 200
-      const widthDiff = window.outerWidth - window.innerWidth
-      const heightDiff = window.outerHeight - window.innerHeight
-      if ((widthDiff > threshold || heightDiff > threshold) && !devtoolsOpen) {
-        devtoolsOpen = true
-        document.body.style.filter = 'blur(20px)'
-      } else if (widthDiff <= threshold && heightDiff <= threshold && devtoolsOpen) {
-        devtoolsOpen = false
-        document.body.style.filter = ''
-      }
-    }
-    const devtoolsInterval = setInterval(detectDevTools, 1000)
-
-    // ── 12. Visibility change: black screen when tab hidden ────────────────
-    const onVisibility = () => {
-      if (document.hidden) showOverlay()
-      else hideOverlay()
-    }
-
-    // ── 13. Window blur: black screen — only after page has been active 2s ──
-    // NOTE: Only activate on visibility change (tab switch), NOT on window blur
-    // Window blur fires too aggressively (clicking address bar, any popup, etc.)
-    let pageReady = false
-    const readyTimer = setTimeout(() => { pageReady = true }, 2000)
-    // Removed onBlur/onFocus — too aggressive, blocks normal browsing
-
-    // ── 14. Disable text selection via mouse ──────────────────────────────
-    const blockSelect = (e) => e.preventDefault()
-
-    // ── 15. Block touch long-press (mobile screenshot prevention) ─────────
     let touchTimer = null
     const onTouchStart = () => { touchTimer = setTimeout(flashOverlay, 500) }
     const onTouchEnd = () => { if (touchTimer) clearTimeout(touchTimer) }
 
-    // Attach everything
     document.addEventListener('keydown', blockKeys, true)
     document.addEventListener('keyup', blockKeys, true)
     document.addEventListener('contextmenu', blockCtxMenu, true)
@@ -173,7 +118,6 @@ export default function ScreenProtection() {
     document.addEventListener('cut', blockClipboard, true)
     document.addEventListener('paste', blockClipboard, true)
     document.addEventListener('selectstart', blockSelect, true)
-    document.addEventListener('visibilitychange', onVisibility)
     document.addEventListener('touchstart', onTouchStart, { passive: true })
     document.addEventListener('touchend', onTouchEnd, { passive: true })
     window.addEventListener('beforeprint', blockPrint)
@@ -188,19 +132,17 @@ export default function ScreenProtection() {
       document.removeEventListener('cut', blockClipboard, true)
       document.removeEventListener('paste', blockClipboard, true)
       document.removeEventListener('selectstart', blockSelect, true)
-      document.removeEventListener('visibilitychange', onVisibility)
       document.removeEventListener('touchstart', onTouchStart)
       document.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('beforeprint', blockPrint)
       window.removeEventListener('afterprint', blockPrint)
-      clearInterval(devtoolsInterval)
-      clearTimeout(readyTimer)
       document.getElementById('sp-css')?.remove()
       document.getElementById('sp-watermark')?.remove()
       document.getElementById('sp-forensic')?.remove()
       document.body.style.filter = ''
+      hideOverlay()
     }
-  }, [user])
+  }, [isProtectedPage, user])
 
   return (
     <div
