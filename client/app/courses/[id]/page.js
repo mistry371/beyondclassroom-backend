@@ -1,13 +1,28 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { Clock, Star, ShoppingCart, BookOpen, Award, CheckCircle, PlayCircle, Lock } from 'lucide-react'
+import { ArrowRight, Award, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, Clock, FileText, Languages, Lock, PlayCircle, ShieldCheck, ShoppingCart, Sparkles, Star, Target, X } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import PaymentModal from '@/components/PaymentModal'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+
+const steps = ['Modules', 'Lessons', 'Topics', 'PDFs', 'Preferences', 'Summary']
+
+const defaultPreferences = {
+  level: 'Standard',
+  learningSpeed: 'Balanced',
+  worksheetFrequency: 'Weekly',
+  testFrequency: 'Bi-weekly',
+  languagePreference: 'English',
+  revisionMode: 'Smart revision',
+}
+
+function getDocs(subtopic) {
+  return subtopic?.documents || (subtopic?.document ? [subtopic.document] : [])
+}
 
 export default function CourseDetails() {
   const params = useParams()
@@ -17,442 +32,24 @@ export default function CourseDetails() {
   const [loading, setLoading] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [modules, setModules] = useState([])
-  const [customization, setCustomization] = useState({
-    difficultyLevel: 'Beginner',
-    worksheetType: 'Standard',
-    practiceType: 'Mixed',
-    languagePreference: 'English',
-    learningStyle: 'Visual',
-    gradeLevel: '',
-    notes: '',
-  })
+  const [selected, setSelected] = useState({})
+  const [preferences, setPreferences] = useState(defaultPreferences)
+  const [notes, setNotes] = useState('')
+  const [step, setStep] = useState(0)
   const [requestLoading, setRequestLoading] = useState(false)
   const [previewDoc, setPreviewDoc] = useState(null)
-  const [selectedMap, setSelectedMap] = useState({})
 
   useEffect(() => {
     fetchCourse()
-  }, [params.id])
+  }, [params.id, user?._id])
 
-  const fetchCourse = async () => {
-    try {
-      const response = await api.get(`/courses/${params.id}`)
-      setCourse(response.data.course)
-      if (user) {
-        const mRes = await api.get(`/modules/course/${params.id}`).catch(() => ({ data: { modules: [] } }))
-        const mods = mRes.data.modules || []
-        const withChildren = await Promise.all(mods.map(async (m) => {
-          const lRes = await api.get(`/lessons/module/${m._id}`).catch(() => ({ data: { lessons: [] } }))
-          const lessons = lRes.data.lessons || []
-          const lessonsWithSubtopics = await Promise.all(lessons.map(async (l) => {
-            const sRes = await api.get(`/subtopics/lesson/${l._id}`).catch(() => ({ data: { subtopics: [] } }))
-            return { ...l, subtopics: sRes.data.subtopics || [] }
-          }))
-          return { ...m, lessons: lessonsWithSubtopics }
-        }))
-        setModules(withChildren)
-      }
-    } catch (error) {
-      console.error('Fetch course failed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCustomizationRequest = async (e) => {
-    e.preventDefault()
-    if (!user) return router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
-    try {
-      setRequestLoading(true)
-      const selectedTopics = modules.map((m) => {
-        const selectedLessons = (m.lessons || []).map((l) => {
-          const selectedSubtopics = (l.subtopics || []).filter((s) => selectedMap[s._id]).map((s) => ({ subtopicId: s._id, subtopicTitle: s.title }))
-          if (!selectedMap[l._id] && selectedSubtopics.length === 0) return null
-          return { lessonId: l._id, lessonTitle: l.title, subtopics: selectedSubtopics }
-        }).filter(Boolean)
-        if (!selectedMap[m._id] && selectedLessons.length === 0) return null
-        return { moduleId: m._id, moduleTitle: m.title, lessons: selectedLessons }
-      }).filter(Boolean)
-      if (selectedTopics.length === 0) return alert('Please select at least one module/topic/subtopic.')
-
-      await api.post('/custom-course-requests', {
-        title: `Customization Request - ${course.title}`,
-        deliverable: customization.practiceType,
-        selectedTopics,
-        budget: Number(course.price || 0),
-        ...customization,
-      })
-      alert('Customization request sent to admin successfully.')
-    } catch (err) {
-      alert(err.response?.data?.message || 'Failed to send request')
-    } finally {
-      setRequestLoading(false)
-    }
-  }
-
-  const handleAddToCart = async () => {
-    // Check if user is logged in
-    if (!user) {
-      router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
-      return
-    }
-    
-    try {
-      await api.post('/cart', { courseId: course._id })
-      router.push('/cart')
-    } catch (error) {
-      console.error('Add to cart failed:', error)
-      alert('Failed to add to cart. Please try again.')
-    }
-  }
-
-  const handleEnroll = async () => {
-    // Check if user is logged in
-    if (!user) {
-      router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
-      return
-    }
-    
-    // If course is free/demo, enroll directly via orders API
-    if (course.isFree || course.isDemo) {
-      try {
-        // Add to cart first, then place order to get it into purchasedCourses
-        await api.post('/cart', { courseId: course._id }).catch(() => {}) // ignore if already in cart
-        await api.post('/orders')
-        router.push(`/learn/${course._id}`)
-      } catch (error) {
-        console.error('Failed to enroll:', error)
-        alert('Failed to enroll. Please try again.')
-      }
-      return
-    }
-    
-    // Open payment modal for paid courses
-    setShowPaymentModal(true)
-  }
-
-  const handlePaymentSuccess = () => {
-    alert('Payment successful! You are now enrolled in the course.')
-    router.push('/dashboard')
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-dark via-dark-100 to-dark">
-        <Navbar />
-        <div className="flex items-center justify-center h-screen">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!course) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-dark via-dark-100 to-dark">
-        <Navbar />
-        <div className="flex items-center justify-center h-screen">
-          <p className="text-white text-xl">Course not found</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-dark via-dark-100 to-dark">
-      <Navbar />
-
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left: Course Info */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <span className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-1 rounded-full text-sm font-semibold">
-                  {course.category}
-                </span>
-                <span className="bg-white/10 backdrop-blur-sm text-white px-4 py-1 rounded-full text-sm">
-                  {course.difficulty}
-                </span>
-              </div>
-
-              <h1 className="text-5xl font-bold text-white mb-6 leading-tight">
-                {course.title}
-              </h1>
-
-              <p className="text-gray-300 text-lg mb-8 leading-relaxed">
-                {course.description}
-              </p>
-
-              <div className="flex items-center gap-6 mb-8">
-                <div className="flex items-center text-yellow-400">
-                  <Star className="h-6 w-6 fill-current" />
-                  <span className="ml-2 text-xl font-bold">{course.rating || 4.8}</span>
-                  <span className="ml-2 text-gray-400">({course.enrolledCount || 0} students)</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 text-gray-300 mb-8">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <span>{course.duration}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-5 w-5 text-secondary" />
-                  <span>{course.topics?.length || 0} Topics</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Award className="h-5 w-5 text-yellow-400" />
-                  <span>Certificate</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="text-white">
-                  {course.isFree || course.isDemo ? (
-                    <span className="text-5xl font-bold text-green-400">FREE</span>
-                  ) : (
-                    <>
-                      <span className="text-5xl font-bold">₹{course.price}</span>
-                      {course.discountPrice && (
-                        <span className="text-2xl text-gray-400 line-through ml-3">₹{course.discountPrice}</span>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right: Course Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl border border-white/10 p-8 shadow-2xl"
-            >
-              <div className="aspect-video bg-gradient-to-br from-primary to-secondary rounded-xl mb-6 flex items-center justify-center">
-                <PlayCircle className="h-20 w-20 text-white" />
-              </div>
-
-              <h3 className="text-2xl font-bold text-white mb-4">Enroll in this course</h3>
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center text-gray-300">
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
-                  <span>Lifetime access</span>
-                </div>
-                <div className="flex items-center text-gray-300">
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
-                  <span>Certificate of completion</span>
-                </div>
-                <div className="flex items-center text-gray-300">
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
-                  <span>24/7 support</span>
-                </div>
-                <div className="flex items-center text-gray-300">
-                  <CheckCircle className="h-5 w-5 text-green-400 mr-3" />
-                  <span>Practice exercises</span>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  onClick={handleEnroll}
-                  className="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-xl font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
-                >
-                  {user ? (
-                    course.isFree || course.isDemo ? (
-                      <>
-                        <PlayCircle className="h-5 w-5" />
-                        Start Free Course
-                      </>
-                    ) : (
-                      'Enroll Now'
-                    )
-                  ) : (
-                    <>
-                      <Lock className="h-5 w-5" />
-                      Login to Enroll
-                    </>
-                  )}
-                </button>
-                {user && course.price > 0 && !course.isFree && !course.isDemo && (
-                  <button
-                    onClick={handleAddToCart}
-                    className="w-full bg-white/10 backdrop-blur-sm border border-white/20 text-white py-4 rounded-xl font-semibold hover:bg-white/20 transition-all flex items-center justify-center gap-2"
-                  >
-                    <ShoppingCart className="h-5 w-5" />
-                    Add to Cart
-                  </button>
-                )}
-              </div>
-
-              {!user && (
-                <p className="text-center text-gray-400 text-sm mt-4">
-                  Please login to purchase this course
-                </p>
-              )}
-            </motion.div>
-          </div>
-        </div>
-      </div>
-
-      {/* Details Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
-          <div className="p-8">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-8"
-              >
-                <div>
-                  <h2 className="text-3xl font-bold text-white mb-4">What you'll learn</h2>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    {course.topics?.map((topic, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <CheckCircle className="h-6 w-6 text-green-400 flex-shrink-0 mt-1" />
-                        <span className="text-gray-300">{topic}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <h2 className="text-3xl font-bold text-white mb-4">Course Description</h2>
-                  <p className="text-gray-300 leading-relaxed text-lg">
-                    {course.description}
-                  </p>
-                </div>
-
-                <div>
-                  <h2 className="text-3xl font-bold text-white mb-4">Requirements</h2>
-                  <ul className="space-y-2 text-gray-300">
-                    <li className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-primary rounded-full"></div>
-                      Basic understanding of mathematics
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-primary rounded-full"></div>
-                      Willingness to learn and practice
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <div className="h-2 w-2 bg-primary rounded-full"></div>
-                      Computer or mobile device with internet
-                    </li>
-                  </ul>
-                </div>
-              </motion.div>
-          </div>
-        </div>
-      </div>
-
-      {user && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <div className="bg-gradient-to-br from-dark-100/90 to-dark/90 backdrop-blur-xl rounded-2xl border border-white/10 p-8 relative overflow-hidden">
-            <div className="absolute inset-0 pointer-events-none opacity-10 text-white text-2xl font-bold flex items-center justify-center rotate-[-20deg]">
-              BeyondClassroom Copyright - View Only
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-4">Course Structure Preview (View Only)</h2>
-            <p className="text-gray-400 mb-6">Modules, topics, subtopics and files are visible with protected preview.</p>
-            <div className="space-y-4 mb-8">
-              {modules.map((m) => (
-                <div key={m._id} className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <label className="text-white font-semibold flex items-center gap-2">
-                    <input type="checkbox" checked={!!selectedMap[m._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [m._id]: e.target.checked }))} />
-                    {m.title}
-                  </label>
-                  {(m.lessons || []).map((l) => (
-                    <div key={l._id} className="ml-4 mt-3 border-l border-white/10 pl-3">
-                      <label className="text-gray-200 flex items-center gap-2">
-                        <input type="checkbox" checked={!!selectedMap[l._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [l._id]: e.target.checked }))} />
-                        {l.title}
-                      </label>
-                      {(l.subtopics || []).map((s) => (
-                        <div key={s._id} className="ml-3 mt-2 text-sm text-gray-400">
-                          <label className="flex items-center gap-2">
-                            <input type="checkbox" checked={!!selectedMap[s._id]} onChange={(e) => setSelectedMap((p) => ({ ...p, [s._id]: e.target.checked }))} />
-                            {s.title}
-                          </label>
-                          <p>Files: {(s.documents || (s.document ? [s.document] : [])).length} (view only)</p>
-                          <div className="mt-2 space-y-2">
-                            {(s.documents || (s.document ? [s.document] : [])).map((doc, idx) => (
-                              <button
-                                key={`${doc?.name || 'file'}-${idx}`}
-                                type="button"
-                                onClick={() => setPreviewDoc(doc)}
-                                className="px-3 py-1 bg-primary/20 text-primary rounded hover:bg-primary/30 transition-all text-xs"
-                              >
-                                Secure View {doc?.name || `File ${idx + 1}`}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-
-            <h2 className="text-2xl font-bold text-white mb-4">Customize This Course</h2>
-            <form onSubmit={handleCustomizationRequest} className="grid md:grid-cols-2 gap-4">
-              <input value={customization.difficultyLevel} onChange={(e) => setCustomization({ ...customization, difficultyLevel: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Difficulty Level" />
-              <input value={customization.worksheetType} onChange={(e) => setCustomization({ ...customization, worksheetType: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Worksheet Type" />
-              <input value={customization.practiceType} onChange={(e) => setCustomization({ ...customization, practiceType: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Practice Type" />
-              <input value={customization.languagePreference} onChange={(e) => setCustomization({ ...customization, languagePreference: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Language Preference" />
-              <input value={customization.learningStyle} onChange={(e) => setCustomization({ ...customization, learningStyle: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Learning Style" />
-              <input value={customization.gradeLevel} onChange={(e) => setCustomization({ ...customization, gradeLevel: e.target.value })} className="px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" placeholder="Grade Level" />
-              <textarea value={customization.notes} onChange={(e) => setCustomization({ ...customization, notes: e.target.value })} className="md:col-span-2 px-4 py-3 bg-dark border border-white/10 rounded-lg text-white" rows={4} placeholder="Add selected module/topic/subtopic preferences" />
-              <button disabled={requestLoading} className="md:col-span-2 px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg font-semibold">{requestLoading ? 'Sending...' : 'Send Customization Request to Admin'}</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Payment Modal */}
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-        course={course}
-        onSuccess={handlePaymentSuccess}
-      />
-
-      {previewDoc && (
-        <div className="fixed inset-0 z-50 bg-black/70 p-4 flex items-center justify-center" onClick={() => setPreviewDoc(null)}>
-          <div className="bg-dark-100 border border-white/10 rounded-2xl w-full max-w-4xl h-[80vh] relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-10 text-3xl font-bold text-white rotate-[-20deg]">
-              BeyondClassroom Copyright - View Only
-            </div>
-            <div className="flex items-center justify-between p-3 border-b border-white/10">
-              <p className="text-white text-sm truncate">{previewDoc?.name || 'File Preview'}</p>
-              <button onClick={() => setPreviewDoc(null)} className="text-gray-300 hover:text-white">Close</button>
-            </div>
-            <iframe
-              title="Document Preview"
-              className="w-full h-[calc(80vh-56px)]"
-              src={`data:${previewDoc?.type || 'application/pdf'};base64,${previewDoc?.data || ''}`}
-              sandbox="allow-same-origin"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
   useEffect(() => {
     if (!previewDoc) return
     const block = (e) => {
       if (e.type === 'contextmenu') e.preventDefault()
-      const k = e.key?.toLowerCase()
+      const key = e.key?.toLowerCase()
       const ctrl = e.ctrlKey || e.metaKey
-      if (ctrl && ['s', 'p', 'u', 'c', 'v'].includes(k)) {
+      if (ctrl && ['s', 'p', 'u', 'c', 'v', 'a'].includes(key)) {
         e.preventDefault()
         e.stopPropagation()
       }
@@ -464,3 +61,395 @@ export default function CourseDetails() {
       document.removeEventListener('keydown', block, true)
     }
   }, [previewDoc])
+
+  const fetchCourse = async () => {
+    try {
+      setLoading(true)
+      const response = await api.get(`/courses/${params.id}`)
+      const loadedCourse = response.data.course
+      setCourse(loadedCourse)
+
+      if (user) {
+        const moduleRes = await api.get(`/modules/course/${params.id}`).catch(() => ({ data: { modules: [] } }))
+        const moduleList = moduleRes.data.modules || []
+        const populated = await Promise.all(moduleList.map(async (moduleItem) => {
+          const lessonRes = await api.get(`/lessons/module/${moduleItem._id}`).catch(() => ({ data: { lessons: [] } }))
+          const lessonList = lessonRes.data.lessons || []
+          const lessons = await Promise.all(lessonList.map(async (lesson) => {
+            const subtopicRes = await api.get(`/subtopics/lesson/${lesson._id}`).catch(() => ({ data: { subtopics: [] } }))
+            return { ...lesson, subtopics: subtopicRes.data.subtopics || [] }
+          }))
+          return { ...moduleItem, lessons }
+        }))
+        setModules(populated)
+      } else {
+        setModules([])
+      }
+    } catch (error) {
+      console.error('Fetch course failed:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const selection = useMemo(() => {
+    const selectedModules = []
+    const selectedLessons = []
+    const selectedSubtopics = []
+    const selectedPdfs = []
+
+    modules.forEach((moduleItem) => {
+      if (selected[moduleItem._id]) selectedModules.push({ moduleId: moduleItem._id, moduleTitle: moduleItem.title })
+      ;(moduleItem.lessons || []).forEach((lesson) => {
+        if (selected[lesson._id]) selectedLessons.push({ moduleId: moduleItem._id, moduleTitle: moduleItem.title, lessonId: lesson._id, lessonTitle: lesson.title })
+        ;(lesson.subtopics || []).forEach((subtopic) => {
+          if (selected[subtopic._id]) selectedSubtopics.push({ moduleId: moduleItem._id, lessonId: lesson._id, subtopicId: subtopic._id, subtopicTitle: subtopic.title })
+          getDocs(subtopic).forEach((doc, index) => {
+            const id = `${subtopic._id}:pdf:${index}`
+            if (selected[id]) selectedPdfs.push({ subtopicId: subtopic._id, subtopicTitle: subtopic.title, name: doc?.name || `PDF ${index + 1}`, type: doc?.type || 'application/pdf' })
+          })
+        })
+      })
+    })
+
+    return { selectedModules, selectedLessons, selectedSubtopics, selectedPdfs }
+  }, [modules, selected])
+
+  const roadmap = useMemo(() => {
+    const itemCount = selection.selectedModules.length + selection.selectedLessons.length + selection.selectedSubtopics.length
+    const weeks = Math.max(2, Math.ceil(itemCount / 3))
+    return {
+      duration: `${weeks} weeks`,
+      price: Math.max(299, Math.round((Number(course?.price || 599) * Math.max(1, itemCount)) / 6)),
+      lines: [
+        `Start with ${selection.selectedModules.length || 'selected'} module foundation review`,
+        `${preferences.worksheetFrequency} worksheets with ${preferences.level.toLowerCase()} difficulty`,
+        `${preferences.testFrequency} tests and ${preferences.revisionMode.toLowerCase()}`,
+        `${preferences.learningSpeed} learning speed in ${preferences.languagePreference}`,
+      ],
+    }
+  }, [course?.price, preferences, selection])
+
+  const toggle = (id) => setSelected((prev) => ({ ...prev, [id]: !prev[id] }))
+
+  const requireLogin = () => {
+    router.push(`/auth/login?redirect=${encodeURIComponent('/courses/' + params.id)}`)
+  }
+
+  const submitCustomization = async () => {
+    if (!user) return requireLogin()
+    if (!selection.selectedModules.length && !selection.selectedLessons.length && !selection.selectedSubtopics.length && !selection.selectedPdfs.length) {
+      alert('Please select at least one module, lesson, topic, subtopic, or PDF.')
+      return
+    }
+
+    try {
+      setRequestLoading(true)
+      await api.post('/custom-requests', {
+        title: `Custom Package - ${course.title}`,
+        description: notes || `Personalized package request for ${course.title}`,
+        deliverable: 'custom_course_package',
+        difficulty: preferences.level.toLowerCase(),
+        budget: roadmap.price,
+        selectedTopics: selection.selectedModules,
+        selectedModules: selection.selectedModules,
+        selectedLessons: selection.selectedLessons,
+        selectedSubtopics: selection.selectedSubtopics,
+        selectedPdfs: selection.selectedPdfs,
+        preferences,
+        roadmap: roadmap.lines,
+        estimatedDuration: roadmap.duration,
+        packageSummary: `${selection.selectedModules.length} modules, ${selection.selectedLessons.length} lessons, ${selection.selectedSubtopics.length} subtopics, ${selection.selectedPdfs.length} PDFs`,
+        status: 'pending',
+      })
+      alert('Customization request sent to admin. You can track it from your dashboard.')
+      router.push('/dashboard/custom-requests')
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to submit customization request')
+    } finally {
+      setRequestLoading(false)
+    }
+  }
+
+  const handleAddToCart = async () => {
+    if (!user) return requireLogin()
+    try {
+      await api.post('/cart', { courseId: course._id })
+      router.push('/cart')
+    } catch (error) {
+      alert(error.response?.data?.message || 'Failed to add to cart. Please try again.')
+    }
+  }
+
+  const handleEnroll = async () => {
+    if (!user) return requireLogin()
+    if (course.isFree || course.isDemo) {
+      try {
+        await api.post('/cart', { courseId: course._id }).catch(() => {})
+        await api.post('/orders')
+        router.push(`/learn/${course._id}`)
+      } catch (error) {
+        alert(error.response?.data?.message || 'Failed to enroll. Please try again.')
+      }
+      return
+    }
+    setShowPaymentModal(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-academic">
+        <Navbar />
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="h-14 w-14 animate-spin rounded-full border-b-2 border-t-2 border-primary" />
+        </div>
+      </div>
+    )
+  }
+
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-academic">
+        <Navbar />
+        <div className="flex min-h-[70vh] items-center justify-center text-xl font-bold text-navy">Course not found</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-academic pb-16">
+      <Navbar />
+
+      <section className="relative overflow-hidden premium-section">
+        <div className="absolute inset-0 hero-grid opacity-70" />
+        <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8 lg:py-20">
+          <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="mb-5 flex flex-wrap gap-3">
+              <span className="rounded-full bg-primary/10 px-4 py-2 text-sm font-bold text-primary">{course.category}</span>
+              <span className="rounded-full bg-secondary/10 px-4 py-2 text-sm font-bold text-secondary">{course.difficulty}</span>
+            </div>
+            <h1 className="text-4xl font-black leading-tight text-navy sm:text-6xl">{course.title}</h1>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">{course.description}</p>
+            <div className="mt-8 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { icon: Star, label: `${course.rating || 4.8} rating` },
+                { icon: Clock, label: course.duration || 'Self-paced' },
+                { icon: BookOpen, label: `${course.topics?.length || modules.length || 0} topics` },
+                { icon: Award, label: 'Certificate' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-2xl border border-primary/10 bg-white p-4 text-sm font-semibold text-ink shadow-sm">
+                  <item.icon className="mb-2 h-5 w-5 text-primary" />
+                  {item.label}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.aside initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }} className="rounded-3xl border border-primary/10 bg-white p-6 shadow-premium">
+            <div className="mb-6 flex aspect-video items-center justify-center rounded-2xl bg-brand-gradient text-white">
+              <PlayCircle className="h-16 w-16" />
+            </div>
+            <p className="text-sm font-bold uppercase tracking-wide text-muted">Course package</p>
+            <div className="mt-2 text-4xl font-black text-primary">{course.isFree || course.isDemo ? 'FREE' : `Rs.${course.price}`}</div>
+            <div className="mt-5 space-y-3 text-sm font-semibold text-ink">
+              {['Lifetime access', 'Protected PDF previews', 'Custom course request option', 'Progress-ready structure'].map((item) => (
+                <p key={item} className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-secondary" />{item}</p>
+              ))}
+            </div>
+            <div className="mt-6 space-y-3">
+              <button onClick={handleEnroll} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-5 py-4 font-bold text-white">
+                {user ? (course.isFree || course.isDemo ? 'Start Free Course' : 'Enroll Now') : <><Lock className="h-5 w-5" /> Login to Enroll</>}
+              </button>
+              {user && course.price > 0 && !course.isFree && !course.isDemo && (
+                <button onClick={handleAddToCart} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-primary/10 bg-academic px-5 py-4 font-bold text-primary">
+                  <ShoppingCart className="h-5 w-5" /> Add to Cart
+                </button>
+              )}
+            </div>
+          </motion.aside>
+        </div>
+      </section>
+
+      <main className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <section className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-3xl border border-primary/10 bg-white p-7 shadow-premium">
+            <div className="mb-5 flex items-center gap-3">
+              <ShieldCheck className="h-8 w-8 text-primary" />
+              <div>
+                <h2 className="text-2xl font-black text-navy">Protected Course Preview</h2>
+                <p className="text-sm text-muted">Logged-in students can view structure. Content stays protected until purchase.</p>
+              </div>
+            </div>
+            {!user ? (
+              <button onClick={requireLogin} className="w-full rounded-2xl bg-brand-gradient px-5 py-4 font-bold text-white">Login to View Course Structure</button>
+            ) : modules.length === 0 ? (
+              <p className="rounded-2xl bg-academic p-5 text-muted">No modules are published for this course yet.</p>
+            ) : (
+              <div className="max-h-[640px] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                {modules.map((moduleItem) => (
+                  <div key={moduleItem._id} className="rounded-2xl border border-primary/10 bg-academic p-4">
+                    <p className="font-black text-navy">{moduleItem.title}</p>
+                    <p className="mt-1 text-sm text-muted">{moduleItem.description}</p>
+                    {(moduleItem.lessons || []).map((lesson) => (
+                      <div key={lesson._id} className="mt-3 rounded-xl bg-white p-3">
+                        <p className="font-bold text-ink">{lesson.title}</p>
+                        {(lesson.subtopics || []).map((subtopic) => (
+                          <div key={subtopic._id} className="mt-2 rounded-lg border border-primary/10 p-3 text-sm text-muted">
+                            <p className="font-semibold text-ink">{subtopic.title}</p>
+                            {getDocs(subtopic).length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {getDocs(subtopic).map((doc, index) => (
+                                  <button key={`${subtopic._id}-${index}`} onClick={() => setPreviewDoc(doc)} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+                                    <FileText className="h-3.5 w-3.5" /> Secure View
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-3xl border border-primary/10 bg-white p-7 shadow-premium">
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-navy">Customize My Course</h2>
+                <p className="text-sm text-muted">Select only what you want. Admin will review, finalize, and assign your package.</p>
+              </div>
+              <span className="rounded-full bg-secondary/10 px-3 py-1 text-xs font-bold text-secondary">{steps[step]}</span>
+            </div>
+
+            <div className="mb-6 grid grid-cols-6 gap-2">
+              {steps.map((label, index) => (
+                <button key={label} onClick={() => setStep(index)} className={`h-2 rounded-full transition ${index <= step ? 'bg-brand-gradient' : 'bg-slate-200'}`} aria-label={label} />
+              ))}
+            </div>
+
+            {step === 0 && <SelectList title="Select modules" items={modules} selected={selected} onToggle={toggle} idKey="_id" titleKey="title" />}
+            {step === 1 && <SelectList title="Select lessons" items={modules.flatMap((m) => (m.lessons || []).map((l) => ({ ...l, helper: m.title })))} selected={selected} onToggle={toggle} idKey="_id" titleKey="title" />}
+            {step === 2 && <SelectList title="Select topics and subtopics" items={modules.flatMap((m) => (m.lessons || []).flatMap((l) => (l.subtopics || []).map((s) => ({ ...s, helper: `${m.title} / ${l.title}` }))))} selected={selected} onToggle={toggle} idKey="_id" titleKey="title" />}
+            {step === 3 && (
+              <SelectList
+                title="Select PDFs"
+                items={modules.flatMap((m) => (m.lessons || []).flatMap((l) => (l.subtopics || []).flatMap((s) => getDocs(s).map((doc, index) => ({ _id: `${s._id}:pdf:${index}`, title: doc?.name || `PDF ${index + 1}`, helper: s.title })))))}
+                selected={selected}
+                onToggle={toggle}
+                idKey="_id"
+                titleKey="title"
+              />
+            )}
+            {step === 4 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {[
+                  ['level', ['Basic', 'Standard', 'Advanced']],
+                  ['learningSpeed', ['Relaxed', 'Balanced', 'Fast track']],
+                  ['worksheetFrequency', ['Daily', 'Weekly', 'Topic-wise']],
+                  ['testFrequency', ['Weekly', 'Bi-weekly', 'Monthly']],
+                  ['languagePreference', ['English', 'Hindi', 'English + Hindi']],
+                  ['revisionMode', ['Smart revision', 'Exam revision', 'Formula revision']],
+                ].map(([key, options]) => (
+                  <label key={key} className="block">
+                    <span className="mb-2 block text-sm font-bold capitalize text-ink">{key.replace(/([A-Z])/g, ' $1')}</span>
+                    <select value={preferences[key]} onChange={(e) => setPreferences((prev) => ({ ...prev, [key]: e.target.value }))} className="w-full rounded-2xl border border-primary/10 bg-academic px-4 py-3 text-ink outline-none">
+                      {options.map((option) => <option key={option}>{option}</option>)}
+                    </select>
+                  </label>
+                ))}
+                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="sm:col-span-2 rounded-2xl border border-primary/10 bg-academic px-4 py-3 text-ink outline-none" rows={4} placeholder="Tell admin what you want merged, customized, or prepared..." />
+              </div>
+            )}
+            {step === 5 && (
+              <div className="space-y-5">
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <SummaryCard label="Modules" value={selection.selectedModules.length} />
+                  <SummaryCard label="Lessons" value={selection.selectedLessons.length} />
+                  <SummaryCard label="Subtopics" value={selection.selectedSubtopics.length} />
+                  <SummaryCard label="PDFs" value={selection.selectedPdfs.length} />
+                </div>
+                <div className="rounded-2xl bg-academic p-5">
+                  <p className="font-black text-navy">Personalized roadmap</p>
+                  <ul className="mt-3 space-y-2 text-sm text-muted">
+                    {roadmap.lines.map((line) => <li key={line} className="flex gap-2"><Sparkles className="h-4 w-4 flex-shrink-0 text-accent" />{line}</li>)}
+                  </ul>
+                  <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-primary">Estimated: {roadmap.duration}</span>
+                    <span className="rounded-full bg-secondary/10 px-3 py-1 text-secondary">Estimated price: Rs.{roadmap.price}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-between">
+              <button disabled={step === 0} onClick={() => setStep((s) => Math.max(0, s - 1))} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-primary/10 px-5 py-3 font-bold text-primary disabled:opacity-40">
+                <ChevronLeft className="h-5 w-5" /> Back
+              </button>
+              {step < steps.length - 1 ? (
+                <button onClick={() => setStep((s) => Math.min(steps.length - 1, s + 1))} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-5 py-3 font-bold text-white">
+                  Next <ChevronRight className="h-5 w-5" />
+                </button>
+              ) : (
+                <button onClick={submitCustomization} disabled={requestLoading} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-gradient px-5 py-3 font-bold text-white disabled:opacity-60">
+                  {requestLoading ? 'Submitting...' : 'Send Request to Admin'} <ArrowRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <PaymentModal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} course={course} onSuccess={() => router.push('/dashboard')} />
+
+      {previewDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setPreviewDoc(null)}>
+          <div className="relative h-[82vh] w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-primary/10 px-4 py-3">
+              <p className="truncate font-bold text-navy">{previewDoc?.name || 'Protected PDF Preview'}</p>
+              <button onClick={() => setPreviewDoc(null)} className="rounded-full p-2 text-muted hover:bg-academic"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="pointer-events-none absolute inset-0 z-10 flex rotate-[-22deg] items-center justify-center text-5xl font-black text-primary/10">
+              Beyond Classroom Copyright - View Only
+            </div>
+            <iframe title="Protected PDF Preview" className="h-[calc(82vh-57px)] w-full select-none" src={`data:${previewDoc?.type || 'application/pdf'};base64,${previewDoc?.data || ''}#toolbar=0&navpanes=0&scrollbar=1`} sandbox="allow-same-origin" />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SelectList({ title, items, selected, onToggle, idKey, titleKey }) {
+  return (
+    <div>
+      <p className="mb-4 font-black text-navy">{title}</p>
+      {items.length === 0 ? (
+        <p className="rounded-2xl bg-academic p-5 text-sm text-muted">Nothing available for this step yet.</p>
+      ) : (
+        <div className="max-h-[380px] space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+          {items.map((item) => (
+            <label key={item[idKey]} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${selected[item[idKey]] ? 'border-primary bg-primary/5' : 'border-primary/10 bg-academic hover:border-primary/30'}`}>
+              <input type="checkbox" checked={!!selected[item[idKey]]} onChange={() => onToggle(item[idKey])} className="mt-1 accent-primary" />
+              <span>
+                <span className="block font-bold text-ink">{item[titleKey]}</span>
+                {item.helper && <span className="mt-1 block text-xs text-muted">{item.helper}</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SummaryCard({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-primary/10 bg-white p-4 text-center shadow-sm">
+      <p className="text-3xl font-black text-primary">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted">{label}</p>
+    </div>
+  )
+}

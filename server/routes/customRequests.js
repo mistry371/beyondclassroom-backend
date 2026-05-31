@@ -24,6 +24,7 @@ const isAdmin = (req, res, next) => {
 
 router.post('/', protect, ctrl.createRequest)
 router.get('/my', protect, ctrl.getMyRequests)
+router.put('/my/:id', protect, ctrl.studentAction)
 router.get('/admin', protect, isAdmin, ctrl.getAllRequests)
 router.put('/admin/:id', protect, isAdmin, ctrl.updateRequest)
 router.delete('/admin/:id', protect, isAdmin, ctrl.deleteRequest)

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
-import { BookOpen, Plus, Clock, CheckCircle, XCircle, AlertCircle, ArrowLeft, Trash2 } from 'lucide-react'
+import { BookOpen, Plus, CreditCard, CheckCircle, RefreshCw, PackageCheck } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -27,6 +27,7 @@ export default function CustomRequestsPage() {
   const [selectedTopics, setSelectedTopics] = useState([])
   const [expandedCourse, setExpandedCourse] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', deliverable: 'question_paper', difficulty: 'medium', deadline: '', budget: '' })
+  const [messageByRequest, setMessageByRequest] = useState({})
 
   useEffect(() => {
     if (!user) { router.push('/auth/login?redirect=/dashboard/custom-requests'); return }
@@ -68,6 +69,19 @@ export default function CustomRequestsPage() {
     } catch (err) { alert(err.response?.data?.message || 'Failed to submit') }
   }
 
+  const handleRequestAction = async (id, action) => {
+    try {
+      await api.put('/custom-requests/my/' + id, {
+        action,
+        message: messageByRequest[id] || ''
+      })
+      setMessageByRequest(prev => ({ ...prev, [id]: '' }))
+      fetchData()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Action failed')
+    }
+  }
+
   if (loading) return <div className="min-h-screen bg-dark flex items-center justify-center"><Navbar/><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>
 
   return (
@@ -106,8 +120,17 @@ export default function CustomRequestsPage() {
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {req.selectedTopics.map(t => (
+                  {(req.selectedTopics || req.selectedModules || []).map(t => (
                     <span key={t.moduleId} className="px-2 py-1 bg-primary/10 text-primary rounded text-xs">{t.moduleTitle}</span>
+                  ))}
+                  {(req.selectedLessons || []).map(t => (
+                    <span key={t.lessonId} className="px-2 py-1 bg-blue-500/10 text-blue-300 rounded text-xs">{t.lessonTitle}</span>
+                  ))}
+                  {(req.selectedSubtopics || []).map(t => (
+                    <span key={t.subtopicId} className="px-2 py-1 bg-green-500/10 text-green-300 rounded text-xs">{t.subtopicTitle}</span>
+                  ))}
+                  {(req.selectedPdfs || []).map(t => (
+                    <span key={`${t.subtopicId}-${t.name}`} className="px-2 py-1 bg-orange-500/10 text-orange-300 rounded text-xs">{t.name}</span>
                   ))}
                 </div>
                 <div className="flex gap-4 text-sm text-gray-400">
@@ -115,7 +138,24 @@ export default function CustomRequestsPage() {
                   <span>Difficulty: <span className="text-white">{req.difficulty}</span></span>
                   {req.budget && <span>Budget: <span className="text-white">Rs.{req.budget}</span></span>}
                   {req.quotedPrice && <span className="text-purple-400 font-bold">Quoted: Rs.{req.quotedPrice}</span>}
+                  {req.finalPrice && <span className="text-purple-400 font-bold">Final: Rs.{req.finalPrice}</span>}
+                  {req.estimatedDuration && <span>Duration: <span className="text-white">{req.estimatedDuration}</span></span>}
+                  {req.paymentStatus && <span>Payment: <span className="text-white">{req.paymentStatus}</span></span>}
                 </div>
+                {(req.roadmap || []).length > 0 && (
+                  <div className="mt-3 bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                    <p className="text-blue-300 text-sm font-semibold mb-2">Personalized Roadmap</p>
+                    <ul className="space-y-1 text-sm text-gray-300">
+                      {req.roadmap.map((item, idx) => <li key={`${item}-${idx}`}>- {item}</li>)}
+                    </ul>
+                  </div>
+                )}
+                {req.finalRoadmap && (
+                  <div className="mt-3 bg-purple-500/10 border border-purple-500/20 rounded-lg p-3 text-sm text-purple-100">
+                    <p className="font-semibold mb-1">Admin Final Roadmap</p>
+                    <p>{req.finalRoadmap}</p>
+                  </div>
+                )}
                 {req.adminNote && <p className="mt-3 text-sm text-yellow-300 bg-yellow-500/10 rounded-lg px-3 py-2">{req.adminNote}</p>}
                 {(req.deliveryItems || []).length > 0 && (
                   <div className="mt-3 bg-green-500/10 border border-green-500/30 rounded-lg p-3">
@@ -127,6 +167,31 @@ export default function CustomRequestsPage() {
                         </a>
                       ))}
                     </div>
+                  </div>
+                )}
+                {['quoted', 'reviewing'].includes(req.status) && (
+                  <div className="mt-4 border-t border-white/10 pt-4">
+                    <textarea
+                      value={messageByRequest[req._id] || ''}
+                      onChange={(e) => setMessageByRequest(prev => ({ ...prev, [req._id]: e.target.value }))}
+                      rows={2}
+                      className="w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm mb-3"
+                      placeholder="Modification note for admin (optional)"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      {req.status === 'quoted' && (
+                        <>
+                          <button onClick={() => handleRequestAction(req._id, 'accept')} className="px-3 py-2 bg-green-500/20 text-green-300 rounded-lg text-sm font-semibold inline-flex items-center gap-2"><CheckCircle className="h-4 w-4"/>Accept Package</button>
+                          <button onClick={() => handleRequestAction(req._id, 'purchase')} className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-semibold inline-flex items-center gap-2"><CreditCard className="h-4 w-4"/>Purchase Package</button>
+                        </>
+                      )}
+                      <button onClick={() => handleRequestAction(req._id, 'request_modification')} className="px-3 py-2 bg-yellow-500/20 text-yellow-300 rounded-lg text-sm font-semibold inline-flex items-center gap-2"><RefreshCw className="h-4 w-4"/>Request Changes</button>
+                    </div>
+                  </div>
+                )}
+                {req.status === 'completed' && (
+                  <div className="mt-4 px-3 py-2 rounded-lg bg-green-500/10 text-green-300 text-sm font-semibold inline-flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4"/> Personalized package unlocked
                   </div>
                 )}
                 <p className="text-gray-500 text-xs mt-3">{new Date(req.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' })}</p>
