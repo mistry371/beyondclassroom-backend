@@ -189,48 +189,6 @@ export default function PackagesPage() {
         </div>
       </section>
 
-      {/* Feature Comparison */}
-      <section className="py-14 bg-white">
-        <div className="max-w-5xl mx-auto px-4">
-          <SectionHeader badge="Compare" title="Feature Comparison" subtitle="See exactly what each plan includes." />
-          <div className="overflow-x-auto rounded-2xl border border-primary/10 shadow-sm">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-academic border-b border-primary/10">
-                  <th className="text-left p-4 font-bold text-navy w-40">Feature</th>
-                  {packages.map((p) => (
-                    <th key={p.id || p._id} className={`p-4 font-bold text-center ${p.popular ? 'text-primary' : 'text-navy'}`}>
-                      {p.name}
-                      {p.popular && <span className="block text-xs text-secondary font-semibold">★ Popular</span>}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {['Practice Papers', 'Custom Resources', 'Progress Tracking', 'Mentor Support', 'Certificates'].map((feature, ri) => (
-                  <tr key={feature} className={`border-b border-primary/5 ${ri % 2 === 0 ? 'bg-white' : 'bg-academic/50'}`}>
-                    <td className="p-4 font-medium text-ink">{feature}</td>
-                    {packages.map((p) => (
-                      <td key={p.id || p._id} className="p-4 text-center">
-                        {(p.features || []).some((f) =>
-                          f.toLowerCase().includes(feature.split(' ')[0].toLowerCase()) ||
-                          (feature === 'Mentor Support' && f.toLowerCase().includes('mentor')) ||
-                          (feature === 'Progress Tracking' && f.toLowerCase().includes('progress'))
-                        ) ? (
-                          <CheckCircle className="h-5 w-5 text-secondary mx-auto" />
-                        ) : (
-                          <span className="text-muted/40 text-lg">—</span>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section className="py-14 bg-soft-gradient">
         <div className="max-w-3xl mx-auto px-4">

@@ -70,22 +70,19 @@ export default function CourseDetails() {
       const loadedCourse = response.data.course
       setCourse(loadedCourse)
 
-      if (user) {
-        const moduleRes = await api.get(`/modules/course/${params.id}`).catch(() => ({ data: { modules: [] } }))
-        const moduleList = moduleRes.data.modules || []
-        const populated = await Promise.all(moduleList.map(async (moduleItem) => {
-          const lessonRes = await api.get(`/lessons/module/${moduleItem._id}`).catch(() => ({ data: { lessons: [] } }))
-          const lessonList = lessonRes.data.lessons || []
-          const lessons = await Promise.all(lessonList.map(async (lesson) => {
-            const subtopicRes = await api.get(`/subtopics/lesson/${lesson._id}`).catch(() => ({ data: { subtopics: [] } }))
-            return { ...lesson, subtopics: subtopicRes.data.subtopics || [] }
-          }))
-          return { ...moduleItem, lessons }
+      // Load modules for ALL users (logged in or not) — view is public, purchase requires login
+      const moduleRes = await api.get(`/modules/course/${params.id}`).catch(() => ({ data: { modules: [] } }))
+      const moduleList = moduleRes.data.modules || []
+      const populated = await Promise.all(moduleList.map(async (moduleItem) => {
+        const lessonRes = await api.get(`/lessons/module/${moduleItem._id}`).catch(() => ({ data: { lessons: [] } }))
+        const lessonList = lessonRes.data.lessons || []
+        const lessons = await Promise.all(lessonList.map(async (lesson) => {
+          const subtopicRes = await api.get(`/subtopics/lesson/${lesson._id}`).catch(() => ({ data: { subtopics: [] } }))
+          return { ...lesson, subtopics: subtopicRes.data.subtopics || [] }
         }))
-        setModules(populated)
-      } else {
-        setModules([])
-      }
+        return { ...moduleItem, lessons }
+      }))
+      setModules(populated)
     } catch (error) {
       console.error('Fetch course failed:', error)
     } finally {
@@ -277,12 +274,42 @@ export default function CourseDetails() {
             <div className="mb-5 flex items-center gap-3">
               <ShieldCheck className="h-8 w-8 text-primary" />
               <div>
-                <h2 className="text-2xl font-black text-navy">Protected Course Preview</h2>
-                <p className="text-sm text-muted">Logged-in students can view structure. Content stays protected until purchase.</p>
+                <h2 className="text-2xl font-black text-navy">Course Structure</h2>
+                <p className="text-sm text-muted">{user ? 'Logged-in students can view structure and preview documents.' : 'Browse the full course structure. Login to purchase and study.'}</p>
               </div>
             </div>
             {!user ? (
-              <button onClick={requireLogin} className="w-full rounded-2xl bg-brand-gradient px-5 py-4 font-bold text-white">Login to View Course Structure</button>
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-academic p-4 text-sm text-muted text-center border border-primary/10">
+                  <p className="font-semibold text-ink mb-1">Preview Mode</p>
+                  <p>You are viewing the course structure. <button onClick={requireLogin} className="text-primary font-bold hover:underline">Sign in</button> to purchase and start learning.</p>
+                </div>
+                {modules.length === 0 ? (
+                  <p className="rounded-2xl bg-academic p-5 text-muted text-sm">No modules published yet.</p>
+                ) : (
+                  <div className="max-h-[640px] space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                    {modules.map((moduleItem) => (
+                      <div key={moduleItem._id} className="rounded-2xl border border-primary/10 bg-academic p-4">
+                        <p className="font-black text-navy">{moduleItem.title}</p>
+                        <p className="mt-1 text-sm text-muted">{moduleItem.description}</p>
+                        {(moduleItem.lessons || []).map((lesson) => (
+                          <div key={lesson._id} className="mt-3 rounded-xl bg-white p-3">
+                            <p className="font-bold text-ink">{lesson.title}</p>
+                            {(lesson.subtopics || []).map((subtopic) => (
+                              <div key={subtopic._id} className="mt-2 rounded-lg border border-primary/10 p-3 text-sm text-muted">
+                                <p className="font-semibold text-ink">{subtopic.title}</p>
+                                {getDocs(subtopic).length > 0 && (
+                                  <p className="mt-1 text-xs text-primary font-semibold">{getDocs(subtopic).length} document{getDocs(subtopic).length > 1 ? 's' : ''} — <button onClick={requireLogin} className="underline">login to view</button></p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             ) : modules.length === 0 ? (
               <p className="rounded-2xl bg-academic p-5 text-muted">No modules are published for this course yet.</p>
             ) : (
