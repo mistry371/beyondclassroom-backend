@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ClipboardList, Plus, Edit, Trash2, ArrowLeft, Clock, Target } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminQuizzes() {
   const router = useRouter()
@@ -96,7 +97,7 @@ export default function AdminQuizzes() {
 
   const addQuestion = () => {
     if (!currentQuestion.question || !currentQuestion.correctAnswer) {
-      alert('Please fill question and correct answer')
+      showError('Please fill question and correct answer')
       return
     }
     setFormData({
@@ -122,7 +123,7 @@ export default function AdminQuizzes() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (formData.questions.length === 0) {
-      alert('Please add at least one question')
+      showError('Please add at least one question')
       return
     }
     try {
@@ -134,7 +135,7 @@ export default function AdminQuizzes() {
       setShowModal(false)
       fetchQuizzes()
     } catch (error) {
-      alert(error.response?.data?.message || 'Operation failed')
+      showError(error.response?.data?.message || 'Operation failed')
     }
   }
 
@@ -145,7 +146,7 @@ export default function AdminQuizzes() {
       await api.delete(`/quizzes/${quizId}`)
       fetchQuizzes()
     } catch (error) {
-      alert(error.response?.data?.message || 'Delete failed')
+      showError(error.response?.data?.message || 'Delete failed')
     }
   }
 

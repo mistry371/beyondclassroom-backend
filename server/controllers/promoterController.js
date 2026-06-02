@@ -7,7 +7,7 @@ const normalizePhone = (value) => String(value || '').replace(/\D/g, '')
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
 const generatePromoterToken = (id) =>
-  jwt.sign({ id, type: 'promoter' }, process.env.JWT_SECRET || 'your_jwt_secret', { expiresIn: '30d' })
+  jwt.sign({ id, type: 'promoter' }, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production', { expiresIn: '30d' })
 
 const ensureUniqueCode = async (name) => {
   await db.read()

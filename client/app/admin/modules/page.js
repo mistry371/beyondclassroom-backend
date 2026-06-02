@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { BookOpen, Plus, Edit, Trash2, ArrowLeft, Search, GripVertical } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminModules() {
   const router = useRouter()
@@ -98,24 +99,26 @@ export default function AdminModules() {
     try {
       if (selectedModule) {
         await api.put(`/modules/${selectedModule._id}`, formData)
+        showSuccess('Module updated')
       } else {
         await api.post('/modules', formData)
+        showSuccess('Module created')
       }
       setShowModal(false)
       fetchModules()
     } catch (error) {
-      alert(error.response?.data?.message || 'Operation failed')
+      showError(error.response?.data?.message || 'Operation failed')
     }
   }
 
   const handleDelete = async (moduleId) => {
     if (!confirm('Are you sure? This will delete all lessons in this module.')) return
-    
     try {
       await api.delete(`/modules/${moduleId}`)
+      showSuccess('Module deleted')
       fetchModules()
     } catch (error) {
-      alert(error.response?.data?.message || 'Delete failed')
+      showError(error.response?.data?.message || 'Delete failed')
     }
   }
 

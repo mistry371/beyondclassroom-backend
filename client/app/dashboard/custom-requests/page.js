@@ -6,6 +6,7 @@ import { BookOpen, Plus, CreditCard, CheckCircle, RefreshCw, PackageCheck } from
 import Navbar from '@/components/Navbar'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 const STATUS_COLORS = {
   pending: 'bg-yellow-500/20 text-yellow-400',
@@ -59,14 +60,14 @@ export default function CustomRequestsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (selectedTopics.length === 0) { alert('Please select at least one topic/module'); return }
+    if (selectedTopics.length === 0) { showError('Please select at least one topic/module'); return }
     try {
       await api.post('/custom-requests', { ...form, selectedTopics })
       setShowForm(false)
       setSelectedTopics([])
       setForm({ title: '', description: '', deliverable: 'question_paper', difficulty: 'medium', deadline: '', budget: '' })
       fetchData()
-    } catch (err) { alert(err.response?.data?.message || 'Failed to submit') }
+    } catch (err) { showError(err.response?.data?.message || 'Failed to submit') }
   }
 
   const handleRequestAction = async (id, action) => {
@@ -78,7 +79,7 @@ export default function CustomRequestsPage() {
       setMessageByRequest(prev => ({ ...prev, [id]: '' }))
       fetchData()
     } catch (err) {
-      alert(err.response?.data?.message || 'Action failed')
+      showError(err.response?.data?.message || 'Action failed')
     }
   }
 

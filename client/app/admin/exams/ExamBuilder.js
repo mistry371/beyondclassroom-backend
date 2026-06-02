@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Plus, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 const INP = "w-full px-3 py-2 bg-dark-200 border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
 const LBL = "block text-gray-300 text-xs font-medium mb-1"
@@ -34,8 +35,8 @@ function ExamBuilder({ isEdit }) {
       const res = await api.get('/exams/admin/all')
       const exam = res.data.exams.find(e => e._id === params.examId)
       if (exam) setForm(exam)
-      else alert('Exam not found')
-    } catch (e) { alert('Failed to load exam') } finally { setLoading(false) }
+      else showError('Exam not found')
+    } catch (e) { showError('Failed to load exam') } finally { setLoading(false) }
   }
 
   const addSection = () => {
@@ -57,15 +58,15 @@ function ExamBuilder({ isEdit }) {
   const totalMarks = form.sections.reduce((s,sec)=>s+sec.questions.reduce((ss,q)=>ss+(q.marks||sec.marksPerQuestion||4),0),0)
 
   const handleSave = async (publish) => {
-    if (!form.title) { alert('Enter exam title'); return }
-    if (form.sections.length === 0) { alert('Add at least one section'); return }
+    if (!form.title) { showError('Enter exam title'); return }
+    if (form.sections.length === 0) { showError('Add at least one section'); return }
     setSaving(true)
     try {
       const payload = { ...form, isPublished: publish }
       if (isEdit) await api.put('/exams/admin/' + params.examId, payload)
       else await api.post('/exams/admin', payload)
       router.push('/admin/exams')
-    } catch (e) { alert(e.response?.data?.message || 'Save failed') } finally { setSaving(false) }
+    } catch (e) { showError(e.response?.data?.message || 'Save failed') } finally { setSaving(false) }
   }
 
   if (loading) return <div className="min-h-screen bg-dark flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>

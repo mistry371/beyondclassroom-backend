@@ -30,7 +30,7 @@ export default function StickyCTA() {
             <Sparkles className="h-8 w-8 text-white flex-shrink-0" />
             <div className="flex-1 min-w-0">
               <p className="text-white font-bold text-sm">Start Learning Today</p>
-              <p className="text-white/80 text-xs">Free trial · Mathematics & French</p>
+              <p className="text-white/80 text-xs">Free trial · Mathematics Class 1–8</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               <Link href="/auth/register" className="px-4 py-2 bg-white text-primary rounded-xl font-bold text-sm whitespace-nowrap hover:scale-105 transition-transform magnetic-btn">

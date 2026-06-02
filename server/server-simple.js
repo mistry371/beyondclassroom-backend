@@ -16,6 +16,8 @@ const app = express();
 const allowedOrigins = [
   'http://localhost:3000',
   'https://beyondclassroom.netlify.app',
+  'https://beyondclassroom.co.in',
+  'https://www.beyondclassroom.co.in',
   'https://beyondclassroom-backend.onrender.com',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
@@ -70,7 +72,7 @@ const generateId = () => Date.now().toString() + Math.random().toString(36).slic
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
 
 const generateToken = (id, sid) => {
-  return jwt.sign({ id, sid }, process.env.JWT_SECRET || 'your_jwt_secret', {
+  return jwt.sign({ id, sid }, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production', {
     expiresIn: '7d'
   });
 };
@@ -86,19 +88,28 @@ const protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
     await db.read();
     req.user = db.data.users.find(u => u._id === decoded.id);
     
     if (!req.user) {
       return res.status(401).json({ message: 'User not found' });
     }
+
+    // Block suspended users
+    if (req.user.status === 'suspended') {
+      return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+    }
+
     if (req.user.role === 'user' && req.user.activeSessionId && decoded.sid !== req.user.activeSessionId) {
       return res.status(401).json({ message: 'Session expired. Logged in from another device.' });
     }
 
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expired. Please sign in again.' });
+    }
     res.status(401).json({ message: 'Not authorized' });
   }
 };
@@ -798,5 +809,25 @@ app.use('/api/subtopics', subtopicRoutes);
 app.use('/api/exams', examRoutes);
 const customRequestRoutes = require('./routes/customRequests');
 const promoterRoutes = require('./routes/promoters');
+const packageRoutes = require('./routes/packages');
+const promoCodeRoutes = require('./routes/promoCodes');
 app.use('/api/custom-requests', customRequestRoutes);
 app.use('/api/promoters', promoterRoutes);
+// Packages — public GET at /api/packages, admin routes at /api/packages/admin/* (require auth)
+app.get('/api/packages', async (req, res) => {
+  try {
+    const { db } = require('./database/db');
+    await db.read();
+    db.data.packages = db.data.packages || [];
+    const packages = db.data.packages
+      .filter(p => p.active !== false)
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    res.json({ success: true, packages });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+app.use('/api/packages', protect, packageRoutes);
+// Promo codes — admin CRUD under /api/admin/promo-codes, public validate/apply
+app.use('/api/admin/promo-codes', protect, promoCodeRoutes);
+app.use('/api/promo-codes', promoCodeRoutes);

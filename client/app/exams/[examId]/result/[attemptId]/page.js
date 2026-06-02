@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
 import MathRenderer from '@/components/MathRenderer'
+import { showError } from '@/components/ui/Toast'
 
 export default function ExamResultPage() {
   const router = useRouter()

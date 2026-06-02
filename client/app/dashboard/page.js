@@ -297,7 +297,7 @@ export default function Dashboard() {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/courses')}
             className="bg-gradient-to-br from-dark-100/80 to-dark/80 backdrop-blur-xl rounded-2xl border border-white/10 p-6 text-left hover:border-primary/30 transition-all"
           >
             <BookOpen className="h-8 w-8 text-primary mb-3" />

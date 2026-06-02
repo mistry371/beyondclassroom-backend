@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useSelector, useDispatch } from 'react-redux'
 import { useRouter, usePathname } from 'next/navigation'
-import { Bell, ShoppingCart, LogOut, Menu, X, ArrowRight } from 'lucide-react'
+import { Bell, ShoppingCart, LogOut, Menu, X } from 'lucide-react'
 import { logout } from '@/store/slices/authSlice'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -11,11 +11,12 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 const publicLinks = [
   { href: '/', label: 'Home' },
-  { href: '/about', label: 'About' },
-  { href: '/team', label: 'Faculty' },
-  { href: '/packages', label: 'Packages' },
-  { href: '/courses', label: 'Courses' },
-  { href: '/contact', label: 'Contact Us' },
+  { href: '/about', label: 'About Us' },
+  { href: '/packages', label: 'Our Packages' },
+  { href: '/courses', label: 'Course & Content' },
+  { href: '/partners', label: 'Our Partners' },
+  { href: '/team', label: 'Our Team' },
+  { href: '/contact', label: 'Career & Contact Us' },
 ]
 
 export default function Navbar() {
@@ -105,9 +106,6 @@ export default function Navbar() {
             {!user && (
               <div className="flex items-center space-x-3">
                 <Link href="/auth/login" className={`${linkClass} font-semibold`}>Sign In</Link>
-                <Link href="/auth/register" className="inline-flex items-center gap-2 bg-brand-gradient text-white px-5 py-2.5 rounded-full hover:opacity-95 transition-all font-bold text-sm shadow-premium">
-                  Sign Up Free <ArrowRight className="h-4 w-4" />
-                </Link>
               </div>
             )}
           </div>
@@ -146,7 +144,6 @@ export default function Navbar() {
               ) : (
                 <>
                   <Link href="/auth/login" onClick={() => setShowMenu(false)} className="block py-2.5 text-primary font-semibold">Sign In</Link>
-                  <Link href="/auth/register" onClick={() => setShowMenu(false)} className="block py-3 bg-brand-gradient text-white rounded-xl text-center font-semibold">Sign Up Free</Link>
                 </>
               )}
             </div>

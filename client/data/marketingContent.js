@@ -1,21 +1,18 @@
 export const brand = {
   name: 'Beyond Classroom',
-  tagline: 'Mathematics & French Meet Personalization',
-  description: 'Premium personalized Mathematics and French education for Grades 6–12, Boards, and competitive exams.',
+  tagline: 'Mathematics Meets Personalization',
+  description: 'Premium personalized Mathematics education for Class 1–8, Olympiads, and competitive foundations.',
 }
 
 export const stats = [
   { value: 50000, suffix: '+', label: 'Active Students' },
-  { value: 95, suffix: '%', label: 'Success Rate' },
-  { value: 40, suffix: '+', label: 'Math Tools' },
-  { value: 500, suffix: '+', label: 'Live Sessions' },
 ]
 
 export const trustBadges = [
   'Verified Educators',
   'Secure Payments',
   'Personalized Learning',
-  'Board & JEE Ready',
+  'Grades 1-8 Focused',
   'Live Doubt Support',
 ]
 
@@ -32,57 +29,80 @@ export const partners = [
 
 export const packages = [
   {
-    id: 'starter',
-    name: 'Starter',
+    id: 'basic',
+    name: 'Basic Package',
     popular: false,
-    inr: 2999,
-    usd: 39,
+    inr: 999,
+    usd: 15,
     period: 'month',
-    features: ['1 Grade Course Access', 'Weekly Live Doubts', '10 Math Tools', 'Progress Reports', 'Email Support'],
+    features: ['Class 1-8 Mathematics', 'Structured Practice Papers', 'Detailed Solutions', 'Progress Tracking', 'Email Support'],
+    image: '/packages/Basic Package.png'
+  },
+  {
+    id: 'beta',
+    name: 'Beta Package',
+    popular: false,
+    inr: 1999,
+    usd: 29,
+    period: 'month',
+    features: ['Everything in Basic', 'Advanced Practice Worksheets', 'Interactive Math Tools', 'Priority Email Support', 'Classroom Engagement'],
+    image: '/packages/Beta Package.png'
   },
   {
     id: 'pro',
-    name: 'Pro Scholar',
+    name: 'Pro Package',
     popular: true,
-    inr: 7999,
-    usd: 99,
+    inr: 2999,
+    usd: 45,
     period: 'month',
-    features: ['All Grade Courses', 'Daily Live Classes', '40+ Math Tools', 'AI Tutor Access', 'Mock Tests', 'Priority Support', 'Certificates'],
+    features: ['Everything in Beta', '1-on-1 Personalized Mentorship', 'Custom Study Roadmaps', 'Weekly Progress Reviews', '24/7 AI Tutor Access', 'Olympiad & Assessment Prep'],
+    image: '/packages/Pro Package.png'
   },
   {
-    id: 'elite',
-    name: 'Elite',
+    id: 'teachers',
+    name: 'Teachers Package',
+    popular: false,
+    inr: 4999,
+    usd: 75,
+    period: 'month',
+    features: ['Teacher Dashboard', 'Up to 50 Student Accounts', 'Unlimited Custom Worksheet Generation', 'Automated Grading & Analytics', 'Dedicated Educator Support'],
+    image: '/packages/Teachers Package.png'
+  },
+  {
+    id: 'school',
+    name: 'School or Institute Package',
     popular: false,
     inr: 14999,
-    usd: 189,
+    usd: 199,
     period: 'month',
-    features: ['Everything in Pro', '1-on-1 Mentorship', 'Custom Study Plan', 'Exam Strategy Sessions', 'Parent Dashboard', 'Dedicated Educator'],
-  },
+    features: ['Admin & Coordinator Panel', 'Unlimited Student & Teacher Accounts', 'School Branding Integration', 'Custom API Integrations', 'Dedicated Account Manager', 'Teacher Training Seminars'],
+    image: '/packages/School or Institute Package.png'
+  }
 ]
 
 export const reviews = [
-  { name: 'Priya Sharma', role: 'Parent, Class 10', rating: 5, text: 'My daughter improved from 68% to 92% in boards. The personalized approach is incredible.', package: 'Pro Scholar' },
-  { name: 'Arjun Mehta', role: 'JEE Aspirant', rating: 5, text: 'Live classes and tools helped me crack tricky calculus. Best investment for JEE prep.', package: 'Elite' },
-  { name: 'Sneha Reddy', role: 'Class 8 Student', rating: 5, text: 'Math finally makes sense! The AI tutor explains step by step until I get it.', package: 'Starter' },
-  { name: 'Rajesh Kumar', role: 'Parent, Class 12', rating: 5, text: 'Transparent progress tracking and expert teachers. Highly recommend Beyond Classroom.', package: 'Pro Scholar' },
-  { name: 'Ananya Patel', role: 'CBSE Topper', rating: 5, text: 'Scored 98 in Maths boards. The mock tests and revision plans were game changers.', package: 'Elite' },
-  { name: 'Vikram Singh', role: 'Class 9 Student', rating: 5, text: 'Fun, engaging, and challenging in the right way. Love the gamified practice.', package: 'Starter' },
+  { name: 'Priya Sharma', role: 'Parent, Class 5', rating: 5, text: 'My daughter improved from 68% to 92% in mathematics. The personalized approach is incredible.', package: 'Pro Package' },
+  { name: 'Arjun Mehta', role: 'Class 8 Student', rating: 5, text: 'The mock tests and math tools helped me build strong algebra foundations. Best platform for school math.', package: 'Pro Package' },
+  { name: 'Sneha Reddy', role: 'Class 4 Student', rating: 5, text: 'Math finally makes sense! The educators explain step by step until I get it.', package: 'Basic Package' },
+  { name: 'Rajesh Kumar', role: 'Parent, Class 7', rating: 5, text: 'Transparent progress tracking and expert teachers. Highly recommend Beyond Classroom.', package: 'Pro Package' },
+  { name: 'Ananya Patel', role: 'Class 8 Topper', rating: 5, text: 'Scored excellent marks in Mathematics. The practice plans were game changers.', package: 'Pro Package' },
+  { name: 'Vikram Singh', role: 'Class 6 Student', rating: 5, text: 'Fun, engaging, and challenging in the right way. Love the structured practice papers.', package: 'Beta Package' },
 ]
 
 export const team = [
-  { name: 'Dr. Ananya Verma', role: 'Founder & Chief Educator', degree: 'PhD Mathematics, IIT Delhi', experience: '15+ years', expertise: ['Mathematics', 'JEE Advanced', 'Curriculum Design'], initials: 'AV' },
-  { name: 'Prof. Rohit Malhotra', role: 'Head of Academics', degree: 'MSc Mathematics, IISc', experience: '12+ years', expertise: ['Mathematics', 'Board Exams', 'Assessment'], initials: 'RM' },
-  { name: 'Dr. Meera Iyer', role: 'Senior French & Math Educator', degree: 'PhD Applied Math, Stanford', experience: '10+ years', expertise: ['French', 'Mathematics', 'Class 11-12'], initials: 'MI' },
-  { name: 'Prof. Karan Desai', role: 'Competitive Exam Specialist', degree: 'IIT Bombay, Mathematics', experience: '14+ years', expertise: ['JEE Main', 'Olympiad', 'Problem Solving'], initials: 'KD' },
-  { name: 'Dr. Sunita Rao', role: 'Middle School Lead', degree: 'MEd Mathematics, NCERT', experience: '18+ years', expertise: ['Class 6-8', 'Foundations', 'Engagement'], initials: 'SR' },
-  { name: 'Prof. Amit Khanna', role: 'Live Learning Director', degree: 'MSc, BHU Mathematics', experience: '11+ years', expertise: ['Live Classes', 'Doubt Solving', 'Mentorship'], initials: 'AK' },
+  { name: 'Dr. Ananya Verma', role: 'Founder & Chief Educator', degree: 'PhD Mathematics, IIT Delhi', experience: '15+ years', expertise: ['Mathematics', 'Curriculum Design', 'Olympiad foundations'], initials: 'AV' },
+  { name: 'Prof. Rohit Malhotra', role: 'Head of Academics', degree: 'MSc Mathematics, IISc', experience: '12+ years', expertise: ['Mathematics', 'School Algebra', 'Assessments'], initials: 'RM' },
+  { name: 'Dr. Meera Iyer', role: 'Senior Math Educator', degree: 'PhD Applied Math, Stanford', experience: '10+ years', expertise: ['Geometry', 'Arithmetic foundations', 'Class 1-8 Math'], initials: 'MI' },
+  { name: 'Prof. Karan Desai', role: 'Middle School Specialist', degree: 'IIT Bombay, Mathematics', experience: '14+ years', expertise: ['Algebra', 'Olympiad foundations', 'Problem Solving'], initials: 'KD' },
+  { name: 'Dr. Sunita Rao', role: 'Middle School Lead', degree: 'MEd Mathematics, NCERT', experience: '18+ years', expertise: ['Class 1-8 Math', 'Foundations', 'Student Engagement'], initials: 'SR' },
+  { name: 'Prof. Amit Khanna', role: 'Live Learning Director', degree: 'MSc, BHU Mathematics', experience: '11+ years', expertise: ['Interactive Classes', 'Doubt Solving', 'Mentorship'], initials: 'AK' },
 ]
 
 export const timeline = [
-  { year: '2018', title: 'Founded', desc: 'Beyond Classroom began with a mission to personalize math education.' },
-  { year: '2020', title: 'Digital Expansion', desc: 'Launched online live classes during the pandemic, reaching 10,000+ students.' },
-  { year: '2022', title: 'AI & Tools', desc: 'Introduced 40+ interactive math tools and AI-powered tutoring.' },
-  { year: '2024', title: 'National Scale', desc: '50,000+ students across India with board and JEE excellence programs.' },
+  { year: '2018', title: 'Founded', desc: 'Beyond Classroom began with a mission to personalize math education for young learners.' },
+  { year: '2020', title: 'Digital Expansion', desc: 'Launched online live classes, reaching 10,000+ primary and middle school students.' },
+  { year: '2022', title: 'AI & Tools', desc: 'Introduced interactive math tools and personalized practice papers.' },
+  { year: '2024', title: 'National Scale', desc: '50,000+ students across India with class 1-8 math excellence programs.' },
   { year: '2026', title: 'Global Vision', desc: 'Premium platform with promoter ecosystem and institutional partnerships.' },
 ]
 
@@ -101,7 +121,7 @@ export const promoterBenefits = [
 ]
 
 export const promoterTestimonials = [
-  { name: 'Rahul T.', earnings: '₹45,000/mo', text: 'Started sharing with parents in my colony. Now it\'s my side income stream.', referrals: 38 },
+  { name: 'Rahul T.', earnings: '₹45,000/mo', text: "Started sharing with parents in my colony. Now it's my side income stream.", referrals: 38 },
   { name: 'Neha K.', earnings: '₹28,000/mo', text: 'The dashboard makes tracking so easy. Payouts are transparent.', referrals: 22 },
   { name: 'Amit S.', earnings: '₹62,000/mo', text: 'Top promoter last quarter. The gamification keeps me motivated.', referrals: 51 },
 ]
@@ -115,15 +135,15 @@ export const promoterLeaderboard = [
 ]
 
 export const faqs = [
-  { q: 'Can I switch packages later?', a: 'Yes, upgrade or downgrade anytime. Prorated billing applies on upgrades.' },
+  { q: 'Can I switch packages later?', a: 'Yes, upgrade or downgrade anytime. Prorated adjustments apply.' },
   { q: 'Is there a free trial?', a: 'New students get a 3-day free trial with access to demo courses and select tools.' },
-  { q: 'What payment methods are accepted?', a: 'UPI, cards, net banking via Razorpay — fully secure and encrypted.' },
+  { q: 'What payment methods are accepted?', a: 'UPI, cards, net banking — fully secure and encrypted.' },
   { q: 'Are live classes recorded?', a: 'Yes, all live sessions are recorded and available in your dashboard.' },
 ]
 
 export const recentActivity = [
-  'Aarav from Mumbai joined Pro Scholar',
-  'Sneha from Bangalore started Elite package',
-  'Rohan from Delhi enrolled in Class 10 course',
+  'Aarav from Mumbai joined Basic Package',
+  'Sneha from Bangalore started Pro Package',
+  'Rohan from Delhi enrolled in Class 7 course',
   'Ananya from Pune completed Mathematics module',
 ]

@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({ name: '', email: '' })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [certificates, setCertificates] = useState([])
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -33,8 +34,20 @@ export default function ProfilePage() {
     try {
       const response = await api.get('/profile')
       setProfile(response.data.user)
-      setFormData({ name: response.data.user.name, email: response.data.user.email })
+      setFormData({ name: response.data.user.name || '', email: response.data.user.email || '' })
+      // Fetch certificates count
+      try {
+        const certRes = await api.get('/admin/certificates').catch(() => null)
+        if (certRes?.data?.certificates) {
+          const userCerts = certRes.data.certificates.filter(c => c.userId === response.data.user._id)
+          setCertificates(userCerts)
+        }
+      } catch {}
     } catch (error) {
+      if (error.response?.status === 401) {
+        router.push('/auth/login')
+        return
+      }
       console.error('Fetch profile failed:', error)
     } finally {
       setLoading(false)
@@ -190,7 +203,7 @@ export default function ProfilePage() {
             </div>
             <div className="bg-gradient-to-br from-secondary/20 to-accent/20 rounded-xl p-6 text-center border border-secondary/20">
               <Award className="h-8 w-8 text-secondary mx-auto mb-2" />
-              <p className="text-3xl font-bold text-white">0</p>
+              <p className="text-3xl font-bold text-white">{certificates.length}</p>
               <p className="text-gray-400">Certificates</p>
             </div>
             <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-xl p-6 text-center border border-green-500/20">

@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Shield, AlertTriangle, Ban } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminSecurity() {
   const router = useRouter()
@@ -35,20 +36,20 @@ export default function AdminSecurity() {
   const blockIP = async (ip) => {
     try {
       await api.post('/admin/security/block-ip', { ip })
-      alert('IP blocked successfully')
+      showSuccess('IP blocked successfully')
       fetchSecurityData()
     } catch (error) {
-      alert('Failed to block IP')
+      showError('Failed to block IP')
     }
   }
 
   const unblockIP = async (ip) => {
     try {
       await api.post('/admin/security/unblock-ip', { ip })
-      alert('IP unblocked successfully')
+      showSuccess('IP unblocked successfully')
       fetchSecurityData()
     } catch (error) {
-      alert('Failed to unblock IP')
+      showError('Failed to unblock IP')
     }
   }
 

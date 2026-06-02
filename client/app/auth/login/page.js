@@ -62,20 +62,6 @@ function LoginContent() {
     }
   }
 
-  const handleGuestLogin = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      const response = await api.post('/auth/guest')
-      dispatch(setCredentials(response.data))
-      router.push('/dashboard')
-    } catch (err) {
-      setError('Guest login failed. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-dark via-dark-100 to-dark-200 p-4 relative">
       <Link href="/" className="absolute top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl text-white hover:bg-white/20 transition-all group">
@@ -115,7 +101,7 @@ function LoginContent() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <div>
-            <label className="block text-sm font-semibold text-gray-300 mb-2">Mobile Number (Admin can use email)</label>
+            <label className="block text-sm font-semibold text-gray-300 mb-2">Mobile Number or Email</label>
             <div className="relative">
               <Phone className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
               <input
@@ -166,17 +152,6 @@ function LoginContent() {
                 Sign In
               </>
             )}
-          </button>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10"></div></div>
-            <div className="relative flex justify-center text-sm"><span className="px-4 bg-dark-100 text-gray-400">Or</span></div>
-          </div>
-
-          <button type="button" onClick={handleGuestLogin} disabled={loading}
-            className="w-full border-2 border-white/20 text-white py-3 rounded-xl font-semibold hover:bg-white/10 transition-all disabled:opacity-50"
-          >
-            Continue as Guest
           </button>
 
           <p className="text-center text-gray-400 text-sm pt-2">

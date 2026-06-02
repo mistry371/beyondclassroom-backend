@@ -279,7 +279,7 @@ export default function AdvancedLearnPage() {
                             </div>
                           )}
 
-                          {/* Lesson Content with Custom Styling */}
+                          {/* Lesson Content */}
                           <div className="lesson-content space-y-6">
                             <style jsx global>{`
                               .lesson-content h2 {
@@ -342,9 +342,15 @@ export default function AdvancedLearnPage() {
                                 font-size: 0.95rem;
                               }
                             `}</style>
-                            <div 
+                            {/* Render content safely — strip script tags before rendering */}
+                            <div
                               className="bg-dark/50 rounded-xl p-6 border border-white/5"
-                              dangerouslySetInnerHTML={{ __html: activeLesson.content?.concept || '<p class="text-gray-400">No content available</p>' }} 
+                              dangerouslySetInnerHTML={{
+                                __html: (activeLesson.content?.concept || '<p class="text-gray-400">No content available</p>')
+                                  .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                                  .replace(/on\w+="[^"]*"/gi, '')
+                                  .replace(/javascript:/gi, '')
+                              }}
                             />
                           </div>
 

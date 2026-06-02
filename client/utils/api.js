@@ -33,6 +33,22 @@ api.interceptors.response.use(
     }
 
     if (error.response?.status === 401 && typeof window !== 'undefined') {
+      const msg = error.response?.data?.message || ''
+
+      // Another device logged in — show modal, don't redirect silently
+      if (msg.includes('another device') || msg.includes('Session expired')) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        invalidateCache('')
+        // Dynamically import to avoid circular deps
+        import('@/components/SessionGuard').then(({ notifySessionExpired }) => {
+          notifySessionExpired()
+        }).catch(() => {
+          window.location.href = '/auth/login'
+        })
+        return Promise.reject(error)
+      }
+
       const currentPath = window.location.pathname
       const publicPaths = ['/', '/about', '/team', '/packages', '/courses', '/blogs', '/contact', '/tools', '/career', '/live', '/promoter', '/learn', '/grades']
       const isPublicPath =
@@ -43,7 +59,6 @@ api.interceptors.response.use(
       const isAuthPage = currentPath.startsWith('/auth') || currentPath.startsWith('/promoter/login') || currentPath.startsWith('/promoter/register')
       const hasToken = !!localStorage.getItem('token')
 
-      // Avoid logout loop on admin while session exists (e.g. transient API errors)
       if (currentPath.startsWith('/admin') && hasToken) {
         error.userMessage = error.userMessage || 'Request failed. Refresh the page or sign in again.'
         return Promise.reject(error)
@@ -53,8 +68,7 @@ api.interceptors.response.use(
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         invalidateCache('')
-        const dest = currentPath.startsWith('/admin') ? '/auth/login' : '/auth/login'
-        window.location.href = `${dest}?redirect=${encodeURIComponent(currentPath)}`
+        window.location.href = `/auth/login?redirect=${encodeURIComponent(currentPath)}`
       }
     }
 

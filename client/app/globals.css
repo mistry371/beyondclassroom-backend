@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -380,4 +384,105 @@ input, textarea, select, button, a, label {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Admin Panel Light Theme ─────────────────────────────────────────────── */
+.admin-panel .min-h-screen.bg-dark,
+.admin-panel .min-h-screen.bg-\[#050B2B\] {
+  background: #F8FAFC !important;
+}
+
+/* Admin header bars */
+.admin-panel .bg-gradient-to-r.from-dark-100 {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+/* Admin cards */
+.admin-panel .bg-gradient-to-br.from-dark-100\/80,
+.admin-panel .bg-gradient-to-br.from-dark-100\/90,
+.admin-panel .bg-dark-100 {
+  background: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Admin text colors */
+.admin-panel .text-white {
+  color: #1E293B !important;
+}
+.admin-panel .text-gray-400 {
+  color: #64748B !important;
+}
+.admin-panel .text-gray-300 {
+  color: #475569 !important;
+}
+.admin-panel .text-gray-500 {
+  color: #94A3B8 !important;
+}
+
+/* Admin inputs */
+.admin-panel input.bg-dark-200,
+.admin-panel textarea.bg-dark-200,
+.admin-panel select.bg-dark-200,
+.admin-panel .bg-dark-200 {
+  background: #F1F5F9 !important;
+  color: #1E293B !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Admin table rows */
+.admin-panel .divide-white\/5 > * {
+  border-color: #E2E8F0 !important;
+}
+.admin-panel .border-white\/10 {
+  border-color: #E2E8F0 !important;
+}
+.admin-panel .border-white\/5 {
+  border-color: #F1F5F9 !important;
+}
+
+/* Admin hover states */
+.admin-panel .hover\:bg-dark-200:hover {
+  background: #F1F5F9 !important;
+}
+.admin-panel .hover\:bg-dark-200\/50:hover {
+  background: #F8FAFC !important;
+}
+
+/* Admin sidebar/nav active */
+.admin-panel .bg-dark-200\/30 {
+  background: #F1F5F9 !important;
+}
+.admin-panel .bg-dark-200\/50 {
+  background: #EFF6FF !important;
+}
+
+/* Keep gradient buttons as-is */
+.admin-panel .bg-gradient-to-r.from-primary,
+.admin-panel .bg-gradient-to-r.from-green-500,
+.admin-panel .bg-gradient-to-r.from-red-500,
+.admin-panel .bg-gradient-to-r.from-secondary {
+  color: #FFFFFF !important;
+}
+
+/* Admin stat cards keep their gradient */
+.admin-panel .bg-gradient-to-br.from-primary\/20 {
+  background: rgba(8, 31, 140, 0.06) !important;
+}
+.admin-panel .bg-gradient-to-br.from-secondary\/20 {
+  background: rgba(0, 166, 81, 0.06) !important;
+}
+.admin-panel .bg-gradient-to-br.from-green-500\/20 {
+  background: rgba(34, 197, 94, 0.06) !important;
+}
+.admin-panel .bg-gradient-to-br.from-red-500\/20 {
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+/* Admin scrollbar */
+.admin-panel ::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+.admin-panel ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
 }

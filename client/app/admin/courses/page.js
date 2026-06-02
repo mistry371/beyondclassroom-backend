@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import { BookOpen, Plus, Edit, Trash2, Eye, EyeOff, ArrowLeft, Search, Layers } from 'lucide-react'
 import api from '@/utils/api'
-import { COURSE_CATEGORIES } from '@/lib/constants'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminCourses() {
   const router = useRouter()
@@ -50,6 +50,7 @@ export default function AdminCourses() {
       title: '',
       description: '',
       category: 'Mathematics',
+      grade: '',
       difficulty: 'Beginner',
       price: 0,
       duration: '',
@@ -64,6 +65,7 @@ export default function AdminCourses() {
       title: course.title,
       description: course.description,
       category: course.category,
+      grade: course.grade || '',
       difficulty: course.difficulty,
       price: course.price,
       duration: course.duration,
@@ -83,7 +85,7 @@ export default function AdminCourses() {
       setShowModal(false)
       fetchCourses()
     } catch (error) {
-      alert(error.response?.data?.message || 'Operation failed')
+      showError(error.response?.data?.message || 'Operation failed')
     }
   }
 
@@ -94,7 +96,7 @@ export default function AdminCourses() {
       await api.delete(`/admin/courses/${courseId}`)
       fetchCourses()
     } catch (error) {
-      alert(error.response?.data?.message || 'Delete failed')
+      showError(error.response?.data?.message || 'Delete failed')
     }
   }
 
@@ -103,7 +105,7 @@ export default function AdminCourses() {
       await api.post(`/admin/courses/${courseId}/toggle-status`)
       fetchCourses()
     } catch (error) {
-      alert(error.response?.data?.message || 'Status toggle failed')
+      showError(error.response?.data?.message || 'Status toggle failed')
     }
   }
 
@@ -278,9 +280,7 @@ export default function AdminCourses() {
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                       className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
                     >
-                      {COURSE_CATEGORIES.map((cat) => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
+                      <option>Mathematics</option>
                       <option>Statistics</option>
                       <option>Trigonometry</option>
                     </select>
@@ -297,6 +297,25 @@ export default function AdminCourses() {
                       <option>Advanced</option>
                     </select>
                   </div>
+                </div>
+                <div>
+                  <label className="block text-gray-300 text-sm font-medium mb-2">Class / Grade</label>
+                  <select
+                    value={formData.grade}
+                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                    className="w-full px-4 py-2 bg-dark-200 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary"
+                  >
+                    <option value="">All Classes (General)</option>
+                    <option value="Class 1">Class 1</option>
+                    <option value="Class 2">Class 2</option>
+                    <option value="Class 3">Class 3</option>
+                    <option value="Class 4">Class 4</option>
+                    <option value="Class 5">Class 5</option>
+                    <option value="Class 6">Class 6</option>
+                    <option value="Class 7">Class 7</option>
+                    <option value="Class 8">Class 8</option>
+                  </select>
+                  <p className="text-gray-500 text-xs mt-1">Assign a class so students can filter by grade.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>

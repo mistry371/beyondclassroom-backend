@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Wrench, Eye, EyeOff, Search } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminTools() {
   const router = useRouter()
@@ -35,7 +36,7 @@ export default function AdminTools() {
       await api.put(`/admin/tools/${toolId}`, { enabled: !currentStatus })
       setTools(prev => prev.map(t => t._id === toolId ? { ...t, enabled: !currentStatus } : t))
     } catch {
-      alert('Update failed')
+      showError('Update failed')
     }
   }
 

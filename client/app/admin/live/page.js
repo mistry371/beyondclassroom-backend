@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Video, Plus, Trash2, Edit2, X, Calendar, Clock, Users, ExternalLink, Circle, CheckCircle, AlertCircle, Copy } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 const EMPTY_FORM = {
   title: '', instructor: '', date: '', time: '',
@@ -94,7 +95,7 @@ export default function AdminLiveClasses() {
       await api.delete(`/admin/live-classes/${id}`)
       fetchClasses()
     } catch (error) {
-      alert('Delete failed')
+      showError('Delete failed')
     }
   }
 

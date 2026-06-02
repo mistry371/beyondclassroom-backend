@@ -2,25 +2,25 @@ import './globals.css'
 import { Providers } from './providers'
 import dynamic from 'next/dynamic'
 
-const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false, loading: () => null })
-const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false, loading: () => null })
 const ClientChrome = dynamic(() => import('@/components/ClientChrome'), { ssr: false, loading: () => null })
+const ToastContainer = dynamic(() => import('@/components/ui/Toast'), { ssr: false, loading: () => null })
+const SessionGuard = dynamic(() => import('@/components/SessionGuard'), { ssr: false, loading: () => null })
 
-const SITE_URL = 'https://beyondclassroom.netlify.app'
+const SITE_URL = 'https://beyondclassroom.co.in'
 
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Beyond Classroom | Premium Mathematics & French Education',
+    default: 'Beyond Classroom | Premium Mathematics Education for Class 1–8',
     template: '%s | Beyond Classroom',
   },
-  description: 'Mathematics and French meet personalization. Premium edtech for Grades 6–12 — live classes, AI tools, and expert educators.',
-  keywords: ['mathematics', 'french', 'education', 'JEE', 'CBSE', 'online learning', 'Beyond Classroom', 'edtech', 'online math classes'],
+  description: 'Premium personalized Mathematics education for Class 1 to Class 8. Structured practice papers, expert educators, and flexible learning resources.',
+  keywords: ['mathematics', 'education', 'class 1 to 8', 'CBSE', 'online learning', 'Beyond Classroom', 'edtech', 'online math classes', 'grade 1-8 math'],
   authors: [{ name: 'Beyond Classroom' }],
   creator: 'Beyond Classroom',
   openGraph: {
-    title: 'Beyond Classroom | Premium Mathematics & French Education',
-    description: 'Personalized Mathematics and French learning with live classes, AI tutor, and 40+ tools.',
+    title: 'Beyond Classroom | Premium Mathematics Education for Class 1–8',
+    description: 'Structured, curriculum-aligned mathematics practice for Class 1–8 students. Expert-crafted content, flexible packages, and personalized learning.',
     url: SITE_URL,
     siteName: 'Beyond Classroom',
     locale: 'en_IN',
@@ -29,7 +29,7 @@ export const metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'Beyond Classroom',
-    description: 'Premium personalized Mathematics and French education',
+    description: 'Premium personalized Mathematics education for Class 1–8',
   },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   alternates: { canonical: SITE_URL },
@@ -51,10 +51,10 @@ export default function RootLayout({ children }) {
               '@context': 'https://schema.org',
               '@type': 'EducationalOrganization',
               name: 'Beyond Classroom',
-              description: 'Premium personalized Mathematics and French education platform',
+              description: 'Premium personalized Mathematics education platform for Class 1–8 students',
               url: SITE_URL,
               sameAs: [SITE_URL],
-              offers: { '@type': 'Offer', category: 'Mathematics and French courses' },
+              offers: { '@type': 'Offer', category: 'Mathematics courses for Class 1–8' },
             }),
           }}
         />
@@ -63,6 +63,8 @@ export default function RootLayout({ children }) {
         <Providers>
           {children}
           <ClientChrome />
+          <ToastContainer />
+          <SessionGuard />
         </Providers>
       </body>
     </html>

@@ -1,4 +1,4 @@
-const SITE_URL = 'https://beyondclassroom.netlify.app'
+const SITE_URL = 'https://beyondclassroom.co.in'
 
 export function buildMetadata({ title, description, path = '', keywords = [] }) {
   const url = `${SITE_URL}${path}`

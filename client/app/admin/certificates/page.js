@@ -7,6 +7,7 @@ import { ArrowLeft, Award, Plus, Download, Eye, Trash2, X } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 const loadScript = (src) => {
   return new Promise((resolve) => {
@@ -72,12 +73,12 @@ export default function AdminCertificates() {
     setGenerating(true)
     try {
       await api.post('/admin/certificates/generate', formData)
-      alert('Certificate generated successfully')
+      showSuccess('Certificate generated successfully')
       setShowModal(false)
       setFormData({ userId: '', courseId: '' })
       fetchAll()
     } catch (error) {
-      alert(error.response?.data?.message || 'Generation failed')
+      showError(error.response?.data?.message || 'Generation failed')
     } finally {
       setGenerating(false)
     }
@@ -89,7 +90,7 @@ export default function AdminCertificates() {
       await api.delete(`/admin/certificates/${certId}`)
       fetchAll()
     } catch (error) {
-      alert('Delete failed')
+      showError('Delete failed')
     }
   }
 
@@ -101,6 +102,7 @@ export default function AdminCertificates() {
   <title>Certificate - ${cert.certificateNumber}</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+import { showSuccess, showError } from '@/components/ui/Toast'
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #f8f5f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Inter', sans-serif; }
     .cert { width: 800px; background: white; padding: 60px; border: 12px solid #c9a84c; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
@@ -196,7 +198,7 @@ export default function AdminCertificates() {
 
       document.body.removeChild(wrapper)
     } catch (error) {
-      alert('Download failed. Please try again.')
+      showError('Download failed. Please try again.')
     } finally {
       setDownloading(false)
     }

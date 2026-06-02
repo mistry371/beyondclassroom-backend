@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminUsers() {
   const router = useRouter()
@@ -75,24 +76,26 @@ export default function AdminUsers() {
     try {
       if (selectedUser) {
         await api.put(`/admin/users/${selectedUser._id}`, formData)
+        showSuccess('User updated successfully')
       } else {
         await api.post('/admin/users', formData)
+        showSuccess('User created successfully')
       }
       setShowModal(false)
       fetchUsers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Operation failed')
+      showError(error.response?.data?.message || 'Operation failed')
     }
   }
 
   const handleDelete = async (userId) => {
     if (!confirm('Are you sure you want to delete this user?')) return
-    
     try {
       await api.delete(`/admin/users/${userId}`)
+      showSuccess('User deleted')
       fetchUsers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Delete failed')
+      showError(error.response?.data?.message || 'Delete failed')
     }
   }
 
@@ -101,7 +104,7 @@ export default function AdminUsers() {
       await api.post(`/admin/users/${userId}/toggle-status`)
       fetchUsers()
     } catch (error) {
-      alert(error.response?.data?.message || 'Status toggle failed')
+      showError(error.response?.data?.message || 'Status toggle failed')
     }
   }
 

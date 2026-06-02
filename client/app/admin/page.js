@@ -90,6 +90,8 @@ export default function AdminDashboard() {
         </div>
 
         <AdminSection title="Content Management">
+          <QuickActionCard href="/admin/packages" title="Packages" description="Create & manage learning packages" icon={BookOpen} color="from-emerald-500 to-teal-500" />
+          <QuickActionCard href="/admin/promo-codes" title="Promo Codes" description="Monthly promo codes & discounts" icon={BookOpen} color="from-yellow-500 to-amber-500" />
           <QuickActionCard href="/admin/modules" title="Modules" description="Manage course modules" icon={BookOpen} color="from-primary to-secondary" />
           <QuickActionCard href="/admin/lessons" title="Lessons" description="Create and edit lessons" icon={BookOpen} color="from-secondary to-accent" />
           <QuickActionCard href="/admin/subtopics" title="Subtopics" description="Manage lesson subtopics" icon={BookOpen} color="from-teal-500 to-cyan-500" />

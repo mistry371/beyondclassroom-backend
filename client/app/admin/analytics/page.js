@@ -7,6 +7,7 @@ import { ArrowLeft, Users, BookOpen, DollarSign, TrendingUp, Download } from 'lu
 import api from '@/utils/api'
 import { cachedGet } from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showError } from '@/components/ui/Toast'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function AdminAnalytics() {
@@ -44,7 +45,7 @@ export default function AdminAnalytics() {
       link.click()
       link.remove()
     } catch (error) {
-      alert('Export failed')
+      showError('Export failed')
     }
   }
 

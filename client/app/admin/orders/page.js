@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, ShoppingCart, RefreshCw, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminOrders() {
   const router = useRouter()
@@ -34,10 +35,10 @@ export default function AdminOrders() {
     if (!confirm('Process refund for this order?')) return
     try {
       await api.post(`/admin/orders/${orderId}/refund`)
-      alert('Refund processed successfully')
+      showSuccess('Refund processed successfully')
       fetchOrders()
     } catch (error) {
-      alert('Refund failed')
+      showError('Refund failed')
     }
   }
 
@@ -52,7 +53,7 @@ export default function AdminOrders() {
       link.click()
       link.remove()
     } catch (error) {
-      alert('Export failed')
+      showError('Export failed')
     }
   }
 

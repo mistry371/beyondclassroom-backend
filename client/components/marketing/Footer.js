@@ -2,32 +2,28 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { Facebook, Instagram, Linkedin, Mail, Phone, Youtube } from 'lucide-react'
+import { Facebook, Instagram, Linkedin, Mail, Youtube } from 'lucide-react'
 
 const links = {
   Subjects: [
-    { href: '/learn/mathematics', label: 'Mathematics' },
-    { href: '/learn/french', label: 'French' },
-    { href: '/grades/grade-10', label: 'Class 10 Hub' },
-    { href: '/grades/grade-12', label: 'Class 12 Hub' },
+    { href: '/courses?grade=1', label: 'Class 1' },
+    { href: '/courses?grade=2', label: 'Class 2' },
+    { href: '/courses?grade=3', label: 'Class 3' },
+    { href: '/courses?grade=4', label: 'Class 4' },
+    { href: '/courses?grade=5', label: 'Class 5' },
+    { href: '/courses?grade=6', label: 'Class 6' },
+    { href: '/courses?grade=7', label: 'Class 7' },
+    { href: '/courses?grade=8', label: 'Class 8' },
   ],
   Platform: [
-    { href: '/courses', label: 'Courses' },
-    { href: '/packages', label: 'Packages' },
-    { href: '/dashboard/custom-requests', label: 'Custom Requests' },
-    { href: '/learn/mathematics', label: 'Learning Hub' },
+    { href: '/courses', label: 'Course & Content' },
+    { href: '/packages', label: 'Our Packages' },
   ],
   Company: [
     { href: '/about', label: 'About Us' },
-    { href: '/team', label: 'Faculty' },
-    { href: '/contact', label: 'Contact Us' },
-    { href: '/career', label: 'Careers' },
-  ],
-  Grow: [
-    { href: '/promoter', label: 'Become a Promoter' },
-    { href: '/contact', label: 'Partnerships' },
-    { href: '/auth/register', label: 'Sign Up' },
-    { href: '/auth/login', label: 'Sign In' },
+    { href: '/team', label: 'Our Team' },
+    { href: '/partners', label: 'Our Partners' },
+    { href: '/contact', label: 'Career & Contact Us' },
   ],
 }
 
@@ -35,14 +31,22 @@ export default function Footer() {
   return (
     <footer className="border-t border-primary/10 bg-white text-ink">
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div className="lg:col-span-2">
-            <Link href="/" className="mb-6 flex items-center gap-3">
-              <Image src="/logo.jpeg" alt="Beyond Classroom" width={48} height={48} className="interactive rounded-xl shadow-sm" />
-              <span className="text-xl font-black bg-brand-gradient bg-clip-text text-transparent">Beyond Classroom</span>
+            <Link href="/" className="mb-6 flex items-center gap-4">
+              <Image
+                src="/logo.jpeg"
+                alt="Beyond Classroom"
+                width={96}
+                height={96}
+                className="w-20 h-20 sm:w-24 sm:h-24 interactive rounded-2xl shadow-premium object-contain"
+              />
+              <span className="text-2xl font-black bg-brand-gradient bg-clip-text text-transparent">
+                Beyond Classroom
+              </span>
             </Link>
             <p className="mb-4 max-w-sm leading-relaxed text-muted">
-              Mathematics and French meet personalization. Premium edtech for Grades 6-12, Boards, and competitive excellence.
+              Premium Mathematics education for Class 1–8. Structured practice, expert educators, and personalized learning paths.
             </p>
             <p className="mb-6 flex items-center gap-2 text-xs text-muted">
               <span className="inline-block h-2 w-2 rounded-full bg-secondary" /> Secure payments · verified educators
@@ -73,7 +77,6 @@ export default function Footer() {
         <div className="mt-12 flex flex-col justify-between gap-6 border-t border-primary/10 pt-8 text-sm text-muted md:flex-row">
           <div className="flex flex-wrap gap-6">
             <span className="flex items-center gap-2"><Mail className="h-4 w-4 text-secondary" /> beyondclassroom247@gmail.com</span>
-            <span className="flex items-center gap-2"><Phone className="h-4 w-4 text-secondary" /> +91 98765 43210</span>
           </div>
           <p>© {new Date().getFullYear()} Beyond Classroom. All rights reserved.</p>
         </div>

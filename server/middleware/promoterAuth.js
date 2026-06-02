@@ -11,7 +11,7 @@ exports.protectPromoter = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Promoter login required' })
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production')
     if (decoded.type !== 'promoter') {
       return res.status(401).json({ success: false, message: 'Invalid promoter token' })
     }

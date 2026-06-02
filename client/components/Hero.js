@@ -1,19 +1,30 @@
 'use client'
 
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, BookOpen, Calculator, CheckCircle2, GraduationCap, Languages, PlayCircle, ShieldCheck, Sparkles, Star, Target, Users } from 'lucide-react'
+import { ArrowRight, BookOpen, CheckCircle2, GraduationCap, PlayCircle, ShieldCheck, Sparkles, Star, Users } from 'lucide-react'
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 import api from '@/utils/api'
-import AnimatedCounter from '@/components/marketing/AnimatedCounter'
 import PremiumButton from '@/components/marketing/PremiumButton'
 import { brand, trustBadges } from '@/data/marketingContent'
+import Link from 'next/link'
+
+const classGrades = [
+  { label: 'Class 1', href: '/courses?grade=1' },
+  { label: 'Class 2', href: '/courses?grade=2' },
+  { label: 'Class 3', href: '/courses?grade=3' },
+  { label: 'Class 4', href: '/courses?grade=4' },
+  { label: 'Class 5', href: '/courses?grade=5' },
+  { label: 'Class 6', href: '/courses?grade=6' },
+  { label: 'Class 7', href: '/courses?grade=7' },
+  { label: 'Class 8', href: '/courses?grade=8' },
+]
 
 export default function Hero() {
   const ref = useRef(null)
   const [content, setContent] = useState({
     heroTitle: 'Beyond Classroom',
-    heroSubtitle: 'Premium Mathematics and French learning for Grades 6-12 with live mentoring, smart practice, and personalized course paths.',
+    heroSubtitle: 'Premium Mathematics practice for Class 1–8 with structured content, expert educators, and personalized learning paths.',
   })
 
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
@@ -28,12 +39,6 @@ export default function Hero() {
       })
       .catch(() => {})
   }, [])
-
-  const learningTracks = [
-    { icon: Calculator, label: 'Mathematics', detail: 'Boards, JEE, foundations' },
-    { icon: Languages, label: 'French', detail: 'School curriculum and fluency' },
-    { icon: Target, label: 'Custom Practice', detail: 'Topic-wise worksheets' },
-  ]
 
   return (
     <section ref={ref} className="relative min-h-[86vh] overflow-hidden bg-academic">
@@ -62,11 +67,11 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <PremiumButton href="/auth/register" variant="primary">
-              Start Free Trial <ArrowRight className="h-5 w-5" />
+            <PremiumButton href="/courses" variant="primary">
+              Explore Courses <ArrowRight className="h-5 w-5" />
             </PremiumButton>
-            <PremiumButton href="/courses" variant="light">
-              <PlayCircle className="h-5 w-5" /> Explore Courses
+            <PremiumButton href="/packages" variant="light">
+              <PlayCircle className="h-5 w-5" /> View Packages
             </PremiumButton>
           </div>
 
@@ -79,20 +84,30 @@ export default function Hero() {
             ))}
           </div>
 
-          <div className="mt-10 grid max-w-2xl grid-cols-3 overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-premium">
-            {[
-              { value: 50000, suffix: '+', label: 'Students' },
-              { value: 95, suffix: '%', label: 'Success' },
-              { value: 40, suffix: '+', label: 'Tools' },
-            ].map((stat) => (
-              <div key={stat.label} className="border-r border-primary/10 p-4 text-center last:border-r-0 sm:p-5">
-                <div className="text-2xl font-black text-primary sm:text-3xl">
-                  <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+            <div className="mt-10 max-w-2xl overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-premium">
+              <div className="p-4 text-center">
+                <p className="text-xs font-bold uppercase tracking-widest text-muted mb-3">Select Your Class</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {classGrades.map((grade) => (
+                    <Link
+                      key={grade.label}
+                      href={grade.href}
+                      className="flex flex-col items-center gap-1.5 rounded-xl border border-primary/10 bg-academic hover:bg-brand-gradient hover:text-white hover:border-transparent p-2 transition-all group"
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
+                        <img
+                          src={`/class_images/${grade.label}.png`}
+                          alt={grade.label}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          onError={(e) => { e.target.style.display = 'none' }}
+                        />
+                      </div>
+                      <span className="text-xs font-bold text-primary group-hover:text-white transition-colors">{grade.label}</span>
+                    </Link>
+                  ))}
                 </div>
-                <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted">{stat.label}</div>
               </div>
-            ))}
-          </div>
+            </div>
         </motion.div>
 
         <motion.div initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.1 }} className="relative">
@@ -109,7 +124,11 @@ export default function Hero() {
               </div>
 
               <div className="mt-7 space-y-4">
-                {learningTracks.map((track, index) => (
+                {[
+                  { icon: BookOpen, label: 'Class 1–8 Mathematics', detail: 'Structured curriculum-aligned content' },
+                  { icon: CheckCircle2, label: 'Practice Papers', detail: 'Topic-wise worksheets & assessments' },
+                  { icon: Sparkles, label: 'Expert Educators', detail: 'Human-crafted, personalized approach' },
+                ].map((track, index) => (
                   <motion.div
                     key={track.label}
                     initial={{ opacity: 0, x: 18 }}

@@ -1,119 +1,225 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Navbar from '@/components/Navbar'
 import MarketingShell from '@/components/marketing/MarketingShell'
 import SectionHeader from '@/components/marketing/SectionHeader'
-import PremiumButton from '@/components/marketing/PremiumButton'
-import { motion } from 'framer-motion'
-import { packages as packageData, faqs } from '@/data/marketingContent'
-import { CheckCircle, ChevronDown, ChevronUp, Star } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { CheckCircle, ChevronDown, ChevronUp, Star, Zap, Shield, Clock } from 'lucide-react'
 import Link from 'next/link'
+import { cachedGet } from '@/utils/api'
+import { packages as staticPackages, faqs } from '@/data/marketingContent'
 
 export default function PackagesPage() {
   const [currency, setCurrency] = useState('INR')
   const [openFaq, setOpenFaq] = useState(null)
+  const [packages, setPackages] = useState(staticPackages)
+  const [hoveredPkg, setHoveredPkg] = useState(null)
+
+  useEffect(() => {
+    cachedGet('/packages', 60000)
+      .then((res) => { if (res.data?.packages?.length) setPackages(res.data.packages) })
+      .catch(() => {})
+  }, [])
 
   return (
     <div className="min-h-screen bg-soft-gradient pb-20 md:pb-0">
       <Navbar />
 
-      <section className="py-20 bg-navy-gradient text-center">
-        <div className="max-w-4xl mx-auto px-4">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <h1 className="text-4xl md:text-6xl font-black text-white mb-4">Learning Packages</h1>
-            <p className="text-white/80 text-xl mb-8">Invest in excellence. Every plan unlocks Mathematics and French courses on our premium platform.</p>
-            <div className="inline-flex bg-white/10 rounded-xl p-1">
-              <button
-                onClick={() => setCurrency('INR')}
-                className={`px-6 py-2 rounded-lg font-semibold transition-all ${currency === 'INR' ? 'bg-white text-primary' : 'text-white'}`}
-              >
-                INR ₹
-              </button>
-              <button
-                onClick={() => setCurrency('USD')}
-                className={`px-6 py-2 rounded-lg font-semibold transition-all ${currency === 'USD' ? 'bg-white text-primary' : 'text-white'}`}
-              >
-                USD $
-              </button>
+      {/* Hero */}
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 hero-grid opacity-60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-navy/95 to-primary/90" />
+        <div className="relative max-w-4xl mx-auto px-4 text-center">
+          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-sm font-semibold mb-6">
+              <Zap className="h-4 w-4 text-accent" /> Choose Your Plan
+            </span>
+            <h1 className="text-4xl md:text-6xl font-black text-white mb-5 leading-tight">
+              Simple, Transparent<br />
+              <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Pricing</span>
+            </h1>
+            <p className="text-white/75 text-lg mb-8 max-w-2xl mx-auto">
+              Premium Mathematics content for Class 1–8. Pick the plan that fits your child&apos;s learning goals.
+            </p>
+            {/* Currency Toggle */}
+            <div className="inline-flex bg-white/10 backdrop-blur-xl rounded-2xl p-1.5 border border-white/20">
+              {['INR', 'USD'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCurrency(c)}
+                  className={`px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    currency === c
+                      ? 'bg-white text-primary shadow-lg'
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                >
+                  {c === 'INR' ? '₹ INR' : '$ USD'}
+                </button>
+              ))}
             </div>
           </motion.div>
         </div>
       </section>
 
-      <section className="py-20 -mt-10">
+      {/* Package Cards */}
+      <section className="py-16 -mt-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            {packageData.map((pkg, i) => (
-              <motion.div
-                key={pkg.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className={`relative rounded-3xl p-8 flex flex-col premium-card ${
-                  pkg.popular
-                    ? 'bg-brand-gradient text-white shadow-glow ring-4 ring-secondary/40 scale-[1.03] z-10'
-                    : 'glass-card'
-                }`}
-              >
-                {pkg.popular && (
-                  <>
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-4 py-1.5 bg-accent text-white text-sm font-bold rounded-full shadow-lg animate-glow">
-                      <Star className="h-4 w-4 fill-white" /> Most Popular
-                    </div>
-                    <p className="text-center text-xs font-semibold text-white/90 mb-2">Save 40% vs monthly tutoring</p>
-                  </>
-                )}
-                <h3 className={`text-2xl font-bold mb-2 ${pkg.popular ? 'text-white' : 'text-ink'}`}>{pkg.name}</h3>
-                <div className={`text-5xl font-black mb-1 ${pkg.popular ? 'text-white' : 'text-primary'}`}>
-                  {currency === 'INR' ? `₹${pkg.inr.toLocaleString('en-IN')}` : `$${pkg.usd}`}
-                </div>
-                <p className={`text-sm mb-8 ${pkg.popular ? 'text-white/80' : 'text-muted'}`}>per {pkg.period}</p>
-                <ul className="space-y-3 mb-8 flex-grow">
-                  {pkg.features.map((f) => (
-                    <li key={f} className={`flex items-start gap-2 text-sm ${pkg.popular ? 'text-white/95' : 'text-muted'}`}>
-                      <CheckCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${pkg.popular ? 'text-white' : 'text-secondary'}`} />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/auth/register"
-                  className={`block text-center py-4 rounded-xl font-bold transition-all ${
-                    pkg.popular ? 'bg-white text-primary hover:scale-105 shadow-lg' : 'bg-brand-gradient text-white hover:opacity-90'
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-start">
+            {packages.map((pkg, i) => {
+              const isPopular = pkg.popular
+              const price = currency === 'INR'
+                ? (pkg.inr || pkg.priceINR || 0)
+                : (pkg.usd || pkg.priceUSD || 0)
+              const symbol = currency === 'INR' ? '₹' : '$'
+
+              return (
+                <motion.div
+                  key={pkg.id || pkg._id || i}
+                  initial={{ opacity: 0, y: 32 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.08 }}
+                  onHoverStart={() => setHoveredPkg(i)}
+                  onHoverEnd={() => setHoveredPkg(null)}
+                  className={`relative rounded-3xl overflow-hidden transition-all duration-300 ${
+                    isPopular
+                      ? 'ring-2 ring-secondary shadow-glow scale-[1.02] z-10'
+                      : hoveredPkg === i
+                      ? 'shadow-premium -translate-y-1'
+                      : 'shadow-md'
                   }`}
                 >
-                  Get Started
-                </Link>
-              </motion.div>
+                  {/* Popular badge */}
+                  {isPopular && (
+                    <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-secondary to-primary py-2 text-center">
+                      <span className="text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-1.5">
+                        <Star className="h-3.5 w-3.5 fill-white" /> Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={`${isPopular ? 'pt-10' : 'pt-0'} ${isPopular ? 'bg-gradient-to-br from-primary to-navy' : 'bg-white'}`}>
+                    {/* Package image */}
+                    {pkg.image ? (
+                      <div className="h-44 overflow-hidden">
+                        <img src={pkg.image} alt={pkg.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className={`h-3 ${isPopular ? 'bg-white/10' : 'bg-brand-gradient'}`} />
+                    )}
+
+                    <div className="p-7">
+                      {/* Name & description */}
+                      <h3 className={`text-xl font-black mb-1 ${isPopular ? 'text-white' : 'text-navy'}`}>
+                        {pkg.name}
+                      </h3>
+                      {pkg.description && (
+                        <p className={`text-sm mb-5 leading-relaxed ${isPopular ? 'text-white/70' : 'text-muted'}`}>
+                          {pkg.description}
+                        </p>
+                      )}
+
+                      {/* Price */}
+                      <div className="mb-6">
+                        <div className={`flex items-end gap-1 ${isPopular ? 'text-white' : 'text-primary'}`}>
+                          <span className="text-2xl font-bold">{symbol}</span>
+                          <span className="text-5xl font-black leading-none">
+                            {price.toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                        <p className={`text-sm mt-1 ${isPopular ? 'text-white/60' : 'text-muted'}`}>
+                          {pkg.validity ? `Valid for ${pkg.validity}` : `per ${pkg.period || 'month'}`}
+                        </p>
+                      </div>
+
+                      {/* CTA */}
+                      <Link
+                        href="/auth/register"
+                        className={`block text-center py-3.5 rounded-2xl font-bold text-sm transition-all mb-6 ${
+                          isPopular
+                            ? 'bg-white text-primary hover:bg-secondary hover:text-white'
+                            : 'bg-brand-gradient text-white hover:opacity-90'
+                        }`}
+                      >
+                        Get Started
+                      </Link>
+
+                      {/* Divider */}
+                      <div className={`border-t mb-5 ${isPopular ? 'border-white/15' : 'border-primary/10'}`} />
+
+                      {/* Features */}
+                      <ul className="space-y-3">
+                        {(pkg.features || []).map((f, fi) => (
+                          <li key={fi} className={`flex items-start gap-3 text-sm ${isPopular ? 'text-white/85' : 'text-ink'}`}>
+                            <CheckCircle className={`h-4 w-4 flex-shrink-0 mt-0.5 ${isPopular ? 'text-secondary' : 'text-secondary'}`} />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Validity badge */}
+                      {pkg.validity && (
+                        <div className={`mt-5 flex items-center gap-2 text-xs font-semibold rounded-xl px-3 py-2 ${
+                          isPopular ? 'bg-white/10 text-white/70' : 'bg-academic text-muted'
+                        }`}>
+                          <Clock className="h-3.5 w-3.5" />
+                          {pkg.validity} access
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+
+          {/* Trust badges */}
+          <div className="mt-12 flex flex-wrap justify-center gap-6 text-sm text-muted">
+            {[
+              { icon: Shield, text: 'Secure Payments' },
+              { icon: CheckCircle, text: 'Cancel Anytime' },
+              { icon: Star, text: '4.9 Parent Rating' },
+            ].map(({ icon: Icon, text }) => (
+              <div key={text} className="flex items-center gap-2">
+                <Icon className="h-4 w-4 text-secondary" />
+                <span className="font-medium">{text}</span>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16 bg-white">
-        <div className="max-w-4xl mx-auto px-4">
-          <SectionHeader badge="Compare" title="Feature Comparison" />
-          <div className="overflow-x-auto glass-card rounded-2xl">
+      {/* Feature Comparison */}
+      <section className="py-14 bg-white">
+        <div className="max-w-5xl mx-auto px-4">
+          <SectionHeader badge="Compare" title="Feature Comparison" subtitle="See exactly what each plan includes." />
+          <div className="overflow-x-auto rounded-2xl border border-primary/10 shadow-sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-primary/10">
-                  <th className="text-left p-4 font-bold text-ink">Feature</th>
-                  {packageData.map((p) => (
-                    <th key={p.id} className="p-4 font-bold text-primary text-center">{p.name}</th>
+                <tr className="bg-academic border-b border-primary/10">
+                  <th className="text-left p-4 font-bold text-navy w-40">Feature</th>
+                  {packages.map((p) => (
+                    <th key={p.id || p._id} className={`p-4 font-bold text-center ${p.popular ? 'text-primary' : 'text-navy'}`}>
+                      {p.name}
+                      {p.popular && <span className="block text-xs text-secondary font-semibold">★ Popular</span>}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {['Live Classes', 'AI Tutor', 'All Courses', '1-on-1 Mentor', 'Certificates'].map((feature) => (
-                  <tr key={feature} className="border-b border-primary/5">
-                    <td className="p-4 text-muted">{feature}</td>
-                    {packageData.map((p) => (
-                      <td key={p.id} className="p-4 text-center">
-                        {p.features.some((f) => f.toLowerCase().includes(feature.split(' ')[0].toLowerCase()) || (feature === 'All Courses' && f.includes('Grade')) || (feature === '1-on-1 Mentor' && f.includes('Mentor'))) ? (
+                {['Practice Papers', 'Custom Resources', 'Progress Tracking', 'Mentor Support', 'Certificates'].map((feature, ri) => (
+                  <tr key={feature} className={`border-b border-primary/5 ${ri % 2 === 0 ? 'bg-white' : 'bg-academic/50'}`}>
+                    <td className="p-4 font-medium text-ink">{feature}</td>
+                    {packages.map((p) => (
+                      <td key={p.id || p._id} className="p-4 text-center">
+                        {(p.features || []).some((f) =>
+                          f.toLowerCase().includes(feature.split(' ')[0].toLowerCase()) ||
+                          (feature === 'Mentor Support' && f.toLowerCase().includes('mentor')) ||
+                          (feature === 'Progress Tracking' && f.toLowerCase().includes('progress'))
+                        ) ? (
                           <CheckCircle className="h-5 w-5 text-secondary mx-auto" />
                         ) : (
-                          <span className="text-muted">—</span>
+                          <span className="text-muted/40 text-lg">—</span>
                         )}
                       </td>
                     ))}
@@ -125,28 +231,38 @@ export default function PackagesPage() {
         </div>
       </section>
 
-      <section className="py-16 bg-soft-gradient">
+      {/* FAQ */}
+      <section className="py-14 bg-soft-gradient">
         <div className="max-w-3xl mx-auto px-4">
           <SectionHeader badge="FAQ" title="Frequently Asked Questions" />
           <div className="space-y-3">
             {faqs.map((faq, i) => (
-              <div key={i} className="glass-card rounded-xl overflow-hidden">
+              <div key={i} className="bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-sm">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between p-5 text-left font-semibold text-ink"
+                  className="w-full flex items-center justify-between p-5 text-left font-semibold text-ink hover:bg-academic/50 transition-colors"
                 >
-                  {faq.q}
-                  {openFaq === i ? <ChevronUp className="h-5 w-5 text-primary" /> : <ChevronDown className="h-5 w-5 text-muted" />}
+                  <span>{faq.q}</span>
+                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                    <ChevronDown className="h-5 w-5 text-primary flex-shrink-0" />
+                  </motion.div>
                 </button>
-                {openFaq === i && <div className="px-5 pb-5 text-muted">{faq.a}</div>}
+                <AnimatePresence>
+                  {openFaq === i && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="px-5 pb-5 text-muted border-t border-primary/5 pt-3">{faq.a}</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             ))}
           </div>
         </div>
-      </section>
-
-      <section className="py-16 text-center">
-        <PremiumButton href="/auth/register">Start Your 3-Day Free Trial</PremiumButton>
       </section>
 
       <MarketingShell />

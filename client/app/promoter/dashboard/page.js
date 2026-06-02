@@ -76,7 +76,7 @@ export default function PromoterDashboardPage() {
   }
 
   const shareWhatsApp = () => {
-    const text = `Join Beyond Classroom — premium Mathematics & French learning! Use my link: ${promoter?.referralLink}`
+    const text = `Join Beyond Classroom — premium Mathematics learning for Class 1–8! Use my link: ${promoter?.referralLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
   }
 

@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Bell, Plus, Send, Trash2, Users } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminNotifications() {
   const router = useRouter()
@@ -49,9 +50,9 @@ export default function AdminNotifications() {
         scheduleDate: ''
       })
       fetchNotifications()
-      alert('Notification sent successfully!')
+      showSuccess('Notification sent successfully!')
     } catch (error) {
-      alert(error.response?.data?.message || 'Failed to send notification')
+      showError(error.response?.data?.message || 'Failed to send notification')
     }
   }
 
@@ -61,7 +62,7 @@ export default function AdminNotifications() {
       await api.delete(`/admin/notifications/${notificationId}`)
       fetchNotifications()
     } catch (error) {
-      alert('Delete failed')
+      showError('Delete failed')
     }
   }
 

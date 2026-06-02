@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useSelector } from 'react-redux'
 import { ArrowLeft, FileText, Save } from 'lucide-react'
 import api from '@/utils/api'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminContent() {
   const router = useRouter()
@@ -36,9 +37,9 @@ export default function AdminContent() {
   const handleSave = async () => {
     try {
       await api.put('/admin/content', content)
-      alert('Content updated successfully')
+      showSuccess('Content updated successfully')
     } catch (error) {
-      alert('Update failed')
+      showError('Update failed')
     }
   }
 

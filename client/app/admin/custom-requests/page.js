@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Clock, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 const STATUS_COLORS = {
   pending:'bg-yellow-500/20 text-yellow-400', reviewing:'bg-blue-500/20 text-blue-400',
@@ -40,7 +41,7 @@ export default function AdminCustomRequests() {
       setSelected(null)
       const r = await api.get('/custom-requests/admin')
       setRequests(r.data.requests || [])
-    } catch (err) { alert('Update failed') }
+    } catch (err) { showError('Update failed') }
   }
 
   const handleDelete = async (id) => {

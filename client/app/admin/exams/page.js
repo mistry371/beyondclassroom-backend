@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux'
 import { ClipboardList, Plus, Edit, Trash2, ArrowLeft, Clock, Target, BarChart3, Eye, EyeOff, Users } from 'lucide-react'
 import api from '@/utils/api'
 import { motion } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminExams() {
   const router = useRouter()
@@ -25,12 +26,12 @@ export default function AdminExams() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this exam?')) return
-    try { await api.delete('/exams/admin/' + id); fetchExams() } catch (e) { alert('Delete failed') }
+    try { await api.delete('/exams/admin/' + id); fetchExams() } catch (e) { showError('Delete failed') }
   }
 
   const handleToggle = async (exam) => {
     try { await api.put('/exams/admin/' + exam._id, { ...exam, isPublished: !exam.isPublished }); fetchExams() }
-    catch (e) { alert('Update failed') }
+    catch (e) { showError('Update failed') }
   }
 
   if (loading) return <div className="min-h-screen bg-dark flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>

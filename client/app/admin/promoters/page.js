@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import api from '@/utils/api'
 import { useAdminAuth } from '@/hooks/useAdminAuth'
 import { Trophy, Wallet, Users, Check, X } from 'lucide-react'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminPromotersPage() {
   const router = useRouter()
@@ -42,7 +43,7 @@ export default function AdminPromotersPage() {
       await api.put(`/promoters/admin/payouts/${id}`, { status })
       await loadData()
     } catch (e) {
-      alert(e.response?.data?.message || 'Failed')
+      showError(e.response?.data?.message || 'Failed')
     }
   }
 

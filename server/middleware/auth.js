@@ -1,6 +1,11 @@
 const jwt = require('jsonwebtoken');
 const { db } = require('../database/db');
 
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('⚠️  WARNING: JWT_SECRET is not set in environment variables. Using insecure fallback.');
+}
+
 exports.protect = async (req, res, next) => {
   try {
     let token;
@@ -12,16 +17,28 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ message: 'Not authorized to access this route' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret');
+    const decoded = jwt.verify(token, JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
     await db.read();
-    req.user = db.data.users.find(u => u._id === decoded.id);
+    const user = db.data.users.find(u => u._id === decoded.id);
 
-    if (!req.user) {
+    if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
 
+    // Block suspended users from all protected routes
+    if (user.status === 'suspended') {
+      return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+    }
+
+    req.user = user;
     next();
   } catch (error) {
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expired. Please sign in again.' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid session. Please sign in again.' });
+    }
     res.status(401).json({ message: 'Not authorized to access this route' });
   }
 };

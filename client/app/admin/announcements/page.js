@@ -6,6 +6,7 @@ import { useSelector } from 'react-redux'
 import { ArrowLeft, Megaphone, Plus, Trash2 } from 'lucide-react'
 import api from '@/utils/api'
 import { motion, AnimatePresence } from 'framer-motion'
+import { showSuccess, showError } from '@/components/ui/Toast'
 
 export default function AdminAnnouncements() {
   const router = useRouter()
@@ -43,7 +44,7 @@ export default function AdminAnnouncements() {
       setFormData({ title: '', message: '', priority: 'normal', expiryDate: '' })
       fetchAnnouncements()
     } catch (error) {
-      alert('Failed to create announcement')
+      showError('Failed to create announcement')
     }
   }
 
@@ -53,7 +54,7 @@ export default function AdminAnnouncements() {
       await api.delete(`/admin/announcements/${id}`)
       fetchAnnouncements()
     } catch (error) {
-      alert('Delete failed')
+      showError('Delete failed')
     }
   }
 

@@ -13,7 +13,7 @@ const protect = async (req, res, next) => {
     }
     if (!token) return res.status(401).json({ message: 'Not authorized' })
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_jwt_secret')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production')
     await db.read()
     req.user = db.data.users.find(u => u._id === decoded.id)
     if (!req.user) return res.status(401).json({ message: 'User not found' })

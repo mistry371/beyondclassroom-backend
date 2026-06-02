@@ -19,9 +19,14 @@ export default function TrialGuard({ children, courseId }) {
     try {
       const res = await api.get('/trial/status')
       setStatus(res.data)
-    } catch {
-      // If can't check (unauthenticated etc), allow through — auth middleware handles it
-      setStatus({ trialActive: true, trialExpired: false })
+    } catch (err) {
+      // If 401 (unauthenticated), redirect to login
+      if (err.response?.status === 401) {
+        router.push('/auth/login')
+        return
+      }
+      // On other errors (network, 5xx), default to expired to be safe
+      setStatus({ trialActive: false, trialExpired: true, hasPurchasedCourses: false })
     } finally {
       setLoading(false)
     }

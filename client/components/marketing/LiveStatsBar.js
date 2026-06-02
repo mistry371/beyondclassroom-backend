@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import AnimatedCounter from './AnimatedCounter'
 
 export default function LiveStatsBar() {
   const [liveCount, setLiveCount] = useState(48234)
+  const pathname = usePathname()
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -12,6 +14,11 @@ export default function LiveStatsBar() {
     }, 12000)
     return () => clearInterval(t)
   }, [])
+
+  // Hide on admin, auth, promoter, dashboard pages
+  if (pathname?.startsWith('/admin') || pathname?.startsWith('/auth') || pathname?.startsWith('/promoter') || pathname?.startsWith('/dashboard') || pathname?.startsWith('/learn')) {
+    return null
+  }
 
   return (
     <div className="bg-navy/95 border-b border-white/10 py-2.5 text-center text-white text-sm" role="status">
@@ -24,7 +31,7 @@ export default function LiveStatsBar() {
           <strong className="text-secondary"><AnimatedCounter value={liveCount} /></strong> students learning now
         </span>
         <span className="hidden sm:inline text-white/50">·</span>
-        <span className="hidden sm:inline text-white/80">Join 50,000+ achievers in Mathematics & French</span>
+        <span className="hidden sm:inline text-white/80">Join 50,000+ achievers in Mathematics</span>
       </span>
     </div>
   )

@@ -13,6 +13,7 @@ export default function AdminSettings() {
   const [settings, setSettings] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveMsg, setSaveMsg] = useState('')
   const [activeTab, setActiveTab] = useState('general')
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export default function AdminSettings() {
   const fetchSettings = async () => {
     try {
       const res = await api.get('/admin/settings')
-      setSettings(res.data.settings)
+      setSettings(res.data.settings || [])
     } catch (error) {
       console.error('Failed to fetch settings:', error)
     } finally {
@@ -32,13 +33,15 @@ export default function AdminSettings() {
 
   const handleSave = async () => {
     setSaving(true)
+    setSaveMsg('')
     try {
       await api.put('/admin/settings/bulk', {
         settings: settings.map(s => ({ key: s.key, value: s.value }))
       })
-      alert('Settings saved successfully!')
+      setSaveMsg('Settings saved successfully!')
+      setTimeout(() => setSaveMsg(''), 3000)
     } catch (error) {
-      alert(error.response?.data?.message || 'Save failed')
+      setSaveMsg('Save failed: ' + (error.response?.data?.message || 'Unknown error'))
     } finally {
       setSaving(false)
     }
@@ -96,6 +99,11 @@ export default function AdminSettings() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {saveMsg && (
+          <div className={`mb-6 p-4 rounded-xl text-sm font-medium ${saveMsg.startsWith('Save failed') ? 'bg-red-500/10 border border-red-500/30 text-red-400' : 'bg-green-500/10 border border-green-500/30 text-green-400'}`}>
+            {saveMsg}
+          </div>
+        )}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Tabs */}
           <div className="lg:col-span-1">
