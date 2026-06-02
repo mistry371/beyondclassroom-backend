@@ -14,7 +14,6 @@ const publicLinks = [
   { href: '/about', label: 'About Us' },
   { href: '/packages', label: 'Our Packages' },
   { href: '/courses', label: 'Course & Content' },
-  { href: '/partners', label: 'Our Partners' },
   { href: '/team', label: 'Our Team' },
   { href: '/contact', label: 'Career & Contact Us' },
 ]
