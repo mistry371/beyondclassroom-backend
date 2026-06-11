@@ -1,17 +1,17 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const { logActivity } = require('./adminController')
 
 // Get all settings
 exports.getAllSettings = async (req, res) => {
   try {
-    await db.read()
     const { category } = req.query
     
-    let settings = db.data.settings || []
-    
+    let query = {}
     if (category) {
-      settings = settings.filter(s => s.category === category)
+      query.category = category
     }
+    
+    const settings = await models.settings.find(query).lean()
     
     res.json({ success: true, settings })
   } catch (error) {
@@ -22,33 +22,22 @@ exports.getAllSettings = async (req, res) => {
 // Update setting
 exports.updateSetting = async (req, res) => {
   try {
-    await db.read()
-    
     const { key, value } = req.body
-    const settingIndex = db.data.settings?.findIndex(s => s.key === key)
     
-    if (settingIndex === -1 || settingIndex === undefined) {
-      // Create new setting
-      const newSetting = {
-        key,
-        value,
-        ...req.body,
-        updatedBy: req.user._id,
-        updatedAt: new Date()
-      }
-      db.data.settings = db.data.settings || []
-      db.data.settings.push(newSetting)
-    } else {
-      // Update existing
-      db.data.settings[settingIndex] = {
-        ...db.data.settings[settingIndex],
-        value,
-        updatedAt: new Date(),
-        updatedBy: req.user._id
+    const updated = await models.settings.findOneAndUpdate(
+      { key },
+      { $set: { ...req.body, updatedBy: req.user._id, updatedAt: new Date() } },
+      { new: true, upsert: true }
+    ).lean()
+    
+    if (db.data.settings) {
+      const settingIndex = db.data.settings.findIndex(s => s.key === key)
+      if (settingIndex === -1) {
+        db.data.settings.push(updated)
+      } else {
+        Object.assign(db.data.settings[settingIndex], updated)
       }
     }
-    
-    await db.write()
     
     await logActivity(
       req.user._id,
@@ -68,21 +57,28 @@ exports.updateSetting = async (req, res) => {
 // Bulk update settings
 exports.bulkUpdateSettings = async (req, res) => {
   try {
-    await db.read()
     const { settings } = req.body
     
-    db.data.settings = db.data.settings || []
-    
-    settings.forEach(({ key, value }) => {
-      const index = db.data.settings.findIndex(s => s.key === key)
-      if (index !== -1) {
-        db.data.settings[index].value = value
-        db.data.settings[index].updatedAt = new Date()
-        db.data.settings[index].updatedBy = req.user._id
+    const bulkOps = settings.map(({ key, value }) => ({
+      updateOne: {
+        filter: { key },
+        update: { $set: { value, updatedBy: req.user._id, updatedAt: new Date() } },
+        upsert: true
       }
-    })
+    }))
     
-    await db.write()
+    await models.settings.bulkWrite(bulkOps)
+    
+    if (db.data.settings) {
+      settings.forEach(({ key, value }) => {
+        const index = db.data.settings.findIndex(s => s.key === key)
+        if (index !== -1) {
+          db.data.settings[index].value = value
+          db.data.settings[index].updatedAt = new Date()
+          db.data.settings[index].updatedBy = req.user._id
+        }
+      })
+    }
     
     await logActivity(
       req.user._id,

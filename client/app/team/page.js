@@ -29,19 +29,7 @@ export default function TeamPage() {
     <div className="min-h-screen bg-soft-gradient pb-20 md:pb-0">
       <Navbar />
 
-      <section className="relative py-24 premium-section overflow-hidden">
-        <div className="absolute inset-0 hero-grid opacity-70" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Image src="/logo.jpeg" alt="Beyond Classroom" width={80} height={80} className="rounded-2xl mx-auto mb-6 interactive shadow-premium" />
-            <p className="text-secondary font-bold uppercase tracking-widest text-sm mb-4">Our Team</p>
-            <h1 className="text-4xl md:text-6xl font-black text-navy mb-6">Meet Our Expert Team</h1>
-            <p className="text-xl text-muted max-w-2xl mx-auto">
-              Experienced educators dedicated to making mathematics accessible and engaging for every Class 1–8 student.
-            </p>
-          </motion.div>
-        </div>
-      </section>
+
 
       {/* Team Carousel */}
       <section className="py-20">

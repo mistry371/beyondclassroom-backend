@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -18,8 +18,12 @@ exports.protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
-    await db.read();
-    const user = db.data.users.find(u => u._id === decoded.id);
+
+    let user = await models.users.findOne({ _id: decoded.id }).lean();
+    
+    if (!user && db.data.users) {
+      user = db.data.users.find(u => u._id === decoded.id);
+    }
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });

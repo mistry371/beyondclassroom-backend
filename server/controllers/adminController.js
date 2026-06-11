@@ -1,23 +1,46 @@
-const { db } = require('../database/db')
-const ActivityLog = require('../models/ActivityLog')
+const { db, models } = require('../database/db')
 
 // Dashboard Statistics
 exports.getDashboardStats = async (req, res) => {
   try {
-    await db.read()
-    
+    const [
+      totalUsers,
+      totalCourses,
+      totalModules,
+      totalLessons,
+      totalOrders,
+      orders,
+      activeSubscriptions,
+      recentUsers,
+      recentOrders,
+      allUsers
+    ] = await Promise.all([
+      models.users.countDocuments(),
+      models.courses.countDocuments(),
+      models.modules.countDocuments(),
+      models.lessons.countDocuments(),
+      models.orders.countDocuments(),
+      models.orders.find().lean(),
+      models.subscriptions ? models.subscriptions.countDocuments({ status: 'active' }) : 0,
+      models.users.find().sort({ createdAt: -1 }).limit(5).lean(),
+      models.orders.find().sort({ createdAt: -1 }).limit(5).lean(),
+      models.users.find().select('createdAt').lean()
+    ])
+
+    const totalRevenue = orders.reduce((sum, order) => sum + (order.totalAmount || 0), 0)
+
     const stats = {
-      totalUsers: db.data.users?.length || 0,
-      totalCourses: db.data.courses?.length || 0,
-      totalModules: db.data.modules?.length || 0,
-      totalLessons: db.data.lessons?.length || 0,
-      totalOrders: db.data.orders?.length || 0,
-      totalRevenue: db.data.orders?.reduce((sum, order) => sum + (order.totalAmount || 0), 0) || 0,
-      activeSubscriptions: db.data.subscriptions?.filter(s => s.status === 'active').length || 0,
-      recentUsers: db.data.users?.slice(-5).reverse() || [],
-      recentOrders: db.data.orders?.slice(-5).reverse() || [],
-      userGrowth: calculateUserGrowth(db.data.users || []),
-      courseEnrollments: calculateCourseEnrollments(db.data.orders || []),
+      totalUsers,
+      totalCourses,
+      totalModules,
+      totalLessons,
+      totalOrders,
+      totalRevenue,
+      activeSubscriptions,
+      recentUsers,
+      recentOrders,
+      userGrowth: calculateUserGrowth(allUsers),
+      courseEnrollments: calculateCourseEnrollments(orders),
     }
     
     res.json({ success: true, stats })
@@ -29,15 +52,21 @@ exports.getDashboardStats = async (req, res) => {
 // Analytics Data
 exports.getAnalytics = async (req, res) => {
   try {
-    await db.read()
     const { period = '30d' } = req.query
     
+    const [users, orders, courses, activityLogs] = await Promise.all([
+      models.users.find().select('createdAt').lean(),
+      models.orders.find().lean(),
+      models.courses.find().lean(),
+      models.activityLogs.find().lean()
+    ])
+    
     const analytics = {
-      userRegistrations: getUserRegistrationsByPeriod(db.data.users || [], period),
-      courseEnrollments: getCourseEnrollmentsByPeriod(db.data.orders || [], period),
-      revenue: getRevenueByPeriod(db.data.orders || [], period),
-      topCourses: getTopCourses(db.data.orders || [], db.data.courses || []),
-      userActivity: getUserActivity(db.data.activityLogs || []),
+      userRegistrations: getUserRegistrationsByPeriod(users, period),
+      courseEnrollments: getCourseEnrollmentsByPeriod(orders, period),
+      revenue: getRevenueByPeriod(orders, period),
+      topCourses: getTopCourses(orders, courses),
+      userActivity: getUserActivity(activityLogs),
     }
     
     res.json({ success: true, analytics })
@@ -49,25 +78,23 @@ exports.getAnalytics = async (req, res) => {
 // Activity Logs
 exports.getActivityLogs = async (req, res) => {
   try {
-    await db.read()
     const { page = 1, limit = 50, module, userId } = req.query
     
-    let logs = db.data.activityLogs || []
+    let query = {}
+    if (module) query.module = module
+    if (userId) query.userId = userId
     
-    if (module) logs = logs.filter(log => log.module === module)
-    if (userId) logs = logs.filter(log => log.userId === userId)
+    const skip = (parseInt(page) - 1) * parseInt(limit)
     
-    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    
-    const startIndex = (page - 1) * limit
-    const paginatedLogs = logs.slice(startIndex, startIndex + parseInt(limit))
+    const logs = await models.activityLogs.find(query).sort({ timestamp: -1 }).skip(skip).limit(parseInt(limit)).lean()
+    const total = await models.activityLogs.countDocuments(query)
     
     res.json({
       success: true,
-      logs: paginatedLogs,
-      total: logs.length,
+      logs,
+      total,
       page: parseInt(page),
-      totalPages: Math.ceil(logs.length / limit)
+      totalPages: Math.ceil(total / limit)
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -77,21 +104,20 @@ exports.getActivityLogs = async (req, res) => {
 // Log Activity
 exports.logActivity = async (userId, userName, action, module, description, metadata = {}) => {
   try {
-    await db.read()
-    
-    const log = new ActivityLog({
+    const log = {
+      _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       userId,
       userName,
       action,
       module,
       description,
-      metadata
-    })
+      metadata,
+      timestamp: new Date()
+    }
     
-    db.data.activityLogs = db.data.activityLogs || []
-    db.data.activityLogs.push(log)
+    await models.activityLogs.create(log)
+    if (db.data.activityLogs) db.data.activityLogs.push(log)
     
-    await db.write()
   } catch (error) {
     console.error('Failed to log activity:', error)
   }

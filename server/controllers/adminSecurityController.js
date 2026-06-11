@@ -3,8 +3,6 @@ const { db } = require('../database/db');
 // Get security data
 exports.getSecurityData = async (req, res) => {
   try {
-    await db.read();
-    
     const securityData = {
       failedLogins: db.data.failedLogins || [
         {
@@ -35,7 +33,6 @@ exports.getSecurityData = async (req, res) => {
 exports.blockIP = async (req, res) => {
   try {
     const { ip } = req.body;
-    await db.read();
     
     if (!db.data.blockedIPs) {
       db.data.blockedIPs = [];
@@ -45,8 +42,6 @@ exports.blockIP = async (req, res) => {
       address: ip,
       blockedAt: new Date().toISOString()
     });
-    
-    await db.write();
 
     res.json({ message: 'IP blocked successfully' });
   } catch (error) {
@@ -59,11 +54,9 @@ exports.blockIP = async (req, res) => {
 exports.unblockIP = async (req, res) => {
   try {
     const { ip } = req.body;
-    await db.read();
     
     if (db.data.blockedIPs) {
       db.data.blockedIPs = db.data.blockedIPs.filter(item => item.address !== ip);
-      await db.write();
     }
 
     res.json({ message: 'IP unblocked successfully' });

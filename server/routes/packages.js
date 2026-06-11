@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { db } = require('../database/db')
+const { models } = require('../database/db')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -13,11 +13,7 @@ const isAdmin = (req, res, next) => {
 // GET /api/packages — public, returns active packages ordered by sortOrder
 router.get('/', async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const packages = db.data.packages
-      .filter(p => p.active !== false)
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    const packages = await models.packages.find({ active: { $ne: false } }).sort({ sortOrder: 1 }).lean()
     res.json({ success: true, packages })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -27,10 +23,21 @@ router.get('/', async (req, res) => {
 // GET /api/admin/packages — admin, returns all packages
 router.get('/admin', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const packages = db.data.packages.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    const packages = await models.packages.find().sort({ sortOrder: 1 }).lean()
     res.json({ success: true, packages })
+  } catch (error) {
+    res.status(500).json({ message: error.message })
+  }
+})
+
+// GET /api/packages/:id — public, returns single package
+router.get('/:id', async (req, res) => {
+  try {
+    const pkg = await models.packages.findById(req.params.id).lean()
+    if (!pkg || pkg.active === false) {
+      return res.status(404).json({ message: 'Package not found' })
+    }
+    res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -39,12 +46,13 @@ router.get('/admin', isAdmin, async (req, res) => {
 // POST /api/admin/packages — create
 router.post('/admin', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const { name, description, features, priceINR, priceUSD, validity, image, active, popular } = req.body
+    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
     if (!name || priceINR === undefined) {
       return res.status(400).json({ message: 'Name and priceINR are required' })
     }
+    
+    const count = await models.packages.countDocuments()
+    
     const pkg = {
       _id: generateId(),
       name,
@@ -56,11 +64,12 @@ router.post('/admin', isAdmin, async (req, res) => {
       image: image || '',
       active: active !== false,
       popular: popular || false,
-      sortOrder: db.data.packages.length,
-      createdAt: new Date().toISOString(),
+      courseIds: Array.isArray(courseIds) ? courseIds : [],
+      sortOrder: count,
+      createdAt: new Date(),
     }
-    db.data.packages.push(pkg)
-    await db.write()
+    
+    await models.packages.create(pkg)
     res.status(201).json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -70,26 +79,30 @@ router.post('/admin', isAdmin, async (req, res) => {
 // PUT /api/admin/packages/:id — update
 router.put('/admin/:id', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const idx = db.data.packages.findIndex(p => p._id === req.params.id)
-    if (idx === -1) return res.status(404).json({ message: 'Package not found' })
-    const { name, description, features, priceINR, priceUSD, validity, image, active, popular } = req.body
-    db.data.packages[idx] = {
-      ...db.data.packages[idx],
-      name: name ?? db.data.packages[idx].name,
-      description: description ?? db.data.packages[idx].description,
-      features: Array.isArray(features) ? features : db.data.packages[idx].features,
-      priceINR: priceINR !== undefined ? Number(priceINR) : db.data.packages[idx].priceINR,
-      priceUSD: priceUSD !== undefined ? Number(priceUSD) : db.data.packages[idx].priceUSD,
-      validity: validity ?? db.data.packages[idx].validity,
-      image: image ?? db.data.packages[idx].image,
-      active: active !== undefined ? active : db.data.packages[idx].active,
-      popular: popular !== undefined ? popular : db.data.packages[idx].popular,
-      updatedAt: new Date().toISOString(),
-    }
-    await db.write()
-    res.json({ success: true, package: db.data.packages[idx] })
+    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
+    
+    const updates = {}
+    if (name !== undefined) updates.name = name
+    if (description !== undefined) updates.description = description
+    if (Array.isArray(features)) updates.features = features
+    if (priceINR !== undefined) updates.priceINR = Number(priceINR)
+    if (priceUSD !== undefined) updates.priceUSD = Number(priceUSD)
+    if (validity !== undefined) updates.validity = validity
+    if (image !== undefined) updates.image = image
+    if (active !== undefined) updates.active = active
+    if (popular !== undefined) updates.popular = popular
+    if (Array.isArray(courseIds)) updates.courseIds = courseIds
+    updates.updatedAt = new Date()
+
+    const pkg = await models.packages.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: updates },
+      { new: true }
+    ).lean()
+
+    if (!pkg) return res.status(404).json({ message: 'Package not found' })
+    
+    res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -98,12 +111,8 @@ router.put('/admin/:id', isAdmin, async (req, res) => {
 // DELETE /api/admin/packages/:id
 router.delete('/admin/:id', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const before = db.data.packages.length
-    db.data.packages = db.data.packages.filter(p => p._id !== req.params.id)
-    if (db.data.packages.length === before) return res.status(404).json({ message: 'Package not found' })
-    await db.write()
+    const result = await models.packages.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) return res.status(404).json({ message: 'Package not found' })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -113,14 +122,14 @@ router.delete('/admin/:id', isAdmin, async (req, res) => {
 // PATCH /api/admin/packages/:id/toggle — toggle active
 router.patch('/admin/:id/toggle', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
-    const idx = db.data.packages.findIndex(p => p._id === req.params.id)
-    if (idx === -1) return res.status(404).json({ message: 'Package not found' })
-    db.data.packages[idx].active = !db.data.packages[idx].active
-    db.data.packages[idx].updatedAt = new Date().toISOString()
-    await db.write()
-    res.json({ success: true, package: db.data.packages[idx] })
+    const pkg = await models.packages.findById(req.params.id)
+    if (!pkg) return res.status(404).json({ message: 'Package not found' })
+    
+    pkg.active = !pkg.active
+    pkg.updatedAt = new Date()
+    await pkg.save()
+    
+    res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
@@ -129,23 +138,27 @@ router.patch('/admin/:id/toggle', isAdmin, async (req, res) => {
 // PATCH /api/admin/packages/:id/reorder — move up or down
 router.patch('/admin/:id/reorder', isAdmin, async (req, res) => {
   try {
-    await db.read()
-    db.data.packages = db.data.packages || []
     const { direction } = req.body // 'up' | 'down'
-    const sorted = db.data.packages.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+    const sorted = await models.packages.find().sort({ sortOrder: 1 })
     const idx = sorted.findIndex(p => p._id === req.params.id)
+    
     if (idx === -1) return res.status(404).json({ message: 'Package not found' })
+    
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
     if (swapIdx < 0 || swapIdx >= sorted.length) return res.json({ success: true, packages: sorted })
+    
     // Swap sortOrder values
     const tempOrder = sorted[idx].sortOrder
-    sorted[idx].sortOrder = sorted[swapIdx].sortOrder
-    sorted[swapIdx].sortOrder = tempOrder
-    await db.write()
-    res.json({ success: true, packages: sorted })
+    
+    await models.packages.updateOne({ _id: sorted[idx]._id }, { $set: { sortOrder: sorted[swapIdx].sortOrder } })
+    await models.packages.updateOne({ _id: sorted[swapIdx]._id }, { $set: { sortOrder: tempOrder } })
+    
+    const newSorted = await models.packages.find().sort({ sortOrder: 1 })
+    res.json({ success: true, packages: newSorted })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
 })
 
 module.exports = router
+

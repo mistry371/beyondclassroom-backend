@@ -1,25 +1,21 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 9);
 
 // Get all certificates
 exports.getCertificates = async (req, res) => {
   try {
-    await db.read();
+    const certificates = await models.certificates.find().lean()
 
-    if (!db.data.certificates) {
-      db.data.certificates = [];
-      await db.write();
-    }
+    const userIds = [...new Set(certificates.map(c => c.user || c.userId).filter(Boolean))]
+    const users = await models.users.find({ _id: { $in: userIds } }).select('name email _id').lean()
+    
+    const courseIds = [...new Set(certificates.map(c => c.course || c.courseId).filter(Boolean))]
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title _id').lean()
 
-    // Populate user and course references
-    const populated = db.data.certificates.map(cert => {
-      const user = typeof cert.user === 'string'
-        ? db.data.users?.find(u => u._id === cert.user)
-        : cert.user;
-      const course = typeof cert.course === 'string'
-        ? db.data.courses?.find(c => c._id === cert.course)
-        : cert.course;
+    const populated = certificates.map(cert => {
+      const user = users.find(u => u._id === (cert.user || cert.userId))
+      const course = courses.find(c => c._id === (cert.course || cert.courseId))
       return {
         ...cert,
         user: user ? { _id: user._id, name: user.name, email: user.email } : cert.user,
@@ -42,12 +38,10 @@ exports.generateCertificate = async (req, res) => {
       return res.status(400).json({ message: 'userId and courseId are required' });
     }
 
-    await db.read();
-
-    const user = db.data.users?.find(u => u._id === userId);
+    const user = await models.users.findOne({ _id: userId }).lean()
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const course = db.data.courses?.find(c => c._id === courseId);
+    const course = await models.courses.findOne({ _id: courseId }).lean()
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
     // Check if user is enrolled
@@ -57,18 +51,20 @@ exports.generateCertificate = async (req, res) => {
     }
 
     // Check for duplicate
-    const existing = db.data.certificates?.find(c => {
-      const cUserId = typeof c.user === 'string' ? c.user : c.user?._id;
-      const cCourseId = typeof c.course === 'string' ? c.course : c.course?._id;
-      return cUserId === userId && cCourseId === courseId;
-    });
+    const existing = await models.certificates.findOne({
+      $or: [
+        { user: userId, course: courseId },
+        { userId: userId, courseId: courseId }
+      ]
+    }).lean()
+    
     if (existing) {
       return res.status(400).json({ message: 'Certificate already exists for this user and course' });
     }
 
-    if (!db.data.certificates) db.data.certificates = [];
-
-    const certNumber = `CERT-${new Date().getFullYear()}-${String(db.data.certificates.length + 1).padStart(3, '0')}`;
+    const certCount = await models.certificates.countDocuments()
+    const certNumber = `CERT-${new Date().getFullYear()}-${String(certCount + 1).padStart(3, '0')}`;
+    
     const newCertificate = {
       _id: generateId(),
       user: userId,
@@ -78,8 +74,11 @@ exports.generateCertificate = async (req, res) => {
       issuedBy: req.user._id
     };
 
-    db.data.certificates.push(newCertificate);
-    await db.write();
+    await models.certificates.create(newCertificate)
+    
+    if (db.data.certificates) {
+      db.data.certificates.push(newCertificate);
+    }
 
     res.status(201).json({
       certificate: {
@@ -97,15 +96,15 @@ exports.generateCertificate = async (req, res) => {
 // Delete certificate
 exports.deleteCertificate = async (req, res) => {
   try {
-    await db.read();
-
-    const index = db.data.certificates?.findIndex(c => c._id === req.params.id);
-    if (index === -1 || index === undefined) {
+    const result = await models.certificates.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Certificate not found' });
     }
 
-    db.data.certificates.splice(index, 1);
-    await db.write();
+    if (db.data.certificates) {
+      const index = db.data.certificates.findIndex(c => c._id === req.params.id);
+      if (index !== -1) db.data.certificates.splice(index, 1);
+    }
 
     res.json({ message: 'Certificate deleted successfully' });
   } catch (error) {

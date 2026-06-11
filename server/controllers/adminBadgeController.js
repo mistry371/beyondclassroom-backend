@@ -1,22 +1,22 @@
-const { db } = require('../database/db');
-
-const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 9);
+const { db, models } = require('../database/db');
 
 // Get all badges
 exports.getBadges = async (req, res) => {
   try {
-    await db.read();
+    let badges = await models.badges.find().lean()
 
-    if (!db.data.badges) {
-      db.data.badges = [
-        { _id: generateId(), name: 'First Course Complete', description: 'Complete your first course', criteria: 'Complete 1 course', icon: '🎓' },
-        { _id: generateId(), name: 'Quiz Master', description: 'Score 100% in any quiz', criteria: 'Score 100% in a quiz', icon: '🏆' },
-        { _id: generateId(), name: 'Learning Streak', description: 'Learn for 7 days straight', criteria: '7 day streak', icon: '🔥' }
+    if (!badges || badges.length === 0) {
+      const defaultBadges = [
+        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'First Course Complete', description: 'Complete your first course', criteria: 'Complete 1 course', icon: '🎓' },
+        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'Quiz Master', description: 'Score 100% in any quiz', criteria: 'Score 100% in a quiz', icon: '🏆' },
+        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'Learning Streak', description: 'Learn for 7 days straight', criteria: '7 day streak', icon: '🔥' }
       ];
-      await db.write();
+      await models.badges.insertMany(defaultBadges)
+      if (db.data.badges) db.data.badges.push(...defaultBadges)
+      badges = defaultBadges
     }
 
-    res.json({ badges: db.data.badges });
+    res.json({ badges });
   } catch (error) {
     console.error('Get badges error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -27,13 +27,18 @@ exports.getBadges = async (req, res) => {
 exports.createBadge = async (req, res) => {
   try {
     const { name, description, criteria, icon } = req.body;
-    await db.read();
 
-    if (!db.data.badges) db.data.badges = [];
-
-    const newBadge = { _id: generateId(), name, description, criteria, icon: icon || '🏅', createdAt: new Date().toISOString() };
-    db.data.badges.push(newBadge);
-    await db.write();
+    const newBadge = { 
+      _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), 
+      name, 
+      description, 
+      criteria, 
+      icon: icon || '🏅', 
+      createdAt: new Date().toISOString() 
+    };
+    
+    await models.badges.create(newBadge)
+    if (db.data.badges) db.data.badges.push(newBadge);
 
     res.status(201).json({ badge: newBadge });
   } catch (error) {
@@ -46,17 +51,25 @@ exports.createBadge = async (req, res) => {
 exports.updateBadge = async (req, res) => {
   try {
     const { name, description, criteria, icon } = req.body;
-    await db.read();
 
-    const index = db.data.badges?.findIndex(b => b._id === req.params.id);
-    if (index === -1 || index === undefined) {
+    const updated = await models.badges.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { name, description, criteria, icon, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+
+    if (!updated) {
       return res.status(404).json({ message: 'Badge not found' });
     }
 
-    db.data.badges[index] = { ...db.data.badges[index], name, description, criteria, icon, updatedAt: new Date().toISOString() };
-    await db.write();
+    if (db.data.badges) {
+      const index = db.data.badges.findIndex(b => b._id === req.params.id);
+      if (index !== -1) {
+        Object.assign(db.data.badges[index], { name, description, criteria, icon, updatedAt: new Date().toISOString() });
+      }
+    }
 
-    res.json({ badge: db.data.badges[index] });
+    res.json({ badge: updated });
   } catch (error) {
     console.error('Update badge error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -66,15 +79,15 @@ exports.updateBadge = async (req, res) => {
 // Delete badge
 exports.deleteBadge = async (req, res) => {
   try {
-    await db.read();
-
-    const badgeIndex = db.data.badges?.findIndex(b => b._id === req.params.id);
-    if (badgeIndex === -1 || badgeIndex === undefined) {
+    const result = await models.badges.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Badge not found' });
     }
 
-    db.data.badges.splice(badgeIndex, 1);
-    await db.write();
+    if (db.data.badges) {
+      const badgeIndex = db.data.badges.findIndex(b => b._id === req.params.id);
+      if (badgeIndex !== -1) db.data.badges.splice(badgeIndex, 1);
+    }
 
     res.json({ message: 'Badge deleted successfully' });
   } catch (error) {

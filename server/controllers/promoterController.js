@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const referralService = require('../services/referralService')
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '')
 
@@ -10,11 +10,12 @@ const generatePromoterToken = (id) =>
   jwt.sign({ id, type: 'promoter' }, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production', { expiresIn: '30d' })
 
 const ensureUniqueCode = async (name) => {
-  await db.read()
   let code = referralService.generateReferralCode(name)
   let attempts = 0
-  while (db.data.promoters?.some((p) => p.referralCode === code) && attempts < 10) {
+  let exists = await models.promoters.findOne({ referralCode: code }).lean()
+  while (exists && attempts < 10) {
     code = referralService.generateReferralCode(name)
+    exists = await models.promoters.findOne({ referralCode: code }).lean()
     attempts++
   }
   return code
@@ -35,18 +36,23 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' })
     }
 
-    await db.read()
-    if (db.data.promoters?.some((p) => normalizePhone(p.phone) === phoneNorm)) {
+    const existingPhonePromoter = await models.promoters.findOne({ phone: phoneNorm }).lean()
+    if (existingPhonePromoter) {
       return res.status(400).json({ success: false, message: 'Mobile number already registered as promoter' })
     }
-    if (db.data.users?.some((u) => normalizePhone(u.phone) === phoneNorm)) {
+    const existingPhoneUser = await models.users.findOne({ phone: phoneNorm }).lean()
+    if (existingPhoneUser) {
       return res.status(400).json({ success: false, message: 'Mobile number already used for student account' })
     }
-    if (emailNorm && db.data.promoters?.some((p) => p.email === emailNorm)) {
-      return res.status(400).json({ success: false, message: 'Email already registered as promoter' })
-    }
-    if (emailNorm && db.data.users?.some((u) => u.email === emailNorm)) {
-      return res.status(400).json({ success: false, message: 'Email already used for student account' })
+    if (emailNorm) {
+      const existingEmailPromoter = await models.promoters.findOne({ email: emailNorm }).lean()
+      if (existingEmailPromoter) {
+        return res.status(400).json({ success: false, message: 'Email already registered as promoter' })
+      }
+      const existingEmailUser = await models.users.findOne({ email: emailNorm }).lean()
+      if (existingEmailUser) {
+        return res.status(400).json({ success: false, message: 'Email already used for student account' })
+      }
     }
 
     const referralCode = await ensureUniqueCode(name)
@@ -66,13 +72,15 @@ exports.register = async (req, res) => {
       totalPaidOut: 0,
       streak: 0,
       rank: 'Bronze',
-      createdAt: new Date(),
-      lastLoginAt: new Date(),
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString(),
     }
 
-    db.data.promoters = db.data.promoters || []
-    db.data.promoters.push(promoter)
-    await db.write()
+    await models.promoters.create(promoter)
+    
+    if (db.data.promoters) {
+      db.data.promoters.push(promoter)
+    }
 
     const token = generatePromoterToken(promoter._id)
     res.status(201).json({
@@ -94,19 +102,21 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Mobile number and password required' })
     }
 
-    await db.read()
     let promoter = null
     if (phoneNorm) {
-      promoter = db.data.promoters?.find((p) => normalizePhone(p.phone) === phoneNorm)
+      promoter = await models.promoters.findOne({ phone: phoneNorm }).lean()
     }
     if (!promoter && emailNorm) {
-      promoter = db.data.promoters?.find((p) => p.email === emailNorm)
+      promoter = await models.promoters.findOne({ email: emailNorm }).lean()
     }
     if (!promoter) {
-      const userAccount = db.data.users?.find((u) =>
-        (phoneNorm && normalizePhone(u.phone) === phoneNorm) ||
-        (emailNorm && u.email?.toLowerCase().trim() === emailNorm)
-      )
+      let userAccount = null
+      if (phoneNorm) {
+        userAccount = await models.users.findOne({ phone: phoneNorm }).lean()
+      }
+      if (!userAccount && emailNorm) {
+        userAccount = await models.users.findOne({ email: emailNorm }).lean()
+      }
       if (userAccount) {
         return res.status(400).json({
           success: false,
@@ -121,9 +131,17 @@ exports.login = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Account suspended' })
     }
 
-    const idx = db.data.promoters.findIndex((p) => p._id === promoter._id)
-    db.data.promoters[idx].lastLoginAt = new Date()
-    await db.write()
+    await models.promoters.updateOne(
+      { _id: promoter._id },
+      { $set: { lastLoginAt: new Date().toISOString() } }
+    )
+    
+    if (db.data.promoters) {
+      const idx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+      if (idx !== -1) {
+        db.data.promoters[idx].lastLoginAt = new Date().toISOString()
+      }
+    }
 
     res.json({
       success: true,
@@ -147,10 +165,7 @@ exports.getDashboard = async (req, res) => {
 
 exports.getReferrals = async (req, res) => {
   try {
-    await db.read()
-    const referrals = (db.data.referrals || [])
-      .filter((r) => r.promoterId === req.promoter._id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    const referrals = await models.referrals.find({ promoterId: req.promoter._id }).sort({ createdAt: -1 }).lean()
     res.json({ success: true, referrals })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -170,33 +185,50 @@ exports.requestWithdrawal = async (req, res) => {
       })
     }
 
-    await db.read()
-    const idx = db.data.promoters.findIndex((p) => p._id === req.promoter._id)
-    const promoter = db.data.promoters[idx]
+    const promoter = await models.promoters.findOne({ _id: req.promoter._id }).lean()
+    if (!promoter) {
+      return res.status(404).json({ success: false, message: 'Promoter not found' })
+    }
 
     if (amt > (promoter.pendingPayout || 0)) {
       return res.status(400).json({ success: false, message: 'Insufficient pending balance' })
     }
 
-    db.data.promoterPayouts = db.data.promoterPayouts || []
     const payout = {
       _id: generateId(),
       promoterId: promoter._id,
       amount: amt,
       status: 'pending',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     }
-    db.data.promoterPayouts.push(payout)
+    
+    await models.promoterPayouts.create(payout)
 
-    db.data.promoters[idx].pendingPayout = (promoter.pendingPayout || 0) - amt
-    db.data.promoters[idx].updatedAt = new Date()
-    await db.write()
+    const updatedPromoter = await models.promoters.findOneAndUpdate(
+      { _id: promoter._id },
+      { 
+        $set: { 
+          pendingPayout: (promoter.pendingPayout || 0) - amt,
+          updatedAt: new Date().toISOString()
+        } 
+      },
+      { new: true }
+    ).lean()
+    
+    if (db.data.promoterPayouts) db.data.promoterPayouts.push(payout)
+    
+    if (db.data.promoters) {
+      const idx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+      if (idx !== -1) {
+        Object.assign(db.data.promoters[idx], updatedPromoter)
+      }
+    }
 
     res.json({
       success: true,
       message: 'Withdrawal request submitted',
       payout,
-      pendingPayout: db.data.promoters[idx].pendingPayout,
+      pendingPayout: updatedPromoter.pendingPayout,
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -246,12 +278,12 @@ exports.trackClick = async (req, res) => {
 // Admin: list promoters
 exports.adminListPromoters = async (req, res) => {
   try {
-    await db.read()
-    const promoters = (db.data.promoters || []).map((p) => ({
+    const promoters = await models.promoters.find().sort({ createdAt: -1 }).lean()
+    const mapped = promoters.map((p) => ({
       ...referralService.sanitizePromoter(p),
       createdAt: p.createdAt,
     }))
-    res.json({ success: true, promoters })
+    res.json({ success: true, promoters: mapped })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -266,31 +298,52 @@ exports.adminProcessPayout = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid status' })
     }
 
-    await db.read()
-    const pIdx = db.data.promoterPayouts?.findIndex((p) => p._id === req.params.id)
-    if (pIdx === -1) {
+    const payout = await models.promoterPayouts.findOne({ _id: req.params.id }).lean()
+    
+    if (!payout) {
       return res.status(404).json({ success: false, message: 'Payout not found' })
     }
 
-    const payout = db.data.promoterPayouts[pIdx]
     if (payout.status !== 'pending') {
       return res.status(400).json({ success: false, message: 'Payout already processed' })
     }
 
-    db.data.promoterPayouts[pIdx].status = status
-    db.data.promoterPayouts[pIdx].note = note || ''
-    db.data.promoterPayouts[pIdx].processedAt = new Date()
+    const updatedPayout = await models.promoterPayouts.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { status, note: note || '', processedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
 
-    const promIdx = db.data.promoters.findIndex((p) => p._id === payout.promoterId)
-    if (promIdx !== -1 && status === 'rejected') {
-      db.data.promoters[promIdx].pendingPayout = (db.data.promoters[promIdx].pendingPayout || 0) + payout.amount
+    const promoter = await models.promoters.findOne({ _id: payout.promoterId }).lean()
+    
+    if (promoter) {
+      const updates = {}
+      if (status === 'rejected') {
+        updates.pendingPayout = (promoter.pendingPayout || 0) + payout.amount
+      } else if (status === 'approved' || status === 'paid') {
+        updates.totalPaidOut = (promoter.totalPaidOut || 0) + payout.amount
+      }
+      
+      if (Object.keys(updates).length > 0) {
+        const updatedPromoter = await models.promoters.findOneAndUpdate(
+          { _id: promoter._id },
+          { $set: updates },
+          { new: true }
+        ).lean()
+        
+        if (db.data.promoters) {
+          const promIdx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+          if (promIdx !== -1) Object.assign(db.data.promoters[promIdx], updatedPromoter)
+        }
+      }
     }
-    if (promIdx !== -1 && (status === 'approved' || status === 'paid')) {
-      db.data.promoters[promIdx].totalPaidOut = (db.data.promoters[promIdx].totalPaidOut || 0) + payout.amount
+    
+    if (db.data.promoterPayouts) {
+      const pIdx = db.data.promoterPayouts.findIndex((p) => p._id === req.params.id)
+      if (pIdx !== -1) Object.assign(db.data.promoterPayouts[pIdx], updatedPayout)
     }
 
-    await db.write()
-    res.json({ success: true, payout: db.data.promoterPayouts[pIdx] })
+    res.json({ success: true, payout: updatedPayout })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -298,14 +351,16 @@ exports.adminProcessPayout = async (req, res) => {
 
 exports.adminListPayouts = async (req, res) => {
   try {
-    await db.read()
-    const payouts = (db.data.promoterPayouts || [])
-      .map((p) => {
-        const promoter = db.data.promoters?.find((pr) => pr._id === p.promoterId)
+    const payouts = await models.promoterPayouts.find().sort({ createdAt: -1 }).lean()
+    const promoterIds = [...new Set(payouts.map(p => p.promoterId).filter(Boolean))]
+    const promoters = await models.promoters.find({ _id: { $in: promoterIds } }).select('name email _id').lean()
+    
+    const mapped = payouts.map((p) => {
+        const promoter = promoters.find((pr) => pr._id === p.promoterId)
         return { ...p, promoterName: promoter?.name, promoterEmail: promoter?.email }
       })
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    res.json({ success: true, payouts })
+      
+    res.json({ success: true, payouts: mapped })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }

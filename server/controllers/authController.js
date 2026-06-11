@@ -67,7 +67,19 @@ exports.login = async (req, res) => {
     const user = await User.findOne(
       normalizedPhone ? { phone: normalizedPhone } : { email: normalizedEmail }
     );
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user) {
+      // Check if they are trying to log in as a promoter
+      const { models } = require('../database/db');
+      let promoter = null;
+      if (normalizedPhone) promoter = await models.promoters.findOne({ phone: normalizedPhone }).lean();
+      if (!promoter && normalizedEmail) promoter = await models.promoters.findOne({ email: normalizedEmail }).lean();
+      
+      if (promoter) {
+        return res.status(400).json({ message: 'This email belongs to the Promoter Panel. Please click "Promoter Program" in the navigation bar to login.' });
+      }
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+    if (!(await user.comparePassword(password))) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 

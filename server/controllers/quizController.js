@@ -1,12 +1,11 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const Quiz = require('../models/Quiz')
 
 // Get all quizzes for a module (returns array)
 exports.getQuizzesByModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
-    const quizzes = db.data.quizzes?.filter(q => q.moduleId === moduleId) || []
+    const quizzes = await models.quizzes.find({ moduleId }).lean()
     res.json({ success: true, quizzes })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -16,9 +15,8 @@ exports.getQuizzesByModule = async (req, res) => {
 // Get quiz by module (single - for learn page)
 exports.getQuizByModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
-    const quiz = db.data.quizzes?.find(q => q.moduleId === moduleId)
+    const quiz = await models.quizzes.findOne({ moduleId }).lean()
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
@@ -31,9 +29,8 @@ exports.getQuizByModule = async (req, res) => {
 // Get single quiz by ID
 exports.getQuiz = async (req, res) => {
   try {
-    await db.read()
     const { quizId } = req.params
-    const quiz = db.data.quizzes?.find(q => q._id === quizId)
+    const quiz = await models.quizzes.findOne({ _id: quizId }).lean()
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
@@ -46,20 +43,19 @@ exports.getQuiz = async (req, res) => {
 // Submit quiz
 exports.submitQuiz = async (req, res) => {
   try {
-    await db.read()
     const { quizId } = req.params
     const { answers } = req.body
 
-    const quiz = db.data.quizzes?.find(q => q._id === quizId)
+    const quiz = await models.quizzes.findOne({ _id: quizId }).lean()
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
 
     let score = 0
     const results = []
-    const totalPoints = quiz.questions.reduce((sum, q) => sum + (q.points || 10), 0) || 100
+    const totalPoints = (quiz.questions || []).reduce((sum, q) => sum + (q.points || 10), 0) || 100
 
-    quiz.questions.forEach((question, index) => {
+    ;(quiz.questions || []).forEach((question, index) => {
       const userAnswer = answers[index]
       const isCorrect = userAnswer === question.correctAnswer
 
@@ -96,12 +92,17 @@ exports.submitQuiz = async (req, res) => {
 // Create quiz
 exports.createQuiz = async (req, res) => {
   try {
-    await db.read()
     const totalPoints = (req.body.questions || []).reduce((sum, q) => sum + (q.points || 10), 0) || 100
-    const newQuiz = new Quiz({ ...req.body, totalPoints })
-    db.data.quizzes = db.data.quizzes || []
-    db.data.quizzes.push(newQuiz)
-    await db.write()
+    const quizData = { ...req.body, totalPoints }
+    if (!quizData._id) {
+      quizData._id = Date.now().toString() + Math.random().toString(36).slice(2, 11)
+    }
+    
+    const newQuiz = await models.quizzes.create(quizData)
+    if (db.data.quizzes) {
+      db.data.quizzes.push(newQuiz)
+    }
+    
     res.status(201).json({ success: true, quiz: newQuiz })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -111,16 +112,27 @@ exports.createQuiz = async (req, res) => {
 // Update quiz
 exports.updateQuiz = async (req, res) => {
   try {
-    await db.read()
     const { quizId } = req.params
-    const index = db.data.quizzes?.findIndex(q => q._id === quizId)
-    if (index === -1 || index === undefined) {
+    
+    const existing = await models.quizzes.findOne({ _id: quizId }).lean()
+    if (!existing) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
-    const totalPoints = (req.body.questions || db.data.quizzes[index].questions || []).reduce((sum, q) => sum + (q.points || 10), 0) || 100
-    db.data.quizzes[index] = { ...db.data.quizzes[index], ...req.body, totalPoints, updatedAt: new Date() }
-    await db.write()
-    res.json({ success: true, quiz: db.data.quizzes[index] })
+    
+    const totalPoints = (req.body.questions || existing.questions || []).reduce((sum, q) => sum + (q.points || 10), 0) || 100
+    
+    const updated = await models.quizzes.findOneAndUpdate(
+      { _id: quizId },
+      { $set: { ...req.body, totalPoints, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    
+    if (db.data.quizzes) {
+      const index = db.data.quizzes.findIndex(q => q._id === quizId)
+      if (index !== -1) Object.assign(db.data.quizzes[index], updated)
+    }
+    
+    res.json({ success: true, quiz: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -129,10 +141,11 @@ exports.updateQuiz = async (req, res) => {
 // Delete quiz
 exports.deleteQuiz = async (req, res) => {
   try {
-    await db.read()
     const { quizId } = req.params
-    db.data.quizzes = db.data.quizzes?.filter(q => q._id !== quizId) || []
-    await db.write()
+    await models.quizzes.deleteOne({ _id: quizId })
+    if (db.data.quizzes) {
+      db.data.quizzes = db.data.quizzes.filter(q => q._id !== quizId)
+    }
     res.json({ success: true, message: 'Quiz deleted' })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

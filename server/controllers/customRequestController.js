@@ -1,5 +1,4 @@
-const { db } = require('../database/db')
-const CustomRequest = require('../models/CustomRequest')
+const { db, models } = require('../database/db')
 const { sendEmail } = require('../services/emailService')
 const {
   adminCustomRequestEmailTemplate,
@@ -12,19 +11,25 @@ const ADMIN_EMAIL = 'mistryjenish1003@gmail.com'
 // Student: submit a new custom request
 exports.createRequest = async (req, res) => {
   try {
-    await db.read()
     const user = req.user
-    const request = new CustomRequest({
+    
+    const request = {
+      _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       ...req.body,
       userId: user._id,
       userName: user.name,
       userEmail: user.email,
       assignedToUserId: user._id,
       assignedToUserName: user.name,
-    })
-    db.data.customRequests = db.data.customRequests || []
-    db.data.customRequests.push(request)
-    await db.write()
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }
+    
+    await models.customRequests.create(request)
+    
+    if (db.data.customRequests) {
+      db.data.customRequests.push(request)
+    }
 
     // Notify admin
     try {
@@ -51,10 +56,7 @@ exports.createRequest = async (req, res) => {
 // Student: get my requests
 exports.getMyRequests = async (req, res) => {
   try {
-    await db.read()
-    const requests = (db.data.customRequests || [])
-      .filter(r => r.userId === req.user._id)
-      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+    const requests = await models.customRequests.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean()
     res.json({ success: true, requests })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -64,9 +66,7 @@ exports.getMyRequests = async (req, res) => {
 // Admin: get all requests
 exports.getAllRequests = async (req, res) => {
   try {
-    await db.read()
-    const requests = (db.data.customRequests || [])
-      .sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt))
+    const requests = await models.customRequests.find().sort({ createdAt: -1 }).lean()
     res.json({ success: true, requests })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -76,23 +76,29 @@ exports.getAllRequests = async (req, res) => {
 // Admin: update request status + quote price
 exports.updateRequest = async (req, res) => {
   try {
-    await db.read()
-    const idx = (db.data.customRequests || []).findIndex(r => r._id === req.params.id)
-    if (idx === -1) return res.status(404).json({ success: false, message: 'Request not found' })
+    const prev = await models.customRequests.findOne({ _id: req.params.id }).lean()
+    if (!prev) return res.status(404).json({ success: false, message: 'Request not found' })
 
-    const prev = db.data.customRequests[idx]
     const assignedToUserId = req.body.assignedToUserId || prev.assignedToUserId || prev.userId
-    const assignedUser = db.data.users.find(u => u._id === assignedToUserId)
-    db.data.customRequests[idx] = {
-      ...prev,
+    const assignedUser = await models.users.findOne({ _id: assignedToUserId }).lean()
+    
+    const updates = {
       ...req.body,
       assignedToUserId,
       assignedToUserName: assignedUser?.name || prev.assignedToUserName || prev.userName,
       updatedAt: new Date()
     }
-    await db.write()
+    
+    const updated = await models.customRequests.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: updates },
+      { new: true }
+    ).lean()
 
-    const updated = db.data.customRequests[idx]
+    if (db.data.customRequests) {
+      const idx = db.data.customRequests.findIndex(r => r._id === req.params.id)
+      if (idx !== -1) Object.assign(db.data.customRequests[idx], updates)
+    }
 
     // Notify student when quoted
     if (req.body.status === 'quoted' && req.body.quotedPrice) {
@@ -114,40 +120,37 @@ exports.updateRequest = async (req, res) => {
 // Student: accept, request modification, or purchase a quoted custom package.
 exports.studentAction = async (req, res) => {
   try {
-    await db.read()
-    const idx = (db.data.customRequests || []).findIndex(r => r._id === req.params.id && r.userId === req.user._id)
-    if (idx === -1) return res.status(404).json({ success: false, message: 'Request not found' })
+    const current = await models.customRequests.findOne({ _id: req.params.id, userId: req.user._id }).lean()
+    if (!current) return res.status(404).json({ success: false, message: 'Request not found' })
 
-    const current = db.data.customRequests[idx]
     const action = req.body.action
     const message = (req.body.message || '').trim()
-    const next = { ...current, updatedAt: new Date() }
+    let updates = { updatedAt: new Date() }
 
     if (action === 'request_modification') {
-      next.status = 'reviewing'
-      next.studentMessages = [
+      updates.status = 'reviewing'
+      updates.studentMessages = [
         ...(current.studentMessages || []),
         { message, createdAt: new Date(), type: 'modification' }
       ]
     } else if (action === 'accept') {
-      next.status = 'accepted'
-      next.studentMessages = [
+      updates.status = 'accepted'
+      updates.studentMessages = [
         ...(current.studentMessages || []),
         { message: message || 'Student accepted the package.', createdAt: new Date(), type: 'acceptance' }
       ]
     } else if (action === 'purchase') {
       const amount = Number(current.finalPrice || current.quotedPrice || current.budget || 0)
-      next.status = 'completed'
-      next.paymentStatus = 'paid'
-      next.paymentId = 'CUSTOM-' + Date.now()
-      next.paidAt = new Date()
-      next.studentMessages = [
+      updates.status = 'completed'
+      updates.paymentStatus = 'paid'
+      updates.paymentId = 'CUSTOM-' + Date.now()
+      updates.paidAt = new Date()
+      updates.studentMessages = [
         ...(current.studentMessages || []),
         { message: `Custom package purchased for Rs.${amount}.`, createdAt: new Date(), type: 'purchase' }
       ]
 
-      db.data.orders = db.data.orders || []
-      db.data.orders.push({
+      const order = {
         _id: 'custom-order-' + Date.now(),
         user: req.user._id,
         userId: req.user._id,
@@ -155,12 +158,14 @@ exports.studentAction = async (req, res) => {
         customRequestId: current._id,
         totalAmount: amount,
         status: 'completed',
-        paymentId: next.paymentId,
+        paymentId: updates.paymentId,
         createdAt: new Date(),
-      })
+      }
+      
+      await models.orders.create(order)
+      if (db.data.orders) db.data.orders.push(order)
 
-      db.data.notifications = db.data.notifications || []
-      db.data.notifications.push({
+      const notification = {
         _id: 'custom-ready-' + Date.now(),
         user: req.user._id,
         title: 'Your Personalized Course Package is Ready',
@@ -168,13 +173,26 @@ exports.studentAction = async (req, res) => {
         type: 'custom_course',
         isRead: false,
         createdAt: new Date(),
-      })
+      }
+      
+      await models.notifications.create(notification)
+      if (db.data.notifications) db.data.notifications.push(notification)
+      
     } else {
       return res.status(400).json({ success: false, message: 'Invalid action' })
     }
 
-    db.data.customRequests[idx] = next
-    await db.write()
+    const next = await models.customRequests.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: updates },
+      { new: true }
+    ).lean()
+    
+    if (db.data.customRequests) {
+      const idx = db.data.customRequests.findIndex(r => r._id === req.params.id)
+      if (idx !== -1) Object.assign(db.data.customRequests[idx], updates)
+    }
+
     res.json({ success: true, request: next })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -184,9 +202,10 @@ exports.studentAction = async (req, res) => {
 // Admin: delete request
 exports.deleteRequest = async (req, res) => {
   try {
-    await db.read()
-    db.data.customRequests = (db.data.customRequests || []).filter(r => r._id !== req.params.id)
-    await db.write()
+    await models.customRequests.deleteOne({ _id: req.params.id })
+    if (db.data.customRequests) {
+      db.data.customRequests = db.data.customRequests.filter(r => r._id !== req.params.id)
+    }
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

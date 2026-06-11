@@ -1,13 +1,13 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get all media
 exports.getMedia = async (req, res) => {
   try {
-    await db.read();
+    let mediaList = await models.media.find().lean()
     
     // Initialize media array if not exists
-    if (!db.data.media) {
-      db.data.media = [
+    if (!mediaList || mediaList.length === 0) {
+      const defaultMedia = [
         {
           _id: Date.now().toString() + '1',
           name: 'sample-image.jpg',
@@ -36,10 +36,13 @@ exports.getMedia = async (req, res) => {
           createdAt: new Date().toISOString()
         }
       ];
-      await db.write();
+      await models.media.insertMany(defaultMedia)
+      if (db.data.media) db.data.media.push(...defaultMedia);
+      
+      mediaList = defaultMedia
     }
 
-    res.json({ media: db.data.media });
+    res.json({ media: mediaList });
   } catch (error) {
     console.error('Get media error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -49,12 +52,6 @@ exports.getMedia = async (req, res) => {
 // Upload media
 exports.uploadMedia = async (req, res) => {
   try {
-    await db.read();
-    
-    if (!db.data.media) {
-      db.data.media = [];
-    }
-
     const { name, type, size, dataUrl } = req.body;
     if (!dataUrl) {
       return res.status(400).json({ message: 'No file data provided' });
@@ -70,8 +67,8 @@ exports.uploadMedia = async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    db.data.media.push(newMedia);
-    await db.write();
+    await models.media.create(newMedia)
+    if (db.data.media) db.data.media.push(newMedia);
 
     res.status(201).json({ media: newMedia, files: [newMedia] });
   } catch (error) {
@@ -83,16 +80,15 @@ exports.uploadMedia = async (req, res) => {
 // Delete media
 exports.deleteMedia = async (req, res) => {
   try {
-    await db.read();
-    
-    const mediaIndex = db.data.media?.findIndex(m => m._id === req.params.id);
-    
-    if (mediaIndex === -1 || mediaIndex === undefined) {
+    const result = await models.media.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Media not found' });
     }
 
-    db.data.media.splice(mediaIndex, 1);
-    await db.write();
+    if (db.data.media) {
+      const mediaIndex = db.data.media.findIndex(m => m._id === req.params.id);
+      if (mediaIndex !== -1) db.data.media.splice(mediaIndex, 1);
+    }
 
     res.json({ message: 'Media deleted successfully' });
   } catch (error) {

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 
 exports.protectPromoter = async (req, res, next) => {
   try {
@@ -16,8 +16,12 @@ exports.protectPromoter = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid promoter token' })
     }
 
-    await db.read()
-    req.promoter = db.data.promoters?.find((p) => p._id === decoded.id)
+    req.promoter = await models.promoters.findOne({ _id: decoded.id }).lean()
+    
+    if (!req.promoter && db.data.promoters) {
+      req.promoter = db.data.promoters.find((p) => p._id === decoded.id)
+    }
+
     if (!req.promoter) {
       return res.status(401).json({ success: false, message: 'Promoter not found' })
     }

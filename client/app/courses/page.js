@@ -39,55 +39,7 @@ export default function CoursesPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative overflow-hidden premium-section">
-        <div className="absolute inset-0 hero-grid opacity-70" />
-        <div className="relative mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-          <motion.div initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} className="max-w-4xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/10 bg-white px-4 py-2 text-sm font-bold text-primary shadow-sm">
-              <BookOpen className="h-4 w-4" /> Course & Content
-            </span>
-            <h1 className="mt-6 text-4xl font-black leading-tight text-navy sm:text-6xl">
-              Structured Mathematics content for Class 1 to Class 8.
-            </h1>
-            <p className="mt-5 max-w-3xl text-lg leading-8 text-muted">
-              Browse curriculum-aligned Mathematics courses organized by class. Preview content freely — login required only for purchases, downloads, and progress tracking.
-            </p>
-          </motion.div>
-
-          {/* Class Grade Filter Tabs */}
-          <div className="mt-8 flex flex-wrap gap-2">
-            <button
-              onClick={() => setGradeFilter('all')}
-              className={`px-4 py-2 rounded-full font-semibold text-sm transition-all border ${gradeFilter === 'all' ? 'bg-brand-gradient text-white border-transparent shadow-sm' : 'bg-white text-ink border-primary/10 hover:border-primary/30'}`}
-            >
-              All Classes
-            </button>
-            {CLASS_GRADES.map((grade) => (
-              <button
-                key={grade}
-                onClick={() => setGradeFilter(grade)}
-                className={`px-4 py-2 rounded-full font-semibold text-sm transition-all border ${gradeFilter === grade ? 'bg-brand-gradient text-white border-transparent shadow-sm' : 'bg-white text-ink border-primary/10 hover:border-primary/30'}`}
-              >
-                {grade}
-              </button>
-            ))}
-          </div>
-
-          {/* Search */}
-          <div className="mt-6 rounded-3xl border border-primary/10 bg-white p-4 shadow-premium max-w-2xl">
-            <label className="relative block">
-              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted" />
-              <input
-                type="text"
-                placeholder="Search courses, topics..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-2xl border border-primary/10 bg-academic py-4 pl-12 pr-4 text-ink outline-none transition focus:border-primary"
-              />
-            </label>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Course Hierarchy Info */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

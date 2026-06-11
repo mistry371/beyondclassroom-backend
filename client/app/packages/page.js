@@ -27,40 +27,7 @@ export default function PackagesPage() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative py-20 overflow-hidden">
-        <div className="absolute inset-0 hero-grid opacity-60" />
-        <div className="absolute inset-0 bg-gradient-to-b from-navy/95 to-primary/90" />
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 text-white/90 text-sm font-semibold mb-6">
-              <Zap className="h-4 w-4 text-accent" /> Choose Your Plan
-            </span>
-            <h1 className="text-4xl md:text-6xl font-black text-white mb-5 leading-tight">
-              Simple, Transparent<br />
-              <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent">Pricing</span>
-            </h1>
-            <p className="text-white/75 text-lg mb-8 max-w-2xl mx-auto">
-              Premium Mathematics content for Class 1–8. Pick the plan that fits your child&apos;s learning goals.
-            </p>
-            {/* Currency Toggle */}
-            <div className="inline-flex bg-white/10 backdrop-blur-xl rounded-2xl p-1.5 border border-white/20">
-              {['INR', 'USD'].map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`px-8 py-2.5 rounded-xl font-bold text-sm transition-all ${
-                    currency === c
-                      ? 'bg-white text-primary shadow-lg'
-                      : 'text-white/70 hover:text-white'
-                  }`}
-                >
-                  {c === 'INR' ? '₹ INR' : '$ USD'}
-                </button>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      
 
       {/* Package Cards */}
       <section className="py-16 -mt-6">
@@ -190,38 +157,7 @@ export default function PackagesPage() {
       </section>
 
       {/* FAQ */}
-      <section className="py-14 bg-soft-gradient">
-        <div className="max-w-3xl mx-auto px-4">
-          <SectionHeader badge="FAQ" title="Frequently Asked Questions" />
-          <div className="space-y-3">
-            {faqs.map((faq, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-sm">
-                <button
-                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between p-5 text-left font-semibold text-ink hover:bg-academic/50 transition-colors"
-                >
-                  <span>{faq.q}</span>
-                  <motion.div animate={{ rotate: openFaq === i ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                    <ChevronDown className="h-5 w-5 text-primary flex-shrink-0" />
-                  </motion.div>
-                </button>
-                <AnimatePresence>
-                  {openFaq === i && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="px-5 pb-5 text-muted border-t border-primary/5 pt-3">{faq.a}</div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+     
 
       <MarketingShell />
     </div>

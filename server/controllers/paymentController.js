@@ -1,6 +1,6 @@
 const Razorpay = require('razorpay')
 const crypto = require('crypto')
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 
 // Lazy init — only create instance when keys are available
 const getRazorpay = () => {
@@ -16,7 +16,7 @@ const getRazorpay = () => {
 // Create Order
 exports.createOrder = async (req, res) => {
   try {
-    const { courseId, amount } = req.body
+    const { courseId, packageId, amount } = req.body
     const userId = req.user._id
 
     // Create Razorpay order
@@ -26,30 +26,31 @@ exports.createOrder = async (req, res) => {
       currency: 'INR',
       receipt: `order_${Date.now()}`,
       notes: {
-        courseId,
-        userId
+        courseId: courseId || '',
+        packageId: packageId || '',
+        userId: userId.toString()
       }
     }
 
     const order = await razorpay.orders.create(options)
 
-    // Save order to database
-    await db.read()
-    db.data.payments = db.data.payments || []
-    
     const payment = {
       _id: `payment-${Date.now()}`,
       userId,
       courseId,
+      packageId,
       amount,
       currency: 'INR',
       razorpayOrderId: order.id,
       status: 'pending',
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     }
 
-    db.data.payments.push(payment)
-    await db.write()
+    await models.payments.create(payment)
+
+    if (db.data.payments) {
+      db.data.payments.push(payment)
+    }
 
     res.json({
       success: true,
@@ -93,75 +94,114 @@ exports.verifyPayment = async (req, res) => {
     }
 
     // Payment verified - Update database
-    await db.read()
+    const payment = await models.payments.findOne({ razorpayOrderId: razorpay_order_id }).lean()
 
-    // Update payment status
-    const paymentIndex = db.data.payments.findIndex(
-      p => p.razorpayOrderId === razorpay_order_id
-    )
+    let purchasedCourseIds = [courseId].filter(Boolean)
+    let packageId = null
 
-    if (paymentIndex !== -1) {
-      db.data.payments[paymentIndex].status = 'success'
-      db.data.payments[paymentIndex].razorpayPaymentId = razorpay_payment_id
-      db.data.payments[paymentIndex].razorpaySignature = razorpay_signature
-      db.data.payments[paymentIndex].updatedAt = new Date()
+    if (payment) {
+      await models.payments.updateOne(
+        { _id: payment._id },
+        { $set: {
+          status: 'success',
+          razorpayPaymentId: razorpay_payment_id,
+          razorpaySignature: razorpay_signature,
+          updatedAt: new Date().toISOString()
+        }}
+      )
+      
+      if (db.data.payments) {
+        const pIdx = db.data.payments.findIndex(p => p._id === payment._id)
+        if (pIdx !== -1) {
+          db.data.payments[pIdx].status = 'success'
+          db.data.payments[pIdx].razorpayPaymentId = razorpay_payment_id
+          db.data.payments[pIdx].razorpaySignature = razorpay_signature
+          db.data.payments[pIdx].updatedAt = new Date().toISOString()
+        }
+      }
+      
+      packageId = payment.packageId
     }
 
-    // Grant course access - Add to user's purchasedCourses (consistent with rest of app)
-    const userIndex = db.data.users.findIndex(u => u._id === userId)
-    if (userIndex !== -1) {
-      db.data.users[userIndex].purchasedCourses = db.data.users[userIndex].purchasedCourses || []
-      if (!db.data.users[userIndex].purchasedCourses.includes(courseId)) {
-        db.data.users[userIndex].purchasedCourses.push(courseId)
+    // If a package was purchased, get all its courseIds
+    if (packageId) {
+      const pkg = await models.packages.findById(packageId).lean()
+      if (pkg && pkg.courseIds) {
+        purchasedCourseIds = [...new Set([...purchasedCourseIds, ...pkg.courseIds])]
+      }
+    }
+
+    // Grant course access - Add to user's purchasedCourses
+    await models.users.updateOne(
+      { _id: userId },
+      { $addToSet: { purchasedCourses: { $each: purchasedCourseIds } } }
+    )
+    
+    if (db.data.users) {
+      const userIndex = db.data.users.findIndex(u => u._id === userId)
+      if (userIndex !== -1) {
+        db.data.users[userIndex].purchasedCourses = db.data.users[userIndex].purchasedCourses || []
+        purchasedCourseIds.forEach(id => {
+          if (!db.data.users[userIndex].purchasedCourses.includes(id)) {
+            db.data.users[userIndex].purchasedCourses.push(id)
+          }
+        })
       }
     }
 
     // Create order record
-    db.data.orders = db.data.orders || []
-    const order = {
+    const orderRecord = {
       _id: `order-${Date.now()}`,
       userId,
-      courses: [courseId],
-      totalAmount: db.data.payments[paymentIndex].amount,
+      courses: purchasedCourseIds,
+      packageId,
+      totalAmount: payment ? payment.amount : 0,
       paymentId: razorpay_payment_id,
       status: 'completed',
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     }
-    db.data.orders.push(order)
+    
+    await models.orders.create(orderRecord)
+    if (db.data.orders) db.data.orders.push(orderRecord)
 
-    // Initialize progress tracking
-    db.data.progress = db.data.progress || []
-    const progress = {
-      _id: `progress-${Date.now()}`,
-      userId,
-      courseId,
-      completionPercentage: 0,
-      lessonsCompleted: [],
-      lastAccessedAt: new Date(),
-      enrolledAt: new Date(),
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year
-    }
-    db.data.progress.push(progress)
+    // Initialize progress tracking for all purchased courses
+    const progressPromises = purchasedCourseIds.map(async id => {
+      const existingProgress = await models.progress.findOne({ userId, courseId: id }).lean()
+      if (!existingProgress) {
+        const prog = {
+          _id: `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          userId,
+          courseId: id,
+          completionPercentage: 0,
+          lessonsCompleted: [],
+          lastAccessedAt: new Date().toISOString(),
+          enrolledAt: new Date().toISOString(),
+          expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
+        }
+        await models.progress.create(prog)
+        if (db.data.progress) db.data.progress.push(prog)
+      }
+    })
+    
+    await Promise.all(progressPromises)
 
-    const paymentAmount = db.data.payments[paymentIndex]?.amount || 0
+    const paymentAmount = payment ? payment.amount : 0
     try {
       const referralService = require('../services/referralService')
       await referralService.recordReferralCommission(
         userId,
         paymentAmount,
-        order._id,
+        orderRecord._id,
         razorpay_payment_id
       )
     } catch (refErr) {
       console.error('Referral commission failed:', refErr.message)
     }
 
-    await db.write()
-
     res.json({
       success: true,
       message: 'Payment verified successfully',
-      orderId: order._id
+      orderId: orderRecord._id
     })
   } catch (error) {
     console.error('Verify payment error:', error)
@@ -178,12 +218,14 @@ exports.getPaymentHistory = async (req, res) => {
   try {
     const userId = req.user._id
 
-    await db.read()
-    const payments = db.data.payments?.filter(p => p.userId === userId) || []
+    const payments = await models.payments.find({ userId }).sort({ createdAt: -1 }).lean()
+
+    const courseIds = [...new Set(payments.map(p => p.courseId).filter(Boolean))]
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title thumbnail _id').lean()
 
     // Populate course details
     const paymentsWithCourses = payments.map(payment => {
-      const course = db.data.courses?.find(c => c._id === payment.courseId)
+      const course = courses.find(c => c._id === payment.courseId)
       return {
         ...payment,
         course: course ? {
@@ -214,16 +256,16 @@ exports.checkCourseAccess = async (req, res) => {
     const { courseId } = req.params
     const userId = req.user._id
 
-    await db.read()
-
     // Check if user has purchased the course
-    const user = db.data.users?.find(u => u._id === userId)
+    const user = await models.users.findOne({ _id: userId }).lean()
     const hasAccess = user?.purchasedCourses?.includes(courseId) || false
 
     // Check if trial is active
-    const trial = db.data.trials?.find(
-      t => t.userId === userId && t.courseId === courseId && t.isActive
-    )
+    const trial = await models.trials.findOne({
+      userId,
+      courseId,
+      isActive: true
+    }).lean()
 
     const isTrialActive = trial && new Date(trial.endDate) > new Date()
 
@@ -249,12 +291,8 @@ exports.startFreeTrial = async (req, res) => {
     const { courseId } = req.body
     const userId = req.user._id
 
-    await db.read()
-
     // Check if trial already exists
-    const existingTrial = db.data.trials?.find(
-      t => t.userId === userId && t.courseId === courseId
-    )
+    const existingTrial = await models.trials.findOne({ userId, courseId }).lean()
 
     if (existingTrial) {
       return res.status(400).json({
@@ -264,7 +302,7 @@ exports.startFreeTrial = async (req, res) => {
     }
 
     // Check if user already purchased
-    const user = db.data.users?.find(u => u._id === userId)
+    const user = await models.users.findOne({ _id: userId }).lean()
     if (user?.purchasedCourses?.includes(courseId)) {
       return res.status(400).json({
         success: false,
@@ -273,20 +311,19 @@ exports.startFreeTrial = async (req, res) => {
     }
 
     // Create trial
-    db.data.trials = db.data.trials || []
     const trial = {
       _id: `trial-${Date.now()}`,
       userId,
       courseId,
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days
       isActive: true,
       accessedLessons: [],
-      createdAt: new Date()
+      createdAt: new Date().toISOString()
     }
 
-    db.data.trials.push(trial)
-    await db.write()
+    await models.trials.create(trial)
+    if (db.data.trials) db.data.trials.push(trial)
 
     res.json({
       success: true,

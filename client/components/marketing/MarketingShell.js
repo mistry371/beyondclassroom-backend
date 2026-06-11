@@ -1,8 +1,6 @@
 'use client'
 
 import Footer from './Footer'
-import StickyCTA from './StickyCTA'
-import SocialProofToast from './SocialProofToast'
 import MobileBottomNav from './MobileBottomNav'
 
 export default function MarketingShell({ children }) {
@@ -10,8 +8,6 @@ export default function MarketingShell({ children }) {
     <>
       {children}
       <Footer />
-      <StickyCTA />
-      <SocialProofToast />
       <MobileBottomNav />
     </>
   )

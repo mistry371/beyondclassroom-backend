@@ -1,6 +1,4 @@
-const { db } = require('../database/db')
-const Exam = require('../models/Exam')
-const ExamAttempt = require('../models/ExamAttempt')
+const { db, models } = require('../database/db')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -8,12 +6,25 @@ const generateId = () => Date.now().toString() + Math.random().toString(36).slic
 
 exports.getAllExams = async (req, res) => {
   try {
-    await db.read()
-    const exams = (db.data.exams || []).map(e => ({
+    const exams = await models.exams.find().lean()
+    
+    const examIds = exams.map(e => e._id)
+    
+    // Aggregation to get attempt counts
+    const counts = await models.examAttempts.aggregate([
+      { $match: { examId: { $in: examIds }, status: 'submitted' } },
+      { $group: { _id: "$examId", count: { $sum: 1 } } }
+    ])
+    
+    const countMap = {}
+    counts.forEach(c => countMap[c._id] = c.count)
+    
+    const populated = exams.map(e => ({
       ...e,
-      attemptCount: (db.data.examAttempts || []).filter(a => a.examId === e._id && a.status === 'submitted').length
+      attemptCount: countMap[e._id] || 0
     }))
-    res.json({ success: true, exams })
+    
+    res.json({ success: true, exams: populated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -21,8 +32,7 @@ exports.getAllExams = async (req, res) => {
 
 exports.getExam = async (req, res) => {
   try {
-    await db.read()
-    const exam = (db.data.exams || []).find(e => e._id === req.params.examId)
+    const exam = await models.exams.findOne({ _id: req.params.examId }).lean()
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
     res.json({ success: true, exam })
   } catch (error) {
@@ -32,17 +42,22 @@ exports.getExam = async (req, res) => {
 
 exports.createExam = async (req, res) => {
   try {
-    await db.read()
     // Auto-calculate totalMarks from sections
     const sections = req.body.sections || []
     const totalMarks = sections.reduce((sum, s) => {
       return sum + (s.questions || []).length * (s.marksPerQuestion || 4)
     }, 0) || req.body.totalMarks || 100
 
-    const exam = new Exam({ ...req.body, totalMarks })
-    db.data.exams = db.data.exams || []
-    db.data.exams.push(exam)
-    await db.write()
+    const exam = { 
+      _id: generateId(),
+      ...req.body, 
+      totalMarks,
+      createdAt: new Date().toISOString()
+    }
+    
+    await models.exams.create(exam)
+    if (db.data.exams) db.data.exams.push(exam)
+    
     res.status(201).json({ success: true, exam })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -51,18 +66,26 @@ exports.createExam = async (req, res) => {
 
 exports.updateExam = async (req, res) => {
   try {
-    await db.read()
-    const idx = (db.data.exams || []).findIndex(e => e._id === req.params.examId)
-    if (idx === -1) return res.status(404).json({ success: false, message: 'Exam not found' })
+    const oldExam = await models.exams.findOne({ _id: req.params.examId }).lean()
+    if (!oldExam) return res.status(404).json({ success: false, message: 'Exam not found' })
 
-    const sections = req.body.sections || db.data.exams[idx].sections || []
+    const sections = req.body.sections || oldExam.sections || []
     const totalMarks = sections.reduce((sum, s) => {
       return sum + (s.questions || []).length * (s.marksPerQuestion || 4)
-    }, 0) || req.body.totalMarks || db.data.exams[idx].totalMarks
+    }, 0) || req.body.totalMarks || oldExam.totalMarks
 
-    db.data.exams[idx] = { ...db.data.exams[idx], ...req.body, totalMarks, updatedAt: new Date() }
-    await db.write()
-    res.json({ success: true, exam: db.data.exams[idx] })
+    const updated = await models.exams.findOneAndUpdate(
+      { _id: req.params.examId },
+      { $set: { ...req.body, totalMarks, updatedAt: new Date() } },
+      { new: true }
+    ).lean()
+    
+    if (db.data.exams) {
+      const idx = db.data.exams.findIndex(e => e._id === req.params.examId)
+      if (idx !== -1) Object.assign(db.data.exams[idx], updated)
+    }
+    
+    res.json({ success: true, exam: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -70,10 +93,16 @@ exports.updateExam = async (req, res) => {
 
 exports.deleteExam = async (req, res) => {
   try {
-    await db.read()
-    db.data.exams = (db.data.exams || []).filter(e => e._id !== req.params.examId)
-    db.data.examAttempts = (db.data.examAttempts || []).filter(a => a.examId !== req.params.examId)
-    await db.write()
+    await models.exams.deleteOne({ _id: req.params.examId })
+    await models.examAttempts.deleteMany({ examId: req.params.examId })
+    
+    if (db.data.exams) {
+      db.data.exams = db.data.exams.filter(e => e._id !== req.params.examId)
+    }
+    if (db.data.examAttempts) {
+      db.data.examAttempts = db.data.examAttempts.filter(a => a.examId !== req.params.examId)
+    }
+    
     res.json({ success: true, message: 'Exam deleted' })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -84,13 +113,14 @@ exports.deleteExam = async (req, res) => {
 
 exports.getExamAnalytics = async (req, res) => {
   try {
-    await db.read()
     const { examId } = req.params
-    const exam = (db.data.exams || []).find(e => e._id === examId)
+    const exam = await models.exams.findOne({ _id: examId }).lean()
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
 
-    const attempts = (db.data.examAttempts || []).filter(a => a.examId === examId && a.status === 'submitted')
-    const users = db.data.users || []
+    const attempts = await models.examAttempts.find({ examId, status: 'submitted' }).lean()
+    
+    const userIds = [...new Set(attempts.map(a => a.userId).filter(Boolean))]
+    const users = await models.users.find({ _id: { $in: userIds } }).select('name _id').lean()
 
     if (attempts.length === 0) {
       return res.json({ success: true, analytics: { totalAttempts: 0, avgScore: 0, passRate: 0, toppers: [], scoreDistribution: [] } })
@@ -129,7 +159,7 @@ exports.getExamAnalytics = async (req, res) => {
       })
 
     // Section-wise analysis
-    const sectionAnalysis = exam.sections.map(section => {
+    const sectionAnalysis = (exam.sections || []).map(section => {
       const sectionScores = attempts.map(a => {
         const sr = a.sectionResults?.find(s => s.sectionId === section._id)
         return sr ? sr.percentage : 0
@@ -163,40 +193,47 @@ exports.getExamAnalytics = async (req, res) => {
 // Get published exams (student view — no answers)
 exports.getPublishedExams = async (req, res) => {
   try {
-    await db.read()
     const userId = req.user._id
     const now = new Date()
 
-    const exams = (db.data.exams || [])
-      .filter(e => {
-        if (!e.isPublished) return false
-        if (e.startDate && new Date(e.startDate) > now) return false
-        if (e.endDate && new Date(e.endDate) < now) return false
-        return true
-      })
-      .map(e => {
-        const myAttempts = (db.data.examAttempts || []).filter(a => a.examId === e._id && a.userId === userId && a.status === 'submitted')
-        const inProgress = (db.data.examAttempts || []).find(a => a.examId === e._id && a.userId === userId && a.status === 'in_progress')
-        return {
-          _id: e._id,
-          title: e.title,
-          description: e.description,
-          duration: e.duration,
-          totalMarks: e.totalMarks,
-          passingMarks: e.passingMarks,
-          negativeMarking: e.negativeMarking,
-          negativeMarkValue: e.negativeMarkValue,
-          sections: e.sections.map(s => ({ _id: s._id, name: s.name, questionCount: s.questions.length, marksPerQuestion: s.marksPerQuestion })),
-          instructions: e.instructions,
-          maxAttempts: e.maxAttempts,
-          attemptCount: myAttempts.length,
-          canAttempt: myAttempts.length < e.maxAttempts,
-          inProgressAttemptId: inProgress?._id || null,
-          bestScore: myAttempts.length ? Math.max(...myAttempts.map(a => a.percentage)) : null,
-        }
-      })
+    const allExams = await models.exams.find({ isPublished: true }).lean()
+    
+    const exams = allExams.filter(e => {
+      if (e.startDate && new Date(e.startDate) > now) return false
+      if (e.endDate && new Date(e.endDate) < now) return false
+      return true
+    })
+    
+    const examIds = exams.map(e => e._id)
+    
+    const userAttempts = await models.examAttempts.find({ 
+      examId: { $in: examIds }, 
+      userId 
+    }).lean()
 
-    res.json({ success: true, exams })
+    const populated = exams.map(e => {
+      const myAttempts = userAttempts.filter(a => a.examId === e._id && a.status === 'submitted')
+      const inProgress = userAttempts.find(a => a.examId === e._id && a.status === 'in_progress')
+      return {
+        _id: e._id,
+        title: e.title,
+        description: e.description,
+        duration: e.duration,
+        totalMarks: e.totalMarks,
+        passingMarks: e.passingMarks,
+        negativeMarking: e.negativeMarking,
+        negativeMarkValue: e.negativeMarkValue,
+        sections: (e.sections || []).map(s => ({ _id: s._id, name: s.name, questionCount: (s.questions || []).length, marksPerQuestion: s.marksPerQuestion })),
+        instructions: e.instructions,
+        maxAttempts: e.maxAttempts,
+        attemptCount: myAttempts.length,
+        canAttempt: myAttempts.length < e.maxAttempts,
+        inProgressAttemptId: inProgress?._id || null,
+        bestScore: myAttempts.length ? Math.max(...myAttempts.map(a => a.percentage)) : null,
+      }
+    })
+
+    res.json({ success: true, exams: populated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -205,27 +242,34 @@ exports.getPublishedExams = async (req, res) => {
 // Start exam — creates attempt, returns exam with questions (no correct answers)
 exports.startExam = async (req, res) => {
   try {
-    await db.read()
     const { examId } = req.params
     const userId = req.user._id
 
-    const exam = (db.data.exams || []).find(e => e._id === examId)
+    const exam = await models.exams.findOne({ _id: examId }).lean()
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
     if (!exam.isPublished) return res.status(403).json({ success: false, message: 'Exam not available' })
 
     // Check attempt limit
-    const prevAttempts = (db.data.examAttempts || []).filter(a => a.examId === examId && a.userId === userId && a.status === 'submitted')
+    const prevAttempts = await models.examAttempts.find({ examId, userId, status: 'submitted' }).lean()
     if (prevAttempts.length >= exam.maxAttempts) {
       return res.status(403).json({ success: false, message: `Maximum ${exam.maxAttempts} attempt(s) allowed` })
     }
 
     // Check for existing in-progress attempt
-    let attempt = (db.data.examAttempts || []).find(a => a.examId === examId && a.userId === userId && a.status === 'in_progress')
+    let attempt = await models.examAttempts.findOne({ examId, userId, status: 'in_progress' }).lean()
+    
     if (!attempt) {
-      attempt = new ExamAttempt({ examId, userId, courseId: exam.courseId })
-      db.data.examAttempts = db.data.examAttempts || []
-      db.data.examAttempts.push(attempt)
-      await db.write()
+      attempt = {
+        _id: generateId(),
+        examId, 
+        userId, 
+        courseId: exam.courseId,
+        status: 'in_progress',
+        answers: {},
+        startedAt: new Date().toISOString()
+      }
+      await models.examAttempts.create(attempt)
+      if (db.data.examAttempts) db.data.examAttempts.push(attempt)
     }
 
     // Return exam without correct answers
@@ -242,8 +286,8 @@ exports.startExam = async (req, res) => {
       shuffleQuestions: exam.shuffleQuestions,
       shuffleOptions: exam.shuffleOptions,
       allowReview: exam.allowReview,
-      sections: exam.sections.map(section => {
-        let questions = section.questions.map(q => ({
+      sections: (exam.sections || []).map(section => {
+        let questions = (section.questions || []).map(q => ({
           _id: q._id,
           question: q.question,
           type: q.type,
@@ -273,22 +317,39 @@ exports.startExam = async (req, res) => {
 // Save answer (auto-save)
 exports.saveAnswer = async (req, res) => {
   try {
-    await db.read()
     const { attemptId } = req.params
     const { questionKey, answer, markedForReview } = req.body
 
-    const idx = (db.data.examAttempts || []).findIndex(a => a._id === attemptId && a.userId === req.user._id)
-    if (idx === -1) return res.status(404).json({ success: false, message: 'Attempt not found' })
-    if (db.data.examAttempts[idx].status !== 'in_progress') {
+    const attempt = await models.examAttempts.findOne({ _id: attemptId, userId: req.user._id }).lean()
+    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' })
+    if (attempt.status !== 'in_progress') {
       return res.status(400).json({ success: false, message: 'Exam already submitted' })
     }
 
-    db.data.examAttempts[idx].answers[questionKey] = {
-      answer,
-      markedForReview: markedForReview || false,
-      answeredAt: new Date()
+    const setKey = `answers.${questionKey}`
+    await models.examAttempts.updateOne(
+      { _id: attemptId },
+      { $set: { 
+        [setKey]: {
+          answer,
+          markedForReview: markedForReview || false,
+          answeredAt: new Date().toISOString()
+        }
+      }}
+    )
+
+    if (db.data.examAttempts) {
+      const idx = db.data.examAttempts.findIndex(a => a._id === attemptId)
+      if (idx !== -1) {
+        db.data.examAttempts[idx].answers = db.data.examAttempts[idx].answers || {}
+        db.data.examAttempts[idx].answers[questionKey] = {
+          answer,
+          markedForReview: markedForReview || false,
+          answeredAt: new Date().toISOString()
+        }
+      }
     }
-    await db.write()
+    
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -298,34 +359,32 @@ exports.saveAnswer = async (req, res) => {
 // Submit exam
 exports.submitExam = async (req, res) => {
   try {
-    await db.read()
     const { attemptId } = req.params
     const { timeSpent, submittedBy } = req.body
 
-    const attemptIdx = (db.data.examAttempts || []).findIndex(a => a._id === attemptId && a.userId === req.user._id)
-    if (attemptIdx === -1) return res.status(404).json({ success: false, message: 'Attempt not found' })
+    const attempt = await models.examAttempts.findOne({ _id: attemptId, userId: req.user._id }).lean()
+    if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' })
 
-    const attempt = db.data.examAttempts[attemptIdx]
     if (attempt.status !== 'in_progress') {
       // Already submitted — return cached result
       return res.json({ success: true, result: attempt })
     }
 
-    const exam = (db.data.exams || []).find(e => e._id === attempt.examId)
+    const exam = await models.exams.findOne({ _id: attempt.examId }).lean()
     if (!exam) return res.status(404).json({ success: false, message: 'Exam not found' })
 
     // ── Evaluate ──────────────────────────────────────────────────────────
     let totalScore = 0
     const sectionResults = []
 
-    for (const section of exam.sections) {
+    for (const section of (exam.sections || [])) {
       let sectionScore = 0
       let correct = 0, wrong = 0, unattempted = 0
       const questionResults = []
 
-      for (const q of section.questions) {
+      for (const q of (section.questions || [])) {
         const key = `${section._id}_${q._id}`
-        const userEntry = attempt.answers[key]
+        const userEntry = (attempt.answers || {})[key]
         const userAnswer = userEntry?.answer
 
         const marksForCorrect = q.marks || section.marksPerQuestion || 4
@@ -368,7 +427,7 @@ exports.submitExam = async (req, res) => {
       }
 
       sectionScore = Math.max(0, sectionScore)  // floor at 0
-      const sectionTotal = section.questions.reduce((s, q) => s + (q.marks || section.marksPerQuestion || 4), 0)
+      const sectionTotal = (section.questions || []).reduce((s, q) => s + (q.marks || section.marksPerQuestion || 4), 0)
       totalScore += sectionScore
 
       sectionResults.push({
@@ -389,26 +448,33 @@ exports.submitExam = async (req, res) => {
     const passed = totalScore >= exam.passingMarks
 
     // Compute rank among all submitted attempts
-    const allSubmitted = (db.data.examAttempts || []).filter(a => a.examId === exam._id && a.status === 'submitted')
+    const allSubmitted = await models.examAttempts.find({ examId: exam._id, status: 'submitted' }).lean()
     const rank = allSubmitted.filter(a => a.totalScore > totalScore).length + 1
 
     // Update attempt
-    db.data.examAttempts[attemptIdx] = {
-      ...attempt,
-      status: 'submitted',
-      submittedAt: new Date(),
-      submittedBy: submittedBy || 'user',
-      timeSpent: timeSpent || 0,
-      sectionResults,
-      totalScore,
-      totalMarks: exam.totalMarks,
-      percentage,
-      passed,
-      rank
-    }
-    await db.write()
+    const updated = await models.examAttempts.findOneAndUpdate(
+      { _id: attemptId },
+      { $set: {
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        submittedBy: submittedBy || 'user',
+        timeSpent: timeSpent || 0,
+        sectionResults,
+        totalScore,
+        totalMarks: exam.totalMarks,
+        percentage,
+        passed,
+        rank
+      }},
+      { new: true }
+    ).lean()
 
-    res.json({ success: true, result: db.data.examAttempts[attemptIdx] })
+    if (db.data.examAttempts) {
+      const idx = db.data.examAttempts.findIndex(a => a._id === attemptId)
+      if (idx !== -1) Object.assign(db.data.examAttempts[idx], updated)
+    }
+
+    res.json({ success: true, result: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -417,12 +483,11 @@ exports.submitExam = async (req, res) => {
 // Get attempt result
 exports.getAttemptResult = async (req, res) => {
   try {
-    await db.read()
-    const attempt = (db.data.examAttempts || []).find(a => a._id === req.params.attemptId && a.userId === req.user._id)
+    const attempt = await models.examAttempts.findOne({ _id: req.params.attemptId, userId: req.user._id }).lean()
     if (!attempt) return res.status(404).json({ success: false, message: 'Attempt not found' })
     if (attempt.status !== 'submitted') return res.status(400).json({ success: false, message: 'Exam not yet submitted' })
 
-    const exam = (db.data.exams || []).find(e => e._id === attempt.examId)
+    const exam = await models.exams.findOne({ _id: attempt.examId }).lean()
     res.json({ success: true, attempt, exam: exam ? { title: exam.title, totalMarks: exam.totalMarks, passingMarks: exam.passingMarks } : null })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -432,11 +497,22 @@ exports.getAttemptResult = async (req, res) => {
 // Get my attempts for an exam
 exports.getMyAttempts = async (req, res) => {
   try {
-    await db.read()
-    const attempts = (db.data.examAttempts || [])
-      .filter(a => a.examId === req.params.examId && a.userId === req.user._id && a.status === 'submitted')
-      .map(a => ({ _id: a._id, totalScore: a.totalScore, percentage: a.percentage, passed: a.passed, submittedAt: a.submittedAt, timeSpent: a.timeSpent, rank: a.rank }))
-    res.json({ success: true, attempts })
+    const attempts = await models.examAttempts.find({ 
+      examId: req.params.examId, 
+      userId: req.user._id, 
+      status: 'submitted' 
+    }).lean()
+    
+    const mapped = attempts.map(a => ({ 
+      _id: a._id, 
+      totalScore: a.totalScore, 
+      percentage: a.percentage, 
+      passed: a.passed, 
+      submittedAt: a.submittedAt, 
+      timeSpent: a.timeSpent, 
+      rank: a.rank 
+    }))
+    res.json({ success: true, attempts: mapped })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }

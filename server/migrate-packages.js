@@ -1,6 +1,7 @@
-const { db, models } = require('../database/db')
-const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose');
+const { db, initDB, models } = require('./database/db');
 
+// Frontend static packages to use as seed
 const staticPackages = [
   {
     _id: 'beta',
@@ -119,116 +120,21 @@ const staticPackages = [
   },
 ]
 
-async function seedLaunchDemo() {
-  // Clear demo courses
-  await models.courses.deleteMany({ isDemo: true })
-  if (db.data.courses) {
-    db.data.courses = db.data.courses.filter(c => !c.isDemo)
-  }
-
-  // Seed Class 1-8 courses
-  for (let i = 1; i <= 8; i++) {
-    const courseId = `course-class-${i}`
-    let existing = await models.courses.findOne({ _id: courseId }).lean()
-    if (!existing) {
-      const courseData = {
-        _id: courseId,
-        title: `Class ${i} Mathematics`,
-        description: `Complete mathematics curriculum and practice for Class ${i}.`,
-        category: 'Mathematics',
-        grade: `Class ${i}`,
-        difficulty: 'Intermediate',
-        price: 999,
-        discountPrice: 499,
-        instructor: 'Beyond Classroom Experts',
-        duration: '1 Year',
-        topics: ['Number System', 'Algebra', 'Geometry'],
-        thumbnail: '',
-        status: 'published',
-        isFeatured: true,
-        isFree: false,
-        isDemo: false,
-        enrolledCount: Math.floor(Math.random() * 500) + 100,
-        rating: 4.8,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-      await models.courses.create(courseData)
-      if (db.data.courses) db.data.courses.push(courseData)
-    }
-  }
-
-  // Add the specific ₹599 demo class course the user asked for
-  const demoExists = await models.courses.findOne({ _id: 'course-class-6-demo' }).lean()
-  if (!demoExists) {
-    const demoData = {
-      _id: 'course-class-6-demo',
-      title: 'Class 6 Complete Demo (₹599)',
-      description: 'Full featured demo course for Class 6 mathematics.',
-      category: 'Mathematics',
-      grade: 'Class 6',
-      difficulty: 'Intermediate',
-      price: 1999,
-      discountPrice: 599,
-      instructor: 'Beyond Classroom Experts',
-      duration: '1 Year',
-      topics: ['Number System', 'Algebra'],
-      thumbnail: '',
-      status: 'published',
-      isFeatured: true,
-      isFree: false,
-      isDemo: true,
-      enrolledCount: 420,
-      rating: 4.9,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-    await models.courses.create(demoData)
-    if (db.data.courses) db.data.courses.push(demoData)
-  }
-
-  // Seed packages
+async function migrate() {
+  console.log('Connecting to DB...')
+  require('dotenv').config({ path: './server/.env' })
+  await initDB()
+  
+  console.log('Clearing old packages...')
   await models.packages.deleteMany({})
-  await models.packages.insertMany(staticPackages)
-  db.data.packages = staticPackages
 
-  // Seed admin user
-  const adminEmail = 'mistryjenish1003@gmail.com'
-  const adminHash = await bcrypt.hash('Jenish@1019', 12)
-  
-  let adminUser = await models.users.findOne({ $or: [{ _id: 'admin-default' }, { email: adminEmail }] }).lean()
-  
-  if (adminUser) {
-    await models.users.updateOne(
-      { _id: adminUser._id },
-      { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } }
-    )
-    if (db.data.users) {
-      const idx = db.data.users.findIndex(u => u._id === adminUser._id)
-      if (idx !== -1) {
-        Object.assign(db.data.users[idx], { email: adminEmail, role: 'admin', password: adminHash, status: 'active' })
-      }
-    }
-  } else {
-    const newAdmin = {
-      _id: 'admin-default',
-      name: 'Jenish Mistry',
-      email: adminEmail,
-      password: adminHash,
-      role: 'admin',
-      status: 'active',
-      profilePhoto: '',
-      isGuest: false,
-      purchasedCourses: [],
-      favorites: [],
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    }
-    await models.users.create(newAdmin)
-    if (db.data.users) db.data.users.push(newAdmin)
+  console.log('Seeding new static packages with predefined classes 1 to 8 mappings...')
+  for (const pkg of staticPackages) {
+    await models.packages.create(pkg)
   }
 
-  console.log('✅ Launch demo data seeded (classes, packages, admin)')
+  console.log('Migration complete.')
+  process.exit(0)
 }
 
-module.exports = { seedLaunchDemo }
+migrate()

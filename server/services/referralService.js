@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -31,23 +31,20 @@ exports.generateReferralCode = (name) => {
 
 exports.findPromoterByCode = async (code) => {
   if (!code) return null
-  await db.read()
   const normalized = String(code).trim().toUpperCase()
-  return db.data.promoters?.find(
-    (p) => p.referralCode?.toUpperCase() === normalized && p.status === 'active'
-  ) || null
+  return await models.promoters.findOne({
+    referralCode: new RegExp(`^${normalized}$`, 'i'),
+    status: 'active'
+  }).lean() || null
 }
 
 exports.recordReferralSignup = async (referralCode, user) => {
   const promoter = await exports.findPromoterByCode(referralCode)
   if (!promoter) return null
 
-  await db.read()
-
-  const existing = db.data.referrals?.find((r) => r.userId === user._id)
+  const existing = await models.referrals.findOne({ userId: user._id }).lean()
   if (existing) return existing
 
-  db.data.referrals = db.data.referrals || []
   const referral = {
     _id: generateId(),
     promoterId: promoter._id,
@@ -59,75 +56,122 @@ exports.recordReferralSignup = async (referralCode, user) => {
     commissionAmount: 0,
     createdAt: new Date(),
   }
-  db.data.referrals.push(referral)
+  
+  await models.referrals.create(referral)
+  if (db.data.referrals) db.data.referrals.push(referral)
 
-  const pIdx = db.data.promoters.findIndex((p) => p._id === promoter._id)
-  if (pIdx !== -1) {
-    db.data.promoters[pIdx].referrals = (db.data.promoters[pIdx].referrals || 0) + 1
-    db.data.promoters[pIdx].studentsJoined = (db.data.promoters[pIdx].studentsJoined || 0) + 1
-    db.data.promoters[pIdx].rank = computeRank(db.data.promoters[pIdx].referrals)
-    db.data.promoters[pIdx].updatedAt = new Date()
+  const newReferrals = (promoter.referrals || 0) + 1
+  const newStudentsJoined = (promoter.studentsJoined || 0) + 1
+  const newRank = computeRank(newReferrals)
+
+  await models.promoters.updateOne(
+    { _id: promoter._id },
+    { $set: { referrals: newReferrals, studentsJoined: newStudentsJoined, rank: newRank, updatedAt: new Date() } }
+  )
+  if (db.data.promoters) {
+    const pIdx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+    if (pIdx !== -1) {
+      db.data.promoters[pIdx].referrals = newReferrals
+      db.data.promoters[pIdx].studentsJoined = newStudentsJoined
+      db.data.promoters[pIdx].rank = newRank
+      db.data.promoters[pIdx].updatedAt = new Date()
+    }
   }
 
-  const uIdx = db.data.users.findIndex((u) => u._id === user._id)
-  if (uIdx !== -1) {
-    db.data.users[uIdx].referredByPromoterId = promoter._id
-    db.data.users[uIdx].referralCode = promoter.referralCode
+  await models.users.updateOne(
+    { _id: user._id },
+    { $set: { referredByPromoterId: promoter._id, referralCode: promoter.referralCode } }
+  )
+  if (db.data.users) {
+    const uIdx = db.data.users.findIndex((u) => u._id === user._id)
+    if (uIdx !== -1) {
+      db.data.users[uIdx].referredByPromoterId = promoter._id
+      db.data.users[uIdx].referralCode = promoter.referralCode
+    }
   }
 
-  await db.write()
   return referral
 }
 
 exports.recordReferralCommission = async (userId, orderAmount, orderId, paymentId) => {
-  await db.read()
-  const user = db.data.users?.find((u) => u._id === userId)
+  const user = await models.users.findOne({ _id: userId }).lean()
   if (!user?.referredByPromoterId) return null
 
-  let referral = db.data.referrals?.find(
-    (r) => r.userId === userId && r.promoterId === user.referredByPromoterId
-  )
+  let referral = await models.referrals.findOne({
+    userId: userId,
+    promoterId: user.referredByPromoterId
+  }).lean()
+  
   if (!referral) return null
-
   if (referral.status === 'paid') return referral
 
-  const pIdx = db.data.promoters.findIndex((p) => p._id === user.referredByPromoterId)
-  if (pIdx === -1) return null
+  const promoter = await models.promoters.findOne({ _id: user.referredByPromoterId }).lean()
+  if (!promoter) return null
 
-  const promoter = db.data.promoters[pIdx]
   const rate = promoter.commissionRate ?? 0.2
   const commission = Math.round(orderAmount * rate)
 
-  const rIdx = db.data.referrals.findIndex((r) => r._id === referral._id)
-  db.data.referrals[rIdx].status = 'paid'
-  db.data.referrals[rIdx].orderId = orderId
-  db.data.referrals[rIdx].paymentId = paymentId
-  db.data.referrals[rIdx].orderAmount = orderAmount
-  db.data.referrals[rIdx].commissionAmount = commission
-  db.data.referrals[rIdx].convertedAt = new Date()
+  const updatedReferral = await models.referrals.findOneAndUpdate(
+    { _id: referral._id },
+    { 
+      $set: {
+        status: 'paid',
+        orderId,
+        paymentId,
+        orderAmount,
+        commissionAmount: commission,
+        convertedAt: new Date()
+      }
+    },
+    { new: true }
+  ).lean()
 
-  db.data.promoters[pIdx].earnings = (promoter.earnings || 0) + commission
-  db.data.promoters[pIdx].pendingPayout = (promoter.pendingPayout || 0) + commission
-  db.data.promoters[pIdx].rank = computeRank(db.data.promoters[pIdx].referrals || 0)
-  db.data.promoters[pIdx].updatedAt = new Date()
+  if (db.data.referrals) {
+    const rIdx = db.data.referrals.findIndex((r) => r._id === referral._id)
+    if (rIdx !== -1) Object.assign(db.data.referrals[rIdx], updatedReferral)
+  }
 
-  await db.write()
-  return db.data.referrals[rIdx]
+  const newEarnings = (promoter.earnings || 0) + commission
+  const newPendingPayout = (promoter.pendingPayout || 0) + commission
+  const newRank = computeRank(promoter.referrals || 0)
+
+  await models.promoters.updateOne(
+    { _id: promoter._id },
+    { 
+      $set: {
+        earnings: newEarnings,
+        pendingPayout: newPendingPayout,
+        rank: newRank,
+        updatedAt: new Date()
+      }
+    }
+  )
+
+  if (db.data.promoters) {
+    const pIdx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+    if (pIdx !== -1) {
+      db.data.promoters[pIdx].earnings = newEarnings
+      db.data.promoters[pIdx].pendingPayout = newPendingPayout
+      db.data.promoters[pIdx].rank = newRank
+      db.data.promoters[pIdx].updatedAt = new Date()
+    }
+  }
+
+  return updatedReferral
 }
 
 exports.getLeaderboard = async (limit = 10) => {
-  await db.read()
-  const promoters = (db.data.promoters || [])
-    .filter((p) => p.status === 'active')
-    .sort((a, b) => (b.earnings || 0) - (a.earnings || 0))
-    .slice(0, limit)
-    .map((p, i) => ({
-      rank: i + 1,
-      name: p.name?.split(' ')[0] + ' ' + (p.name?.split(' ')[1]?.[0] || '') + '.',
-      referrals: p.referrals || 0,
-      earnings: `₹${(p.earnings || 0).toLocaleString('en-IN')}`,
-    }))
-  return promoters
+  const promoters = await models.promoters.find({ status: 'active' })
+    .sort({ earnings: -1 })
+    .limit(limit)
+    .lean()
+    
+  return promoters.map((p, i) => ({
+    rank: i + 1,
+    name: p.name?.split(' ')[0] + ' ' + (p.name?.split(' ')[1]?.[0] || '') + '.',
+    referrals: p.referrals || 0,
+    earnings: `₹${(p.earnings || 0).toLocaleString('en-IN')}`,
+  }))
 }
 
 exports.sanitizePromoter = (p) => ({
@@ -150,18 +194,17 @@ exports.sanitizePromoter = (p) => ({
 })
 
 exports.getPromoterDashboard = async (promoterId) => {
-  await db.read()
-  const promoter = db.data.promoters?.find((p) => p._id === promoterId)
+  const promoter = await models.promoters.findOne({ _id: promoterId }).lean()
   if (!promoter) return null
 
-  const referrals = (db.data.referrals || [])
-    .filter((r) => r.promoterId === promoterId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 50)
+  const referrals = await models.referrals.find({ promoterId })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean()
 
-  const payouts = (db.data.promoterPayouts || [])
-    .filter((p) => p.promoterId === promoterId)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+  const payouts = await models.promoterPayouts.find({ promoterId })
+    .sort({ createdAt: -1 })
+    .lean()
 
   const history = [
     ...payouts.map((p) => ({

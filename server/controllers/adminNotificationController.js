@@ -1,12 +1,12 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get all notifications
 exports.getNotifications = async (req, res) => {
   try {
-    await db.read();
+    let notifications = await models.adminNotifications.find().sort({ createdAt: -1 }).lean()
     
-    if (!db.data.adminNotifications) {
-      db.data.adminNotifications = [
+    if (!notifications || notifications.length === 0) {
+      const defaultNotifications = [
         {
           _id: Date.now().toString() + '1',
           title: 'Welcome to Beyond Classroom',
@@ -26,10 +26,12 @@ exports.getNotifications = async (req, res) => {
           createdAt: new Date(Date.now() - 172800000).toISOString()
         }
       ];
-      await db.write();
+      await models.adminNotifications.insertMany(defaultNotifications)
+      if (db.data.adminNotifications) db.data.adminNotifications.push(...defaultNotifications);
+      notifications = defaultNotifications
     }
 
-    res.json({ notifications: db.data.adminNotifications });
+    res.json({ notifications });
   } catch (error) {
     console.error('Get notifications error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -40,11 +42,8 @@ exports.getNotifications = async (req, res) => {
 exports.sendNotification = async (req, res) => {
   try {
     const { title, message, type, targetUsers } = req.body;
-    await db.read();
-    
-    if (!db.data.adminNotifications) {
-      db.data.adminNotifications = [];
-    }
+
+    const userCount = await models.users.countDocuments()
 
     const newNotification = {
       _id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
@@ -52,12 +51,12 @@ exports.sendNotification = async (req, res) => {
       message,
       type: type || 'info',
       targetUsers: targetUsers || 'all',
-      deliveredCount: db.data.users.length,
+      deliveredCount: userCount,
       createdAt: new Date().toISOString()
     };
 
-    db.data.adminNotifications.unshift(newNotification);
-    await db.write();
+    await models.adminNotifications.create(newNotification)
+    if (db.data.adminNotifications) db.data.adminNotifications.unshift(newNotification);
 
     res.status(201).json({ notification: newNotification });
   } catch (error) {
@@ -69,16 +68,15 @@ exports.sendNotification = async (req, res) => {
 // Delete notification
 exports.deleteNotification = async (req, res) => {
   try {
-    await db.read();
-    
-    const index = db.data.adminNotifications?.findIndex(n => n._id === req.params.id);
-    
-    if (index === -1 || index === undefined) {
+    const result = await models.adminNotifications.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Notification not found' });
     }
 
-    db.data.adminNotifications.splice(index, 1);
-    await db.write();
+    if (db.data.adminNotifications) {
+      const index = db.data.adminNotifications.findIndex(n => n._id === req.params.id);
+      if (index !== -1) db.data.adminNotifications.splice(index, 1);
+    }
 
     res.json({ message: 'Notification deleted successfully' });
   } catch (error) {

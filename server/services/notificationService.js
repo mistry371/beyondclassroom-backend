@@ -1,4 +1,4 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const { sendEmail } = require('./emailService')
 const {
   welcomeEmailTemplate,
@@ -10,8 +10,6 @@ const {
 // Create notification
 exports.createNotification = async (userId, title, message, type = 'info') => {
   try {
-    await db.read()
-    
     const notification = {
       _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       user: userId,
@@ -22,10 +20,11 @@ exports.createNotification = async (userId, title, message, type = 'info') => {
       createdAt: new Date()
     }
     
-    db.data.notifications = db.data.notifications || []
-    db.data.notifications.push(notification)
+    await models.notifications.create(notification)
     
-    await db.write()
+    if (db.data.notifications) {
+      db.data.notifications.push(notification)
+    }
     
     return notification
   } catch (error) {

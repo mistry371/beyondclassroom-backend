@@ -1,4 +1,5 @@
-const { db } = require('./database/db')
+const { db, models } = require('./database/db')
+const mongoose = require('mongoose')
 
 // Simple ID generator
 function generateId(prefix) {
@@ -522,6 +523,16 @@ async function seedAdvancedCourse() {
 
   db.data.lessons.push(...module4Lessons)
 
+  // Save to Mongoose
+  await models.courses.deleteMany({ _id: advancedCourseId })
+  await models.courses.create(advancedCourse)
+
+  await models.modules.deleteMany({ courseId: advancedCourseId })
+  await models.modules.insertMany([module1, module2, module3, module4])
+
+  await models.lessons.deleteMany({ courseId: advancedCourseId })
+  await models.lessons.insertMany([...module1Lessons, ...module2Lessons, ...module3Lessons, ...module4Lessons])
+
   await db.write()
 
   console.log('✅ Advanced course created successfully!')
@@ -530,4 +541,6 @@ async function seedAdvancedCourse() {
   console.log(`📝 Lessons: ${db.data.lessons.filter(l => l.courseId === advancedCourseId).length}`)
 }
 
-seedAdvancedCourse().catch(console.error)
+seedAdvancedCourse()
+  .then(() => mongoose.disconnect())
+  .catch(console.error)

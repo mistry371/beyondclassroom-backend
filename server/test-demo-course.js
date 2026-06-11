@@ -1,24 +1,25 @@
-const { db } = require('./database/db')
+const { db, initDB, models } = require('./database/db')
+const mongoose = require('mongoose')
 
 async function setupTestUser() {
   try {
-    await db.read()
+    await initDB()
 
     console.log('🔧 Setting up test user for demo course...')
 
     // Find the demo course
-    const demoCourse = db.data.courses.find(c => c.title.includes('Complete Algebra Mastery - Demo'))
+    const demoCourse = await models.courses.findOne({ title: /Complete Algebra Mastery/i }).lean()
     
     if (!demoCourse) {
       console.error('❌ Demo course not found. Please run seed-demo-course.js first.')
       return
     }
 
-    console.log(`✅ Found demo course: ${demoCourse.title}`)
-    console.log(`   Course ID: ${demoCourse._id}`)
+    console.log(\`✅ Found demo course: \${demoCourse.title}\`)
+    console.log(\`   Course ID: \${demoCourse._id}\`)
 
     // Find or create a test user
-    let testUser = db.data.users.find(u => u.email === 'test@demo.com')
+    let testUser = await models.users.findOne({ email: 'test@demo.com' }).lean()
     
     if (!testUser) {
       const bcrypt = require('bcryptjs')
@@ -31,27 +32,31 @@ async function setupTestUser() {
         password: hashedPassword,
         role: 'student',
         purchasedCourses: [],
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       }
       
-      db.data.users.push(testUser)
+      await models.users.create(testUser)
       console.log('✅ Created test user: test@demo.com / test123')
     } else {
       console.log('✅ Found existing test user: test@demo.com')
     }
 
     // Add course to user's purchased courses if not already added
-    if (!testUser.purchasedCourses.includes(demoCourse._id)) {
-      testUser.purchasedCourses.push(demoCourse._id)
+    if (!(testUser.purchasedCourses || []).includes(demoCourse._id)) {
+      await models.users.updateOne(
+        { _id: testUser._id },
+        { $addToSet: { purchasedCourses: demoCourse._id } }
+      )
       console.log('✅ Added demo course to test user')
     } else {
       console.log('ℹ️  Test user already has access to demo course')
     }
 
     // Create initial progress record
-    const existingProgress = db.data.progress?.find(
-      p => p.userId === testUser._id && p.courseId === demoCourse._id
-    )
+    const existingProgress = await models.progress.findOne({
+      userId: testUser._id,
+      courseId: demoCourse._id
+    }).lean()
 
     if (!existingProgress) {
       const progressRecord = {
@@ -64,19 +69,16 @@ async function setupTestUser() {
         practiceAccuracy: 0,
         quizScores: [],
         timeSpent: 0,
-        lastAccessedAt: new Date(),
-        expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
-        createdAt: new Date()
+        lastAccessedAt: new Date().toISOString(),
+        expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(), // 90 days
+        createdAt: new Date().toISOString()
       }
 
-      db.data.progress = db.data.progress || []
-      db.data.progress.push(progressRecord)
+      await models.progress.create(progressRecord)
       console.log('✅ Created progress tracking record')
     } else {
       console.log('ℹ️  Progress record already exists')
     }
-
-    await db.write()
 
     console.log('\n🎉 Setup complete!')
     console.log('\n📝 Test Credentials:')
@@ -98,6 +100,8 @@ async function setupTestUser() {
   } catch (error) {
     console.error('❌ Error setting up test user:', error)
     throw error
+  } finally {
+    await mongoose.disconnect()
   }
 }
 

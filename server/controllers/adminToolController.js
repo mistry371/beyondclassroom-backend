@@ -1,4 +1,4 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 const DEFAULT_TOOLS = [
   { _id: '1', name: 'Basic Calculator', description: 'Perform basic arithmetic operations (+, -, ×, ÷)', category: 'Mathematics', enabled: true },
@@ -45,19 +45,20 @@ const DEFAULT_TOOLS = [
 
 exports.getTools = async (req, res) => {
   try {
-    await db.read();
-    // Always sync — ensure all 40 tools exist, preserving existing enabled states
-    const existing = db.data.tools || [];
-    const nextTools = DEFAULT_TOOLS.map(dt => {
-      const found = existing.find(t => t._id === dt._id);
-      return found ? { ...dt, enabled: found.enabled } : dt;
-    });
-    const changed = JSON.stringify(existing) !== JSON.stringify(nextTools);
-    db.data.tools = nextTools;
-    if (changed) {
-      await db.write();
+    let existing = await models.tools.find().lean()
+    
+    if (!existing || existing.length === 0) {
+      await models.tools.insertMany(DEFAULT_TOOLS)
+      if (db.data.tools) db.data.tools = DEFAULT_TOOLS
+      existing = DEFAULT_TOOLS
+    } else if (existing.length < DEFAULT_TOOLS.length) {
+      const missing = DEFAULT_TOOLS.filter(dt => !existing.find(e => e._id === dt._id))
+      await models.tools.insertMany(missing)
+      existing = await models.tools.find().lean()
+      if (db.data.tools) db.data.tools = existing
     }
-    res.json({ tools: nextTools });
+
+    res.json({ tools: existing });
   } catch (error) {
     console.error('Get tools error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -66,14 +67,26 @@ exports.getTools = async (req, res) => {
 
 exports.updateTool = async (req, res) => {
   try {
-    await db.read();
     const { enabled } = req.body;
-    if (!db.data.tools) db.data.tools = DEFAULT_TOOLS;
-    const index = db.data.tools.findIndex(t => t._id === req.params.id);
-    if (index === -1) return res.status(404).json({ message: 'Tool not found' });
-    db.data.tools[index] = { ...db.data.tools[index], enabled };
-    await db.write();
-    res.json({ message: 'Tool updated successfully', tool: db.data.tools[index] });
+    
+    const updated = await models.tools.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { enabled } },
+      { new: true }
+    ).lean()
+
+    if (!updated) {
+      return res.status(404).json({ message: 'Tool not found' });
+    }
+
+    if (db.data.tools) {
+      const index = db.data.tools.findIndex(t => t._id === req.params.id);
+      if (index !== -1) {
+        db.data.tools[index].enabled = enabled;
+      }
+    }
+    
+    res.json({ message: 'Tool updated successfully', tool: updated });
   } catch (error) {
     console.error('Update tool error:', error);
     res.status(500).json({ message: 'Server error' });

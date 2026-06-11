@@ -3,10 +3,8 @@
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 
-const AITutor = dynamic(() => import('@/components/AITutor'), { ssr: false })
 const ScreenProtection = dynamic(() => import('@/components/ScreenProtection'), { ssr: false })
 
-/** Load AITutor/ScreenProtection only where needed — faster admin & auth pages */
 export default function ClientChrome() {
   const pathname = usePathname() || ''
   const skipHeavy =
@@ -16,10 +14,5 @@ export default function ClientChrome() {
 
   if (skipHeavy) return null
 
-  return (
-    <>
-      <AITutor />
-      <ScreenProtection />
-    </>
-  )
+  return <ScreenProtection />
 }

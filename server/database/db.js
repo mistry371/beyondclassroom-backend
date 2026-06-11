@@ -60,6 +60,7 @@ const courseSchema = new mongoose.Schema({
   title: String,
   description: String,
   category: String,
+  grade: String,
   difficulty: String,
   price: Number,
   discountPrice: Number,
@@ -141,6 +142,7 @@ const subtopicSchema = new mongoose.Schema({
   order: Number,
   isPublished: { type: Boolean, default: true },
   document: mongoose.Schema.Types.Mixed,
+  documents: [mongoose.Schema.Types.Mixed],
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false })
@@ -424,8 +426,39 @@ const promoterPayoutSchema = new mongoose.Schema({
   processedAt: Date,
 }, { _id: false })
 
+const promoCodeSchema = new mongoose.Schema({
+  _id: { type: String },
+  code: { type: String, unique: true },
+  discountPercent: Number,
+  expiryDate: Date,
+  usageLimit: Number,
+  usedCount: { type: Number, default: 0 },
+  active: { type: Boolean, default: true },
+  assignedTo: String,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
+}, { _id: false })
+
+const packageSchema = new mongoose.Schema({
+  _id: { type: String },
+  name: String,
+  description: String,
+  features: [mongoose.Schema.Types.Mixed],
+  priceINR: Number,
+  priceUSD: Number,
+  validity: String,
+  image: String,
+  active: { type: Boolean, default: true },
+  popular: { type: Boolean, default: false },
+  courseIds: [String],
+  sortOrder: Number,
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
+}, { _id: false })
+
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
+  packages:           mongoose.models.DbPackage           || mongoose.model('DbPackage',           packageSchema,           'packages'),
   users:              mongoose.models.DbUser              || mongoose.model('DbUser',              userSchema,              'users'),
   courses:            mongoose.models.DbCourse            || mongoose.model('DbCourse',            courseSchema,            'courses'),
   cart:               mongoose.models.DbCart              || mongoose.model('DbCart',              cartSchema,              'cart'),
@@ -456,6 +489,7 @@ const models = {
   promoters:          mongoose.models.DbPromoter          || mongoose.model('DbPromoter',          promoterSchema,          'promoters'),
   referrals:          mongoose.models.DbReferral          || mongoose.model('DbReferral',          referralSchema,          'referrals'),
   promoterPayouts:    mongoose.models.DbPromoterPayout    || mongoose.model('DbPromoterPayout',    promoterPayoutSchema,    'promoterPayouts'),
+  promoCodes:         mongoose.models.DbPromoCode         || mongoose.model('DbPromoCode',         promoCodeSchema,         'promoCodes'),
 }
 
 // ── db proxy — mimics LowDB API used throughout server-simple.js ──────────────
@@ -485,7 +519,13 @@ const db = {
       return
     }
     
-    const colls = Object.keys(models)
+    // SCALABILITY ADVISORY: 'users' and 'activityLogs' grow unbounded.
+    // At 100k+ records, this bulk load approach will consume significant RAM (~100MB).
+    // For V1 Launch, we are loading them into memory to maintain compatibility with server-simple.js
+    // Post-launch, controllers must be refactored to use Mongoose (models.users.findOne) directly.
+    const SKIP_BULK_LOAD = new Set([])
+    
+    const colls = Object.keys(models).filter(c => !SKIP_BULK_LOAD.has(c))
     const results = await Promise.all(
       colls.map(c => models[c].find({}).lean())
     )
@@ -493,6 +533,11 @@ const db = {
       this._data[c] = results[i]
       this._lastStateJson[c] = JSON.stringify(results[i])
     })
+    
+    // For safety, initialize empty arrays if not present
+    if (!this._data.users) this._data.users = []
+    if (!this._data.activityLogs) this._data.activityLogs = []
+    
     // Special: content and siteContent
     this._data.content = this._data.content || {}
     this._data.siteContent = this._data.siteContents?.[0]?.data || null
@@ -601,29 +646,27 @@ async function initDB() {
     }
   }
 
-  // Admin user
+  // Admin user — query MongoDB directly (users are no longer bulk-loaded)
   const adminEmail = 'mistryjenish1003@gmail.com'
-  db.data.users = db.data.users.filter(u => !(u.email === adminEmail && u._id !== 'admin-default'))
   const adminPassword = 'Jenish@1019'
   const adminHash = await bcrypt.hash(adminPassword, 12)
-  const adminIdx = db.data.users.findIndex(u => u._id === 'admin-default')
-  if (adminIdx >= 0) {
-    db.data.users[adminIdx].email = adminEmail
-    db.data.users[adminIdx].role  = 'admin'
-    db.data.users[adminIdx].password = adminHash
-    db.data.users[adminIdx].status = 'active'
+  
+  // Remove duplicate admin entries with same email but different _id
+  await models.users.deleteMany({ email: adminEmail, _id: { $ne: 'admin-default' } })
+  
+  const existingAdmin = await models.users.findById('admin-default').lean()
+  if (existingAdmin) {
     await models.users.findOneAndUpdate(
       { _id: 'admin-default' },
       { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } },
       { upsert: false }
     )
   } else {
-    const hashedPassword = adminHash
     const adminUser = {
       _id:              'admin-default',
       name:             'Jenish Mistry',
       email:            adminEmail,
-      password:         hashedPassword,
+      password:         adminHash,
       role:             'admin',
       status:           'active',
       profilePhoto:     '',
@@ -633,7 +676,6 @@ async function initDB() {
       emailVerified:    true,
       createdAt:        new Date(),
     }
-    db.data.users.push(adminUser)
     await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: adminUser }, { upsert: true })
   }
   console.log('✅ Admin user ready:', adminEmail)
@@ -661,4 +703,4 @@ async function initDB() {
   return db
 }
 
-module.exports = { db, initDB }
+module.exports = { db, initDB, models }

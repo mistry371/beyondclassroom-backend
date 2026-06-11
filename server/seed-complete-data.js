@@ -1,5 +1,6 @@
-const { db, initDB } = require('./database/db')
+const { db, initDB, models } = require('./database/db')
 const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose')
 
 async function seedCompleteData() {
   try {
@@ -337,6 +338,34 @@ async function seedCompleteData() {
       console.log('✅ Initialized settings')
     }
     
+    // Save to Mongoose
+    await models.users.deleteMany({})
+    await models.users.insertMany(users)
+
+    await models.courses.deleteMany({})
+    await models.courses.insertMany(courses)
+
+    await models.modules.deleteMany({})
+    await models.modules.insertMany(modules)
+
+    await models.lessons.deleteMany({})
+    await models.lessons.insertMany(lessons)
+
+    await models.orders.deleteMany({})
+    await models.orders.insertMany(orders)
+
+    await models.notifications.deleteMany({})
+    await models.notifications.insertMany(notifications)
+
+    await models.progress.deleteMany({})
+    await models.progress.insertMany(progressRecords)
+
+    await models.subscriptions.deleteMany({})
+    await models.subscriptions.insertMany(subscriptions)
+
+    await models.settings.deleteMany({})
+    await models.settings.insertMany(db.data.settings)
+
     await db.write()
     
     console.log('\n🎉 Complete data seeding finished!')
@@ -356,6 +385,8 @@ async function seedCompleteData() {
     
   } catch (error) {
     console.error('❌ Error seeding data:', error)
+  } finally {
+    await mongoose.disconnect()
   }
 }
 

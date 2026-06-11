@@ -23,5 +23,17 @@
     "lowdb": "^5.1.0",
     "nodemailer": "^8.0.2",
     "razorpay": "^2.9.6"
-  }
+  },
+  "main": "server-simple.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mistry371/beyondclassroom-backend.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/mistry371/beyondclassroom-backend/issues"
+  },
+  "homepage": "https://github.com/mistry371/beyondclassroom-backend#readme"
 }

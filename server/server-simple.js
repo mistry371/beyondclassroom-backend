@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const { db, initDB } = require('./database/db');
+const { db, initDB, models } = require('./database/db');
 const { normalizeCourseCategory } = require('./constants/categories');
 
 dotenv.config();
@@ -15,6 +15,7 @@ const app = express();
 // Middleware
 const allowedOrigins = [
   'http://localhost:3000',
+  'http://localhost:3005',
   'https://beyondclassroom.netlify.app',
   'https://beyondclassroom.co.in',
   'https://www.beyondclassroom.co.in',
@@ -89,8 +90,7 @@ const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
-    await db.read();
-    req.user = db.data.users.find(u => u._id === decoded.id);
+    req.user = await models.users.findOne({ _id: decoded.id }).lean();
     
     if (!req.user) {
       return res.status(401).json({ message: 'User not found' });
@@ -140,15 +140,13 @@ app.post('/api/auth/register', async (req, res) => {
       }
     }
     
-    await db.read();
-    
-    const phoneExists = db.data.users.find(u => normalizePhone(u.phone) === phoneNorm);
+    const phoneExists = await models.users.findOne({ phone: phoneNorm }).lean();
     if (phoneExists) {
       return res.status(400).json({ message: 'Mobile number already registered' });
     }
 
     if (emailNorm) {
-      const emailExists = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
+      const emailExists = await models.users.findOne({ email: emailNorm }).lean();
       if (emailExists) {
         return res.status(400).json({ message: 'Email already registered' });
       }
@@ -177,9 +175,9 @@ app.post('/api/auth/register', async (req, res) => {
     };
     if (!emailNorm) delete user.email;
 
-    user.activeSessionId = generateId()
-    db.data.users.push(user);
-    await db.write();
+    user.activeSessionId = generateId();
+    await models.users.create(user);
+    if (db.data.users) db.data.users.push(user);
 
     const token = generateToken(user._id, user.activeSessionId);
 
@@ -245,19 +243,23 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       return res.status(400).json({ message: 'Email is required' })
     }
 
-    await db.read()
     const emailNorm = String(email).toLowerCase().trim()
-    const userIdx = db.data.users.findIndex(u => u.email?.toLowerCase().trim() === emailNorm)
-    if (userIdx === -1) {
+    const user = await models.users.findOne({ email: emailNorm })
+    if (!user) {
       return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' })
     }
 
     const resetToken = crypto.randomBytes(32).toString('hex')
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
-    db.data.users[userIdx].passwordResetToken = resetToken
-    db.data.users[userIdx].passwordResetExpires = resetExpires
-    await db.write()
+    await models.users.updateOne(
+      { _id: user._id },
+      { $set: { passwordResetToken: resetToken, passwordResetExpires: resetExpires } }
+    )
+    if (db.data.users) {
+      const u = db.data.users.find(u => u._id === user._id)
+      if (u) Object.assign(u, { passwordResetToken: resetToken, passwordResetExpires: resetExpires })
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app'
     const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`
@@ -289,22 +291,33 @@ app.post('/api/auth/reset-password', async (req, res) => {
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' })
     }
-    await db.read()
-
-    const userIdx = db.data.users.findIndex(u =>
-      u.passwordResetToken === token &&
-      u.passwordResetExpires &&
-      new Date(u.passwordResetExpires) > new Date()
-    )
-    if (userIdx === -1) {
+    const user = await models.users.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gte: new Date().toISOString() } // simplified check
+    })
+    
+    // We do a manual check because stored dates might be strings
+    if (!user || !user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
       return res.status(400).json({ message: 'Invalid or expired reset link. Please request a new one.' })
     }
 
-    db.data.users[userIdx].password = await bcrypt.hash(newPassword, 12)
-    db.data.users[userIdx].updatedAt = new Date()
-    delete db.data.users[userIdx].passwordResetToken
-    delete db.data.users[userIdx].passwordResetExpires
-    await db.write()
+    const newHashedPassword = await bcrypt.hash(newPassword, 12)
+    await models.users.updateOne(
+      { _id: user._id },
+      { 
+        $set: { password: newHashedPassword, updatedAt: new Date() },
+        $unset: { passwordResetToken: 1, passwordResetExpires: 1 }
+      }
+    )
+    if (db.data.users) {
+      const u = db.data.users.find(u => u._id === user._id)
+      if (u) {
+        u.password = newHashedPassword
+        u.updatedAt = new Date()
+        delete u.passwordResetToken
+        delete u.passwordResetExpires
+      }
+    }
 
     res.json({ success: true, message: 'Password reset successfully' })
   } catch (error) {
@@ -322,13 +335,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ message: 'Please provide mobile number and password' });
     }
 
-    await db.read();
     let user = null;
     if (phoneNorm) {
-      user = db.data.users.find(u => normalizePhone(u.phone) === phoneNorm);
+      user = await models.users.findOne({ phone: phoneNorm }).lean();
     }
     if (!user && emailNorm) {
-      user = db.data.users.find(u => u.email?.toLowerCase().trim() === emailNorm);
+      user = await models.users.findOne({ email: emailNorm }).lean();
     }
     
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -340,16 +352,17 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     user.activeSessionId = generateId()
-    await db.write()
+    await models.users.updateOne({ _id: user._id }, { $set: { activeSessionId: user.activeSessionId } });
+    if (db.data.users) {
+      const u = db.data.users.find(u => u._id === user._id)
+      if (u) u.activeSessionId = user.activeSessionId
+    }
     const token = generateToken(user._id, user.activeSessionId);
 
     // Write activity log async (do not block login response)
     setImmediate(async () => {
       try {
-        const ActivityLog = require('./models/ActivityLog');
-        db.data.activityLogs = db.data.activityLogs || [];
-        db.data.activityLogs.push(new ActivityLog({ userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email || user.phone}` }));
-        await db.write();
+        await models.activityLogs.create({ _id: generateId(), userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email || user.phone}` });
       } catch (_) {}
     });
 
@@ -375,8 +388,6 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/auth/guest', async (req, res) => {
   try {
-    await db.read();
-    
     const guestUser = {
       _id: generateId(),
       name: `Guest_${Date.now()}`,
@@ -389,8 +400,8 @@ app.post('/api/auth/guest', async (req, res) => {
       createdAt: new Date()
     };
 
-    db.data.users.push(guestUser);
-    await db.write();
+    await models.users.create(guestUser);
+    if (db.data.users) db.data.users.push(guestUser);
 
     const token = generateToken(guestUser._id);
 
@@ -411,23 +422,13 @@ app.post('/api/auth/guest', async (req, res) => {
 // COURSES ROUTES
 app.get('/api/courses', async (req, res) => {
   try {
-    await db.read();
-    let courses = db.data.courses;
-
     const { category, difficulty, search } = req.query;
-    
-    if (category) {
-      courses = courses.filter(c => c.category === category);
-    }
-    if (difficulty) {
-      courses = courses.filter(c => c.difficulty === difficulty);
-    }
-    if (search) {
-      courses = courses.filter(c => 
-        c.title.toLowerCase().includes(search.toLowerCase())
-      );
-    }
+    let query = {};
+    if (category) query.category = category;
+    if (difficulty) query.difficulty = difficulty;
+    if (search) query.title = { $regex: search, $options: 'i' };
 
+    let courses = await models.courses.find(query).lean();
     courses = courses.map(c => ({ ...c, category: normalizeCourseCategory(c.category) }));
 
     res.json({ success: true, courses });
@@ -438,8 +439,7 @@ app.get('/api/courses', async (req, res) => {
 
 app.get('/api/courses/featured', async (req, res) => {
   try {
-    await db.read();
-    const courses = db.data.courses.filter(c => c.isFeatured).slice(0, 6);
+    const courses = await models.courses.find({ isFeatured: true }).limit(6).lean();
     res.json({ success: true, courses });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -448,8 +448,7 @@ app.get('/api/courses/featured', async (req, res) => {
 
 app.get('/api/courses/:id', async (req, res) => {
   try {
-    await db.read();
-    const course = db.data.courses.find(c => c._id === req.params.id);
+    const course = await models.courses.findOne({ _id: req.params.id }).lean();
     
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
@@ -464,19 +463,21 @@ app.get('/api/courses/:id', async (req, res) => {
 // CART ROUTES
 app.get('/api/cart', protect, async (req, res) => {
   try {
-    await db.read();
-    let cart = db.data.cart.find(c => c.user === req.user._id);
+    let cart = await models.cart.findOne({ user: req.user._id }).lean();
     
     if (!cart) {
       cart = { user: req.user._id, items: [] };
-      db.data.cart.push(cart);
-      await db.write();
+      await models.cart.create(cart);
+      if (db.data.cart) db.data.cart.push(cart);
     }
 
     // Populate course details
+    const courseIds = cart.items.map(i => i.course);
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).lean();
+    
     cart.items = cart.items.map(item => ({
       ...item,
-      course: db.data.courses.find(c => c._id === item.course)
+      course: courses.find(c => c._id === item.course)
     }));
 
     res.json({ success: true, cart });
@@ -488,13 +489,11 @@ app.get('/api/cart', protect, async (req, res) => {
 app.post('/api/cart', protect, async (req, res) => {
   try {
     const { courseId } = req.body;
-    
-    await db.read();
-    let cart = db.data.cart.find(c => c.user === req.user._id);
+    let cart = await models.cart.findOne({ user: req.user._id });
     
     if (!cart) {
-      cart = { user: req.user._id, items: [] };
-      db.data.cart.push(cart);
+      cart = await models.cart.create({ user: req.user._id, items: [] });
+      if (db.data.cart) db.data.cart.push(cart);
     }
 
     const itemExists = cart.items.find(item => item.course === courseId);
@@ -508,15 +507,25 @@ app.post('/api/cart', protect, async (req, res) => {
       addedAt: new Date() 
     });
     
-    await db.write();
+    await models.cart.updateOne({ user: req.user._id }, { $set: { items: cart.items } });
+    if (db.data.cart) {
+      const legacyCart = db.data.cart.find(c => c.user === req.user._id);
+      if (legacyCart) legacyCart.items = cart.items;
+    }
 
     // Populate course details
-    cart.items = cart.items.map(item => ({
-      ...item,
-      course: db.data.courses.find(c => c._id === item.course)
-    }));
+    const courseIds = cart.items.map(i => i.course);
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).lean();
+    
+    const populatedCart = {
+      ...cart.toObject ? cart.toObject() : cart,
+      items: cart.items.map(item => ({
+        ...item.toObject ? item.toObject() : item,
+        course: courses.find(c => c._id === item.course)
+      }))
+    };
 
-    res.json({ success: true, cart });
+    res.json({ success: true, cart: populatedCart });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -524,12 +533,16 @@ app.post('/api/cart', protect, async (req, res) => {
 
 app.delete('/api/cart/:courseId', protect, async (req, res) => {
   try {
-    await db.read();
-    const cart = db.data.cart.find(c => c.user === req.user._id);
+    const cart = await models.cart.findOne({ user: req.user._id });
     
     if (cart) {
       cart.items = cart.items.filter(item => item.course !== req.params.courseId);
-      await db.write();
+      await models.cart.updateOne({ user: req.user._id }, { $set: { items: cart.items } });
+      
+      if (db.data.cart) {
+        const legacyCart = db.data.cart.find(c => c.user === req.user._id);
+        if (legacyCart) legacyCart.items = cart.items;
+      }
     }
 
     res.json({ success: true, cart });
@@ -541,24 +554,24 @@ app.delete('/api/cart/:courseId', protect, async (req, res) => {
 // ORDERS ROUTES
 app.post('/api/orders', protect, async (req, res) => {
   try {
-    await db.read();
-    const cart = db.data.cart.find(c => c.user === req.user._id);
+    const cart = await models.cart.findOne({ user: req.user._id }).lean();
     
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
-    const courses = cart.items.map(item => item.course);
+    const courseIds = cart.items.map(item => item.course);
+    const coursesObj = await models.courses.find({ _id: { $in: courseIds } }).lean();
 
     // Block direct order for paid courses — must go through Razorpay payment
-    const paidCourses = courses.filter(courseId => {
-      const course = db.data.courses.find(c => c._id === courseId);
+    const paidCourses = courseIds.filter(courseId => {
+      const course = coursesObj.find(c => c._id === courseId);
       return course && course.price > 0 && !course.isFree && !course.isDemo;
     });
 
     if (paidCourses.length > 0) {
       const paidTitles = paidCourses.map(courseId => {
-        const course = db.data.courses.find(c => c._id === courseId);
+        const course = coursesObj.find(c => c._id === courseId);
         return course?.title || courseId;
       });
       return res.status(403).json({
@@ -573,29 +586,37 @@ app.post('/api/orders', protect, async (req, res) => {
     const order = {
       _id: generateId(),
       user: req.user._id,
-      courses,
+      courses: courseIds,
       totalAmount,
       status: 'completed',
       createdAt: new Date()
     };
 
-    db.data.orders.push(order);
+    await models.orders.create(order);
+    if (db.data.orders) db.data.orders.push(order);
 
     // Add courses to user's purchased courses
-    const user = db.data.users.find(u => u._id === req.user._id);
+    const user = await models.users.findOne({ _id: req.user._id });
     if (user) {
-      user.purchasedCourses = [...new Set([...user.purchasedCourses, ...courses])];
+      const newCourses = [...new Set([...(user.purchasedCourses || []), ...courseIds])];
+      await models.users.updateOne({ _id: req.user._id }, { $set: { purchasedCourses: newCourses } });
+      if (db.data.users) {
+        const legacyUser = db.data.users.find(u => u._id === req.user._id);
+        if (legacyUser) legacyUser.purchasedCourses = newCourses;
+      }
     }
 
     // Clear cart
-    cart.items = [];
+    await models.cart.updateOne({ user: req.user._id }, { $set: { items: [] } });
+    if (db.data.cart) {
+      const legacyCart = db.data.cart.find(c => c.user === req.user._id);
+      if (legacyCart) legacyCart.items = [];
+    }
 
-    await db.write();
-    
     // Send enrollment notifications for each course
     const notificationService = require('./services/notificationService');
-    for (const courseId of courses) {
-      const course = db.data.courses.find(c => c._id === courseId);
+    for (const courseId of courseIds) {
+      const course = coursesObj.find(c => c._id === courseId);
       if (course) {
         await notificationService.sendEnrollmentNotification(
           req.user._id, req.user.name, req.user.email, course.title
@@ -612,13 +633,10 @@ app.post('/api/orders', protect, async (req, res) => {
 // PROFILE ROUTES
 app.get('/api/profile', protect, async (req, res) => {
   try {
-    await db.read();
-    const user = db.data.users.find(u => u._id === req.user._id);
+    const user = await models.users.findOne({ _id: req.user._id }).lean();
     
     if (user) {
-      const populatedCourses = (user.purchasedCourses || []).map(courseId => 
-        db.data.courses.find(c => c._id === courseId)
-      ).filter(Boolean);
+      const populatedCourses = await models.courses.find({ _id: { $in: user.purchasedCourses || [] } }).lean();
       
       const { password, ...userWithoutPassword } = user;
       res.json({ success: true, user: { 
@@ -637,20 +655,26 @@ app.get('/api/profile', protect, async (req, res) => {
 
 app.put('/api/profile', protect, async (req, res) => {
   try {
-    await db.read();
     const { name, email, profilePhoto } = req.body;
-    const userIndex = db.data.users.findIndex(u => u._id === req.user._id);
+    let updates = { updatedAt: new Date() };
+    if (name) updates.name = name;
+    if (email) updates.email = email;
+    if (profilePhoto !== undefined) updates.profilePhoto = profilePhoto;
+
+    const user = await models.users.findOneAndUpdate(
+      { _id: req.user._id },
+      { $set: updates },
+      { new: true }
+    ).lean();
     
-    if (userIndex === -1) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (db.data.users) {
+      const legacyUser = db.data.users.find(u => u._id === req.user._id);
+      if (legacyUser) Object.assign(legacyUser, updates);
+    }
     
-    if (name) db.data.users[userIndex].name = name;
-    if (email) db.data.users[userIndex].email = email;
-    if (profilePhoto !== undefined) db.data.users[userIndex].profilePhoto = profilePhoto;
-    db.data.users[userIndex].updatedAt = new Date();
-    
-    await db.write();
-    
-    const { password, ...userWithoutPassword } = db.data.users[userIndex];
+    const { password, ...userWithoutPassword } = user;
     res.json({ success: true, user: userWithoutPassword });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -660,11 +684,7 @@ app.put('/api/profile', protect, async (req, res) => {
 // NOTIFICATIONS ROUTES
 app.get('/api/notifications', protect, async (req, res) => {
   try {
-    await db.read();
-    const notifications = db.data.notifications
-      .filter(n => n.user === req.user._id)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+    const notifications = await models.notifications.find({ user: req.user._id }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, notifications });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -673,11 +693,10 @@ app.get('/api/notifications', protect, async (req, res) => {
 
 app.put('/api/notifications/mark-all-read', protect, async (req, res) => {
   try {
-    await db.read();
-    db.data.notifications
-      .filter(n => n.user === req.user._id)
-      .forEach(n => { n.isRead = true; });
-    await db.write();
+    await models.notifications.updateMany({ user: req.user._id }, { $set: { isRead: true } });
+    if (db.data.notifications) {
+      db.data.notifications.filter(n => n.user === req.user._id).forEach(n => n.isRead = true);
+    }
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -686,15 +705,12 @@ app.put('/api/notifications/mark-all-read', protect, async (req, res) => {
 
 app.put('/api/notifications/:id/read', protect, async (req, res) => {
   try {
-    await db.read();
-    const notification = db.data.notifications.find(n => n._id === req.params.id);
-    
-    if (notification) {
-      notification.isRead = true;
-      await db.write();
+    await models.notifications.updateOne({ _id: req.params.id }, { $set: { isRead: true } });
+    if (db.data.notifications) {
+      const n = db.data.notifications.find(n => n._id === req.params.id);
+      if (n) n.isRead = true;
     }
-
-    res.json({ success: true, notification });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -729,14 +745,13 @@ app.get('/api/zoom/test', protect, async (req, res) => {
 // Live classes endpoint — only for enrolled/purchased users
 app.get('/api/live-classes', protect, async (req, res) => {
   try {
-    await db.read();
-    db.data.liveClasses = db.data.liveClasses || [];
-    const user = db.data.users.find(u => u._id === req.user._id);
+    const user = await models.users.findOne({ _id: req.user._id }).lean();
     const purchased = user?.purchasedCourses || [];
+    const liveClasses = await models.liveClasses.find().lean();
 
     // Admin sees all classes
     if (user?.role === 'admin' || user?.role === 'super_admin') {
-      return res.json({ success: true, liveClasses: db.data.liveClasses });
+      return res.json({ success: true, liveClasses });
     }
 
     // Students only see classes if they have at least one purchased course
@@ -744,7 +759,7 @@ app.get('/api/live-classes', protect, async (req, res) => {
       return res.json({ success: true, liveClasses: [], locked: true, message: 'Purchase a course to access live classes' });
     }
 
-    res.json({ success: true, liveClasses: db.data.liveClasses, locked: false });
+    res.json({ success: true, liveClasses, locked: false });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -753,8 +768,7 @@ app.get('/api/live-classes', protect, async (req, res) => {
 // TRIAL STATUS ROUTE
 app.get('/api/trial/status', protect, async (req, res) => {
   try {
-    await db.read();
-    const user = db.data.users.find(u => u._id === req.user._id);
+    const user = await models.users.findOne({ _id: req.user._id }).lean();
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const now = new Date();
@@ -766,8 +780,11 @@ app.get('/api/trial/status', protect, async (req, res) => {
 
     // Auto-mark expired
     if (trialExpired && !user.trialExpired) {
-      user.trialExpired = true;
-      await db.write();
+      await models.users.updateOne({ _id: req.user._id }, { $set: { trialExpired: true } });
+      if (db.data.users) {
+        const legacyUser = db.data.users.find(u => u._id === req.user._id);
+        if (legacyUser) legacyUser.trialExpired = true;
+      }
     }
 
     res.json({
@@ -816,13 +833,20 @@ app.use('/api/promoters', promoterRoutes);
 // Packages — public GET at /api/packages, admin routes at /api/packages/admin/* (require auth)
 app.get('/api/packages', async (req, res) => {
   try {
-    const { db } = require('./database/db');
-    await db.read();
-    db.data.packages = db.data.packages || [];
-    const packages = db.data.packages
-      .filter(p => p.active !== false)
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    const packages = await models.packages.find({ active: true }).sort({ sortOrder: 1 }).lean();
     res.json({ success: true, packages });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+app.get('/api/packages/:id', async (req, res, next) => {
+  if (req.params.id === 'admin') return next();
+  try {
+    const pkg = await models.packages.findById(req.params.id).lean();
+    if (!pkg || pkg.active === false) {
+      return res.status(404).json({ message: 'Package not found' });
+    }
+    res.json({ success: true, package: pkg });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

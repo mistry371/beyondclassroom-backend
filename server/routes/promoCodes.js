@@ -1,20 +1,14 @@
 const express = require('express')
 const router = express.Router()
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
+const { protect, admin } = require('../middleware/auth')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
-const isAdmin = (req, res, next) => {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) return next()
-  res.status(403).json({ success: false, message: 'Admin access required' })
-}
-
 // GET /api/admin/promo-codes — admin list
-router.get('/', isAdmin, async (req, res) => {
+router.get('/', protect, admin, async (req, res) => {
   try {
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const promoCodes = db.data.promoCodes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    const promoCodes = await models.promoCodes.find().sort({ createdAt: -1 }).lean()
     res.json({ success: true, promoCodes })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -22,16 +16,14 @@ router.get('/', isAdmin, async (req, res) => {
 })
 
 // POST /api/admin/promo-codes — create
-router.post('/', isAdmin, async (req, res) => {
+router.post('/', protect, admin, async (req, res) => {
   try {
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
     const { code, discountPercent, expiryDate, usageLimit, active, assignedTo } = req.body
     if (!code || !discountPercent || !expiryDate) {
       return res.status(400).json({ message: 'Code, discountPercent, and expiryDate are required' })
     }
     // Check duplicate
-    const exists = db.data.promoCodes.find(p => p.code.toUpperCase() === code.toUpperCase())
+    const exists = await models.promoCodes.findOne({ code: code.toUpperCase() }).lean()
     if (exists) return res.status(400).json({ message: 'Promo code already exists' })
 
     const promoCode = {
@@ -45,8 +37,10 @@ router.post('/', isAdmin, async (req, res) => {
       assignedTo: assignedTo || '',
       createdAt: new Date().toISOString(),
     }
-    db.data.promoCodes.push(promoCode)
-    await db.write()
+    
+    await models.promoCodes.create(promoCode)
+    if (db.data.promoCodes) db.data.promoCodes.push(promoCode)
+    
     res.status(201).json({ success: true, promoCode })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -54,39 +48,48 @@ router.post('/', isAdmin, async (req, res) => {
 })
 
 // PUT /api/admin/promo-codes/:id — update
-router.put('/:id', isAdmin, async (req, res) => {
+router.put('/:id', protect, admin, async (req, res) => {
   try {
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const idx = db.data.promoCodes.findIndex(p => p._id === req.params.id)
-    if (idx === -1) return res.status(404).json({ message: 'Promo code not found' })
+    const idx = await models.promoCodes.findOne({ _id: req.params.id }).lean()
+    if (!idx) return res.status(404).json({ message: 'Promo code not found' })
+    
     const { code, discountPercent, expiryDate, usageLimit, active, assignedTo } = req.body
-    db.data.promoCodes[idx] = {
-      ...db.data.promoCodes[idx],
-      code: code ? code.toUpperCase().trim() : db.data.promoCodes[idx].code,
-      discountPercent: discountPercent !== undefined ? Number(discountPercent) : db.data.promoCodes[idx].discountPercent,
-      expiryDate: expiryDate ? new Date(expiryDate).toISOString() : db.data.promoCodes[idx].expiryDate,
-      usageLimit: usageLimit !== undefined ? (usageLimit ? Number(usageLimit) : null) : db.data.promoCodes[idx].usageLimit,
-      active: active !== undefined ? active : db.data.promoCodes[idx].active,
-      assignedTo: assignedTo !== undefined ? assignedTo : db.data.promoCodes[idx].assignedTo,
-      updatedAt: new Date().toISOString(),
+    
+    const updated = await models.promoCodes.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: {
+        code: code ? code.toUpperCase().trim() : idx.code,
+        discountPercent: discountPercent !== undefined ? Number(discountPercent) : idx.discountPercent,
+        expiryDate: expiryDate ? new Date(expiryDate).toISOString() : idx.expiryDate,
+        usageLimit: usageLimit !== undefined ? (usageLimit ? Number(usageLimit) : null) : idx.usageLimit,
+        active: active !== undefined ? active : idx.active,
+        assignedTo: assignedTo !== undefined ? assignedTo : idx.assignedTo,
+        updatedAt: new Date().toISOString(),
+      }},
+      { new: true }
+    ).lean()
+    
+    if (db.data.promoCodes) {
+      const pIdx = db.data.promoCodes.findIndex(p => p._id === req.params.id)
+      if (pIdx !== -1) Object.assign(db.data.promoCodes[pIdx], updated)
     }
-    await db.write()
-    res.json({ success: true, promoCode: db.data.promoCodes[idx] })
+    
+    res.json({ success: true, promoCode: updated })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
 })
 
 // DELETE /api/admin/promo-codes/:id
-router.delete('/:id', isAdmin, async (req, res) => {
+router.delete('/:id', protect, admin, async (req, res) => {
   try {
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const before = db.data.promoCodes.length
-    db.data.promoCodes = db.data.promoCodes.filter(p => p._id !== req.params.id)
-    if (db.data.promoCodes.length === before) return res.status(404).json({ message: 'Promo code not found' })
-    await db.write()
+    const result = await models.promoCodes.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) return res.status(404).json({ message: 'Promo code not found' })
+    
+    if (db.data.promoCodes) {
+      db.data.promoCodes = db.data.promoCodes.filter(p => p._id !== req.params.id)
+    }
+    
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -94,29 +97,36 @@ router.delete('/:id', isAdmin, async (req, res) => {
 })
 
 // PATCH /api/admin/promo-codes/:id/toggle
-router.patch('/:id/toggle', isAdmin, async (req, res) => {
+router.patch('/:id/toggle', protect, admin, async (req, res) => {
   try {
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const idx = db.data.promoCodes.findIndex(p => p._id === req.params.id)
-    if (idx === -1) return res.status(404).json({ message: 'Promo code not found' })
-    db.data.promoCodes[idx].active = !db.data.promoCodes[idx].active
-    db.data.promoCodes[idx].updatedAt = new Date().toISOString()
-    await db.write()
-    res.json({ success: true, promoCode: db.data.promoCodes[idx] })
+    const promo = await models.promoCodes.findOne({ _id: req.params.id }).lean()
+    if (!promo) return res.status(404).json({ message: 'Promo code not found' })
+    
+    const updated = await models.promoCodes.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { active: !promo.active, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    
+    if (db.data.promoCodes) {
+      const pIdx = db.data.promoCodes.findIndex(p => p._id === req.params.id)
+      if (pIdx !== -1) Object.assign(db.data.promoCodes[pIdx], updated)
+    }
+    
+    res.json({ success: true, promoCode: updated })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }
 })
 
 // POST /api/promo-codes/validate — public (requires auth), validate a code at checkout
-router.post('/validate', async (req, res) => {
+router.post('/validate', protect, async (req, res) => {
   try {
     const { code, amount } = req.body
     if (!code) return res.status(400).json({ message: 'Promo code is required' })
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const promo = db.data.promoCodes.find(p => p.code === code.toUpperCase().trim())
+    
+    const promo = await models.promoCodes.findOne({ code: code.toUpperCase().trim() }).lean()
+    
     if (!promo) return res.status(404).json({ success: false, message: 'Invalid promo code' })
     if (promo.active === false) return res.status(400).json({ success: false, message: 'This promo code is inactive' })
     if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) {
@@ -125,6 +135,7 @@ router.post('/validate', async (req, res) => {
     if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
       return res.status(400).json({ success: false, message: 'This promo code has reached its usage limit' })
     }
+    
     const originalAmount = Number(amount) || 0
     const discountAmount = Math.round((originalAmount * promo.discountPercent) / 100)
     const finalAmount = Math.max(0, originalAmount - discountAmount)
@@ -142,17 +153,26 @@ router.post('/validate', async (req, res) => {
 })
 
 // POST /api/promo-codes/apply — record usage after successful payment
-router.post('/apply', async (req, res) => {
+router.post('/apply', protect, async (req, res) => {
   try {
     const { code } = req.body
     if (!code) return res.status(400).json({ message: 'Code required' })
-    await db.read()
-    db.data.promoCodes = db.data.promoCodes || []
-    const idx = db.data.promoCodes.findIndex(p => p.code === code.toUpperCase().trim())
-    if (idx === -1) return res.status(404).json({ message: 'Promo code not found' })
-    db.data.promoCodes[idx].usedCount = (db.data.promoCodes[idx].usedCount || 0) + 1
-    await db.write()
-    res.json({ success: true, usedCount: db.data.promoCodes[idx].usedCount })
+    
+    const promo = await models.promoCodes.findOne({ code: code.toUpperCase().trim() }).lean()
+    if (!promo) return res.status(404).json({ message: 'Promo code not found' })
+    
+    const updated = await models.promoCodes.findOneAndUpdate(
+      { _id: promo._id },
+      { $inc: { usedCount: 1 } },
+      { new: true }
+    ).lean()
+    
+    if (db.data.promoCodes) {
+      const idx = db.data.promoCodes.findIndex(p => p._id === promo._id)
+      if (idx !== -1) db.data.promoCodes[idx].usedCount = updated.usedCount
+    }
+    
+    res.json({ success: true, usedCount: updated.usedCount })
   } catch (error) {
     res.status(500).json({ message: error.message })
   }

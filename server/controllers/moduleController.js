@@ -1,11 +1,10 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const Module = require('../models/Module')
 
 // Get all modules (for admin)
 exports.getAllModules = async (req, res) => {
   try {
-    await db.read()
-    const modules = db.data.modules || []
+    const modules = await models.modules.find().sort({ order: 1 }).lean()
     res.json({ success: true, modules })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -15,21 +14,25 @@ exports.getAllModules = async (req, res) => {
 // Get all modules for a course
 exports.getModulesByCourse = async (req, res) => {
   try {
-    await db.read()
     const { courseId } = req.params
     
-    let modules = db.data.modules?.filter(m => m.courseId === courseId) || []
+    let modules = await models.modules.find({ courseId }).sort({ order: 1 }).lean()
+    
+    const moduleIds = modules.map(m => m._id)
+    
+    const lessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
+    const quizzes = await models.quizzes.find({ moduleId: { $in: moduleIds } }).lean()
     
     // Populate lesson count and lessons for each module
     modules = modules.map(m => {
-      const lessons = db.data.lessons?.filter(l => l.moduleId === m._id) || []
-      const quiz = db.data.quizzes?.find(q => q.moduleId === m._id) || null
-      return { ...m, lessons, lessonCount: lessons.length, quiz }
+      const modLessons = lessons.filter(l => l.moduleId === m._id) || []
+      const quiz = quizzes.find(q => q.moduleId === m._id) || null
+      return { ...m, lessons: modLessons, lessonCount: modLessons.length, quiz }
     })
     
     res.json({
       success: true,
-      modules: modules.sort((a, b) => a.order - b.order)
+      modules
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -39,10 +42,9 @@ exports.getModulesByCourse = async (req, res) => {
 // Get single module
 exports.getModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
     
-    const module = db.data.modules?.find(m => m._id === moduleId)
+    const module = await models.modules.findOne({ _id: moduleId }).lean()
     
     if (!module) {
       return res.status(404).json({ success: false, message: 'Module not found' })
@@ -57,14 +59,16 @@ exports.getModule = async (req, res) => {
 // Create module
 exports.createModule = async (req, res) => {
   try {
-    await db.read()
+    const newModuleData = { ...req.body }
+    if (!newModuleData._id) {
+      newModuleData._id = Date.now().toString() + Math.random().toString(36).slice(2, 11)
+    }
     
-    const newModule = new Module(req.body)
+    const newModule = await models.modules.create(newModuleData)
     
-    db.data.modules = db.data.modules || []
-    db.data.modules.push(newModule)
-    
-    await db.write()
+    if (db.data.modules) {
+      db.data.modules.push(newModule)
+    }
     
     res.status(201).json({ success: true, module: newModule })
   } catch (error) {
@@ -75,20 +79,24 @@ exports.createModule = async (req, res) => {
 // Update module
 exports.updateModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
     
-    const index = db.data.modules?.findIndex(m => m._id === moduleId)
+    const updated = await models.modules.findOneAndUpdate(
+      { _id: moduleId },
+      { $set: { ...req.body, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
     
-    if (index === -1 || index === undefined) {
+    if (!updated) {
       return res.status(404).json({ success: false, message: 'Module not found' })
     }
     
-    db.data.modules[index] = { ...db.data.modules[index], ...req.body, updatedAt: new Date() }
+    if (db.data.modules) {
+      const index = db.data.modules.findIndex(m => m._id === moduleId)
+      if (index !== -1) Object.assign(db.data.modules[index], updated)
+    }
     
-    await db.write()
-    
-    res.json({ success: true, module: db.data.modules[index] })
+    res.json({ success: true, module: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -97,12 +105,13 @@ exports.updateModule = async (req, res) => {
 // Delete module
 exports.deleteModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
     
-    db.data.modules = db.data.modules?.filter(m => m._id !== moduleId) || []
+    await models.modules.deleteOne({ _id: moduleId })
     
-    await db.write()
+    if (db.data.modules) {
+      db.data.modules = db.data.modules.filter(m => m._id !== moduleId)
+    }
     
     res.json({ success: true, message: 'Module deleted' })
   } catch (error) {

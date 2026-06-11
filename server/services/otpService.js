@@ -1,7 +1,6 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const { sendEmail } = require('./emailService')
 const { otpEmailTemplate } = require('./emailTemplates')
-const OTP = require('../models/OTP')
 
 // Generate 6-digit OTP
 const generateOTP = () => {
@@ -11,30 +10,30 @@ const generateOTP = () => {
 // Create and send OTP
 exports.createAndSendOTP = async (email, purpose = 'registration') => {
   try {
-    await db.read()
-    
     // Generate OTP
     const otpCode = generateOTP()
     
     // Create OTP record
-    const otp = new OTP({
+    const otpData = {
       email,
       otp: otpCode,
       purpose,
-      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-    })
-    
-    // Initialize OTP collection
-    db.data.otps = db.data.otps || []
+      verified: false,
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
+    }
     
     // Remove old OTPs for this email and purpose
-    db.data.otps = db.data.otps.filter(o => 
-      !(o.email === email && o.purpose === purpose)
-    )
+    await models.otps.deleteMany({ email, purpose })
+    if (db.data.otps) {
+      db.data.otps = db.data.otps.filter(o => !(o.email === email && o.purpose === purpose))
+    }
     
     // Add new OTP
-    db.data.otps.push(otp)
-    await db.write()
+    await models.otps.create(otpData)
+    if (db.data.otps) {
+      db.data.otps.push(otpData)
+    }
     
     // Send OTP via email
     const purposeText = {
@@ -49,7 +48,7 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
     console.log(`Email: ${email}`);
     console.log(`OTP: ${otpCode}`);
     console.log(`Purpose: ${purposeText}`);
-    console.log(`Expires: ${otp.expiresAt}`);
+    console.log(`Expires: ${otpData.expiresAt}`);
     console.log('='.repeat(60) + '\n');
     
     try {
@@ -73,7 +72,7 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
     return {
       success: true,
       message: 'OTP sent successfully to your email. Please check your inbox.',
-      expiresAt: otp.expiresAt
+      expiresAt: otpData.expiresAt
     }
   } catch (error) {
     console.error('Failed to create OTP:', error)
@@ -84,26 +83,17 @@ exports.createAndSendOTP = async (email, purpose = 'registration') => {
 // Verify OTP
 exports.verifyOTP = async (email, otpCode, purpose = 'registration') => {
   try {
-    await db.read()
-    
     console.log('\n' + '='.repeat(60));
     console.log('🔍 VERIFYING OTP');
     console.log('='.repeat(60));
     console.log(`Email: ${email}`);
     console.log(`OTP Code: ${otpCode}`);
     console.log(`Purpose: ${purpose}`);
-    console.log(`Total OTPs in DB: ${db.data.otps?.length || 0}`);
     
     // Find OTP
-    const otpIndex = db.data.otps?.findIndex(o => 
-      o.email === email && 
-      o.purpose === purpose && 
-      !o.verified
-    )
+    const otp = await models.otps.findOne({ email, purpose, verified: false }).lean()
     
-    console.log(`OTP Index Found: ${otpIndex}`);
-    
-    if (otpIndex === -1) {
+    if (!otp) {
       console.log('❌ OTP not found or already verified');
       console.log('='.repeat(60) + '\n');
       return {
@@ -112,10 +102,9 @@ exports.verifyOTP = async (email, otpCode, purpose = 'registration') => {
       }
     }
     
-    const otp = db.data.otps[otpIndex]
     console.log(`Found OTP: ${otp.otp}`);
     console.log(`Expires At: ${otp.expiresAt}`);
-    console.log(`Current Time: ${new Date()}`);
+    console.log(`Current Time: ${new Date().toISOString()}`);
     
     // Check expiration
     if (new Date() > new Date(otp.expiresAt)) {
@@ -140,21 +129,32 @@ exports.verifyOTP = async (email, otpCode, purpose = 'registration') => {
     // Verify OTP
     if (otp.otp !== otpCode) {
       // Increment attempts
-      db.data.otps[otpIndex].attempts += 1
-      await db.write()
+      const updated = await models.otps.findOneAndUpdate(
+        { _id: otp._id },
+        { $inc: { attempts: 1 } },
+        { new: true }
+      ).lean()
       
-      console.log(`❌ Invalid OTP. Attempts: ${db.data.otps[otpIndex].attempts}/3`);
+      if (db.data.otps) {
+        const idx = db.data.otps.findIndex(o => o._id.toString() === otp._id.toString())
+        if (idx !== -1) db.data.otps[idx].attempts = updated.attempts
+      }
+      
+      console.log(`❌ Invalid OTP. Attempts: ${updated.attempts}/3`);
       console.log('='.repeat(60) + '\n');
       
       return {
         success: false,
-        message: `Invalid OTP. ${3 - db.data.otps[otpIndex].attempts} attempts remaining.`
+        message: `Invalid OTP. ${3 - updated.attempts} attempts remaining.`
       }
     }
     
     // Mark as verified
-    db.data.otps[otpIndex].verified = true
-    await db.write()
+    await models.otps.updateOne({ _id: otp._id }, { $set: { verified: true } })
+    if (db.data.otps) {
+      const idx = db.data.otps.findIndex(o => o._id.toString() === otp._id.toString())
+      if (idx !== -1) db.data.otps[idx].verified = true
+    }
     
     console.log('✅ OTP verified successfully');
     console.log('='.repeat(60) + '\n');
@@ -172,14 +172,12 @@ exports.verifyOTP = async (email, otpCode, purpose = 'registration') => {
 // Clean expired OTPs (run periodically)
 exports.cleanExpiredOTPs = async () => {
   try {
-    await db.read()
+    const now = new Date().toISOString()
+    await models.otps.deleteMany({ expiresAt: { $lte: now } })
     
-    const now = new Date()
-    db.data.otps = db.data.otps?.filter(otp => 
-      new Date(otp.expiresAt) > now
-    ) || []
-    
-    await db.write()
+    if (db.data.otps) {
+      db.data.otps = db.data.otps.filter(otp => new Date(otp.expiresAt) > new Date(now))
+    }
   } catch (error) {
     console.error('Failed to clean expired OTPs:', error)
   }

@@ -1,17 +1,16 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const Lesson = require('../models/Lesson')
 
 // Get all lessons for a module
 exports.getLessonsByModule = async (req, res) => {
   try {
-    await db.read()
     const { moduleId } = req.params
     
-    const lessons = db.data.lessons?.filter(l => l.moduleId === moduleId) || []
+    const lessons = await models.lessons.find({ moduleId }).sort({ order: 1 }).lean()
     
     res.json({
       success: true,
-      lessons: lessons.sort((a, b) => a.order - b.order)
+      lessons
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -21,10 +20,9 @@ exports.getLessonsByModule = async (req, res) => {
 // Get single lesson
 exports.getLesson = async (req, res) => {
   try {
-    await db.read()
     const { lessonId } = req.params
     
-    const lesson = db.data.lessons?.find(l => l._id === lessonId)
+    const lesson = await models.lessons.findOne({ _id: lessonId }).lean()
     
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Lesson not found' })
@@ -54,15 +52,19 @@ function normalizeContent(content) {
 // Create lesson
 exports.createLesson = async (req, res) => {
   try {
-    await db.read()
-    
     const body = { ...req.body, content: normalizeContent(req.body.content) }
-    const newLesson = new Lesson(body)
     
-    db.data.lessons = db.data.lessons || []
-    db.data.lessons.push(newLesson)
+    // Check if _id is provided, otherwise let Mongoose generate one or generate our own string
+    const newLessonData = { ...body }
+    if (!newLessonData._id) {
+      newLessonData._id = Date.now().toString() + Math.random().toString(36).slice(2, 11)
+    }
     
-    await db.write()
+    const newLesson = await models.lessons.create(newLessonData)
+    
+    if (db.data.lessons) {
+      db.data.lessons.push(newLesson)
+    }
     
     res.status(201).json({ success: true, lesson: newLesson })
   } catch (error) {
@@ -73,22 +75,27 @@ exports.createLesson = async (req, res) => {
 // Update lesson
 exports.updateLesson = async (req, res) => {
   try {
-    await db.read()
     const { lessonId } = req.params
-    
-    const index = db.data.lessons?.findIndex(l => l._id === lessonId)
-    
-    if (index === -1 || index === undefined) {
-      return res.status(404).json({ success: false, message: 'Lesson not found' })
-    }
     
     const body = { ...req.body }
     if (body.content !== undefined) body.content = normalizeContent(body.content)
-    db.data.lessons[index] = { ...db.data.lessons[index], ...body, updatedAt: new Date() }
     
-    await db.write()
+    const updated = await models.lessons.findOneAndUpdate(
+      { _id: lessonId },
+      { $set: { ...body, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
     
-    res.json({ success: true, lesson: db.data.lessons[index] })
+    if (!updated) {
+      return res.status(404).json({ success: false, message: 'Lesson not found' })
+    }
+    
+    if (db.data.lessons) {
+      const index = db.data.lessons.findIndex(l => l._id === lessonId)
+      if (index !== -1) Object.assign(db.data.lessons[index], updated)
+    }
+    
+    res.json({ success: true, lesson: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -97,12 +104,13 @@ exports.updateLesson = async (req, res) => {
 // Delete lesson
 exports.deleteLesson = async (req, res) => {
   try {
-    await db.read()
     const { lessonId } = req.params
     
-    db.data.lessons = db.data.lessons?.filter(l => l._id !== lessonId) || []
+    await models.lessons.deleteOne({ _id: lessonId })
     
-    await db.write()
+    if (db.data.lessons) {
+      db.data.lessons = db.data.lessons.filter(l => l._id !== lessonId)
+    }
     
     res.json({ success: true, message: 'Lesson deleted' })
   } catch (error) {

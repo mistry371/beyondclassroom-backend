@@ -1,12 +1,12 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get all announcements
 exports.getAnnouncements = async (req, res) => {
   try {
-    await db.read();
+    let announcements = await models.announcements.find().sort({ createdAt: -1 }).lean()
     
-    if (!db.data.announcements) {
-      db.data.announcements = [
+    if (!announcements || announcements.length === 0) {
+      const defaultAnnouncements = [
         {
           _id: Date.now().toString() + '1',
           title: 'Platform Maintenance',
@@ -24,10 +24,14 @@ exports.getAnnouncements = async (req, res) => {
           createdAt: new Date(Date.now() - 86400000).toISOString()
         }
       ];
-      await db.write();
+      
+      await models.announcements.insertMany(defaultAnnouncements)
+      if (db.data.announcements) db.data.announcements.push(...defaultAnnouncements)
+      
+      announcements = defaultAnnouncements
     }
 
-    res.json({ announcements: db.data.announcements.map(a => ({
+    res.json({ announcements: announcements.map(a => ({
       ...a,
       message: a.message || a.content || ''
     })) });
@@ -41,11 +45,6 @@ exports.getAnnouncements = async (req, res) => {
 exports.createAnnouncement = async (req, res) => {
   try {
     const { title, message, priority, expiryDate } = req.body;
-    await db.read();
-    
-    if (!db.data.announcements) {
-      db.data.announcements = [];
-    }
 
     const newAnnouncement = {
       _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -56,8 +55,8 @@ exports.createAnnouncement = async (req, res) => {
       createdAt: new Date().toISOString()
     };
 
-    db.data.announcements.unshift(newAnnouncement);
-    await db.write();
+    await models.announcements.create(newAnnouncement)
+    if (db.data.announcements) db.data.announcements.unshift(newAnnouncement);
 
     res.status(201).json({ announcement: newAnnouncement });
   } catch (error) {
@@ -69,16 +68,15 @@ exports.createAnnouncement = async (req, res) => {
 // Delete announcement
 exports.deleteAnnouncement = async (req, res) => {
   try {
-    await db.read();
-    
-    const index = db.data.announcements?.findIndex(a => a._id === req.params.id);
-    
-    if (index === -1 || index === undefined) {
+    const result = await models.announcements.deleteOne({ _id: req.params.id })
+    if (result.deletedCount === 0) {
       return res.status(404).json({ message: 'Announcement not found' });
     }
 
-    db.data.announcements.splice(index, 1);
-    await db.write();
+    if (db.data.announcements) {
+      const index = db.data.announcements.findIndex(a => a._id === req.params.id);
+      if (index !== -1) db.data.announcements.splice(index, 1);
+    }
 
     res.json({ message: 'Announcement deleted successfully' });
   } catch (error) {

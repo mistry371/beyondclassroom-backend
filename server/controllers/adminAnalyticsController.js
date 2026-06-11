@@ -1,13 +1,19 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get analytics data
 exports.getAnalytics = async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    await db.read();
 
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - parseInt(days));
+
+    const [users, orders, courses, allProgress] = await Promise.all([
+      models.users.find().select('createdAt role name').lean(),
+      models.orders.find().lean(),
+      models.courses.find().lean(),
+      models.progress.find().lean()
+    ])
 
     // User growth data (real counts from DB)
     const userGrowth = [];
@@ -15,7 +21,7 @@ exports.getAnalytics = async (req, res) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const count = db.data.users?.filter(u => {
+      const count = users.filter(u => {
         const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null
         return created === dateStr
       }).length || 0;
@@ -28,7 +34,7 @@ exports.getAnalytics = async (req, res) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const amount = db.data.orders?.filter(o => {
+      const amount = orders.filter(o => {
         const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null
         return created === dateStr && o.status === 'completed'
       }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
@@ -36,20 +42,20 @@ exports.getAnalytics = async (req, res) => {
     }
 
     // Course popularity (real enrollment counts)
-    const coursePopularity = (db.data.courses || [])
+    const coursePopularity = courses
       .map(c => ({
         name: c.title,
-        enrollments: db.data.orders?.filter(o => o.courses?.includes(c._id) && o.status === 'completed').length || 0
+        enrollments: orders.filter(o => o.courses?.includes(c._id.toString()) && o.status === 'completed').length || 0
       }))
       .sort((a, b) => b.enrollments - a.enrollments)
       .slice(0, 5);
 
     // Top students
-    const topStudents = db.data.users
+    const topStudents = users
       .filter(u => u.role === 'user' || u.role === 'student')
       .slice(0, 5)
       .map(u => {
-        const userProgress = db.data.progress?.filter(p => p.user === u._id || p.userId === u._id) || []
+        const userProgress = allProgress.filter(p => p.user === u._id.toString() || p.userId === u._id.toString())
         const completedCourses = userProgress.filter(p => p.completionPercentage >= 100).length
         const allScores = userProgress.flatMap(p => (p.quizScores || []).map(s => s.score || 0))
         const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0
@@ -61,15 +67,14 @@ exports.getAnalytics = async (req, res) => {
         }
       });
 
-    const totalRevenue = db.data.orders?.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0
-    const allProgress = db.data.progress || []
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0
     const avgCompletionRate = allProgress.length > 0
       ? Math.round(allProgress.reduce((sum, p) => sum + (p.completionPercentage || 0), 0) / allProgress.length)
       : 0
 
     const analytics = {
-      totalUsers: db.data.users.length,
-      activeCourses: db.data.courses?.filter(c => !c.status || c.status === 'published' || c.isFeatured !== undefined).length || 0,
+      totalUsers: users.length,
+      activeCourses: courses.filter(c => !c.status || c.status === 'published' || c.isFeatured !== undefined).length || 0,
       totalRevenue,
       avgCompletionRate,
       userGrowthPercent: 15,
@@ -91,7 +96,11 @@ exports.getAnalytics = async (req, res) => {
 exports.exportAnalytics = async (req, res) => {
   try {
     const { days = 30 } = req.query;
-    await db.read();
+
+    const [users, orders] = await Promise.all([
+      models.users.find().select('createdAt').lean(),
+      models.orders.find().lean()
+    ])
 
     const daysInt = parseInt(days);
     const rows = [];
@@ -100,20 +109,20 @@ exports.exportAnalytics = async (req, res) => {
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
 
-      const newUsers = db.data.users?.filter(u => {
+      const newUsers = users.filter(u => {
         const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null;
         return created === dateStr;
       }).length || 0;
 
-      const revenue = db.data.orders?.filter(o => {
+      const revenueAmt = orders.filter(o => {
         const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null;
         return created === dateStr && o.status === 'completed';
       }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
 
-      rows.push(`${dateStr},${newUsers},${revenue}`);
+      rows.push(`${dateStr},${newUsers},${revenueAmt}`);
     }
 
-    const csvData = 'Date,New Users,Revenue\n' + rows.join('\n');
+    const csvData = 'Date,New Users,Revenue\\n' + rows.join('\\n');
 
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=analytics-${days}days.csv`);

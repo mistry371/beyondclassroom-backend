@@ -1,13 +1,12 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 const Practice = require('../models/Practice')
 
 // Get practice questions for a lesson
 exports.getPracticeByLesson = async (req, res) => {
   try {
-    await db.read()
     const { lessonId } = req.params
     
-    const practices = db.data.practices?.filter(p => p.lessonId === lessonId) || []
+    const practices = await models.practices.find({ lessonId }).lean()
     
     res.json({ success: true, practices })
   } catch (error) {
@@ -18,10 +17,9 @@ exports.getPracticeByLesson = async (req, res) => {
 // Get single practice question
 exports.getPractice = async (req, res) => {
   try {
-    await db.read()
     const { practiceId } = req.params
     
-    const practice = db.data.practices?.find(p => p._id === practiceId)
+    const practice = await models.practices.findOne({ _id: practiceId }).lean()
     
     if (!practice) {
       return res.status(404).json({ success: false, message: 'Practice not found' })
@@ -36,11 +34,10 @@ exports.getPractice = async (req, res) => {
 // Submit practice answer
 exports.submitPracticeAnswer = async (req, res) => {
   try {
-    await db.read()
     const { practiceId } = req.params
     const { answer } = req.body
     
-    const practice = db.data.practices?.find(p => p._id === practiceId)
+    const practice = await models.practices.findOne({ _id: practiceId }).lean()
     
     if (!practice) {
       return res.status(404).json({ success: false, message: 'Practice not found' })
@@ -63,14 +60,16 @@ exports.submitPracticeAnswer = async (req, res) => {
 // Create practice question
 exports.createPractice = async (req, res) => {
   try {
-    await db.read()
+    const newPracticeData = { ...req.body }
+    if (!newPracticeData._id) {
+      newPracticeData._id = Date.now().toString() + Math.random().toString(36).slice(2, 11)
+    }
     
-    const newPractice = new Practice(req.body)
+    const newPractice = await models.practices.create(newPracticeData)
     
-    db.data.practices = db.data.practices || []
-    db.data.practices.push(newPractice)
-    
-    await db.write()
+    if (db.data.practices) {
+      db.data.practices.push(newPractice)
+    }
     
     res.status(201).json({ success: true, practice: newPractice })
   } catch (error) {

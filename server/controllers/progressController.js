@@ -1,26 +1,32 @@
-const { db } = require('../database/db')
-const Progress = require('../models/Progress')
+const { db, models } = require('../database/db')
 
 // Get user progress for a course
 exports.getCourseProgress = async (req, res) => {
   try {
-    await db.read()
     const { courseId } = req.params
     const userId = req.user?._id || req.user?.id || 'guest'
     
-    let progress = db.data.progress?.find(p => p.userId === userId && p.courseId === courseId)
+    let progress = await models.progress.findOne({ userId, courseId }).lean()
     
     if (!progress) {
       // Create new progress record
-      progress = new Progress({ userId, courseId, expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) })
-      db.data.progress = db.data.progress || []
-      db.data.progress.push(progress)
-      await db.write()
-    }
-    
-    // Check expiry
-    if (progress.checkExpiry) {
-      progress.checkExpiry()
+      progress = { 
+        _id: `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        userId, 
+        courseId, 
+        completionPercentage: 0,
+        lessonsCompleted: [],
+        quizzesCompleted: [],
+        quizScores: [],
+        enrolledAt: new Date().toISOString(),
+        expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      }
+      await models.progress.create(progress)
+      
+      if (db.data.progress) {
+        db.data.progress.push(progress)
+      }
     }
     
     res.json({ success: true, progress })
@@ -32,40 +38,56 @@ exports.getCourseProgress = async (req, res) => {
 // Update lesson progress
 exports.updateLessonProgress = async (req, res) => {
   try {
-    await db.read()
     const { courseId, lessonId } = req.params
     const userId = req.user?._id || req.user?.id || 'guest'
     
-    let progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
+    let progress = await models.progress.findOne({ userId, courseId }).lean()
     
-    // Auto-create progress if not found
-    if (progressIndex === -1 || progressIndex === undefined) {
-      const newProgress = new Progress({ userId, courseId, expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) })
-      db.data.progress = db.data.progress || []
-      db.data.progress.push(newProgress)
-      progressIndex = db.data.progress.length - 1
+    if (!progress) {
+      progress = { 
+        _id: `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        userId, 
+        courseId, 
+        completionPercentage: 0,
+        lessonsCompleted: [],
+        quizzesCompleted: [],
+        quizScores: [],
+        enrolledAt: new Date().toISOString(),
+        expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      }
+      await models.progress.create(progress)
+      if (db.data.progress) db.data.progress.push(progress)
     }
     
-    const progress = db.data.progress[progressIndex]
-    
-    if (!progress.lessonsCompleted.includes(lessonId)) {
-      progress.lessonsCompleted.push(lessonId)
-    }
+    const lessonsCompleted = [...new Set([...(progress.lessonsCompleted || []), lessonId])]
     
     // Calculate completion percentage based on total lessons in course
-    const courseLessons = db.data.lessons?.filter(l => {
-      const module = db.data.modules?.find(m => m._id === l.moduleId)
-      return module?.courseId === courseId
-    }) || []
+    const modules = await models.modules.find({ courseId }).lean()
+    const moduleIds = modules.map(m => m._id)
+    const courseLessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
     
     const totalLessons = courseLessons.length || 1
-    progress.completionPercentage = Math.round((progress.lessonsCompleted.length / totalLessons) * 100)
-    progress.lastAccessedAt = new Date()
+    const completionPercentage = Math.round((lessonsCompleted.length / totalLessons) * 100)
     
-    db.data.progress[progressIndex] = progress
-    await db.write()
+    const updated = await models.progress.findOneAndUpdate(
+      { userId, courseId },
+      { 
+        $set: { 
+          lessonsCompleted,
+          completionPercentage,
+          lastAccessedAt: new Date().toISOString()
+        }
+      },
+      { new: true }
+    ).lean()
     
-    res.json({ success: true, progress })
+    if (db.data.progress) {
+      const idx = db.data.progress.findIndex(p => p.userId === userId && p.courseId === courseId)
+      if (idx !== -1) Object.assign(db.data.progress[idx], updated)
+    }
+    
+    res.json({ success: true, progress: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -74,37 +96,51 @@ exports.updateLessonProgress = async (req, res) => {
 // Update quiz progress
 exports.updateQuizProgress = async (req, res) => {
   try {
-    await db.read()
     const { courseId, quizId } = req.params
     const { score } = req.body
     const userId = req.user?._id || req.user?.id || 'guest'
     
-    let progressIndex = db.data.progress?.findIndex(p => p.userId === userId && p.courseId === courseId)
+    let progress = await models.progress.findOne({ userId, courseId }).lean()
     
-    // Auto-create progress if not found
-    if (progressIndex === -1 || progressIndex === undefined) {
-      const newProgress = new Progress({ userId, courseId, expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000) })
-      db.data.progress = db.data.progress || []
-      db.data.progress.push(newProgress)
-      progressIndex = db.data.progress.length - 1
+    if (!progress) {
+      progress = { 
+        _id: `progress-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        userId, 
+        courseId, 
+        completionPercentage: 0,
+        lessonsCompleted: [],
+        quizzesCompleted: [],
+        quizScores: [],
+        enrolledAt: new Date().toISOString(),
+        expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date().toISOString()
+      }
+      await models.progress.create(progress)
+      if (db.data.progress) db.data.progress.push(progress)
     }
     
-    const progress = db.data.progress[progressIndex]
+    const quizzesCompleted = [...new Set([...(progress.quizzesCompleted || []), quizId])]
     
-    if (!progress.quizzesCompleted.includes(quizId)) {
-      progress.quizzesCompleted.push(quizId)
+    const updated = await models.progress.findOneAndUpdate(
+      { userId, courseId },
+      { 
+        $set: { 
+          quizzesCompleted,
+          lastAccessedAt: new Date().toISOString()
+        },
+        $push: {
+          quizScores: { quizId, score, completedAt: new Date().toISOString() }
+        }
+      },
+      { new: true }
+    ).lean()
+    
+    if (db.data.progress) {
+      const idx = db.data.progress.findIndex(p => p.userId === userId && p.courseId === courseId)
+      if (idx !== -1) Object.assign(db.data.progress[idx], updated)
     }
     
-    progress.quizScores.push({ quizId, score, completedAt: new Date() })
-    progress.lastAccessedAt = new Date()
-    if (progress.calculateProgress) {
-      progress.calculateProgress()
-    }
-    
-    db.data.progress[progressIndex] = progress
-    await db.write()
-    
-    res.json({ success: true, progress })
+    res.json({ success: true, progress: updated })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -113,17 +149,9 @@ exports.updateQuizProgress = async (req, res) => {
 // Get all user progress
 exports.getAllUserProgress = async (req, res) => {
   try {
-    await db.read()
     const userId = req.user?._id || req.user?.id || 'guest'
     
-    const userProgress = db.data.progress?.filter(p => p.userId === userId) || []
-    
-    // Check expiry for all courses
-    userProgress.forEach(p => {
-      if (p.checkExpiry) {
-        p.checkExpiry()
-      }
-    })
+    const userProgress = await models.progress.find({ userId }).lean()
     
     res.json({ success: true, progress: userProgress })
   } catch (error) {

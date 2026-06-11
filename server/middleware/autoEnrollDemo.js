@@ -1,12 +1,10 @@
-const { db } = require('../database/db')
+const { db, models } = require('../database/db')
 
 // Auto-enroll new users in free demo course
 async function autoEnrollDemoCourse(userId) {
   try {
-    await db.read()
-
     // Find the demo course — only match explicitly marked demo courses, NOT by price
-    const demoCourse = db.data.courses?.find(c => c.isDemo === true)
+    const demoCourse = await models.courses.findOne({ isDemo: true }).lean()
     
     if (!demoCourse) {
       console.log('No demo course found for auto-enrollment')
@@ -14,14 +12,12 @@ async function autoEnrollDemoCourse(userId) {
     }
 
     // Find the user
-    const userIndex = db.data.users?.findIndex(u => u._id === userId)
+    const user = await models.users.findOne({ _id: userId }).lean()
     
-    if (userIndex === -1) {
+    if (!user) {
       console.log('User not found for auto-enrollment')
       return
     }
-
-    const user = db.data.users[userIndex]
 
     // Check if already enrolled
     if (user.purchasedCourses?.includes(demoCourse._id)) {
@@ -30,10 +26,10 @@ async function autoEnrollDemoCourse(userId) {
     }
 
     // Enroll user
-    if (!user.purchasedCourses) {
-      user.purchasedCourses = []
-    }
-    user.purchasedCourses.push(demoCourse._id)
+    await models.users.updateOne(
+      { _id: userId },
+      { $addToSet: { purchasedCourses: demoCourse._id } }
+    )
 
     // Create progress record
     const progressRecord = {
@@ -46,20 +42,28 @@ async function autoEnrollDemoCourse(userId) {
       practiceAccuracy: 0,
       quizScores: [],
       timeSpent: 0,
-      lastAccessedAt: new Date(),
-      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-      createdAt: new Date()
+      lastAccessedAt: new Date().toISOString(),
+      expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year
+      createdAt: new Date().toISOString()
     }
 
-    db.data.progress = db.data.progress || []
-    db.data.progress.push(progressRecord)
+    await models.progress.create(progressRecord)
 
-    // Update user in database
-    db.data.users[userIndex] = user
+    if (db.data.users) {
+      const uIdx = db.data.users.findIndex(u => u._id === userId)
+      if (uIdx !== -1) {
+        db.data.users[uIdx].purchasedCourses = db.data.users[uIdx].purchasedCourses || []
+        if (!db.data.users[uIdx].purchasedCourses.includes(demoCourse._id)) {
+          db.data.users[uIdx].purchasedCourses.push(demoCourse._id)
+        }
+      }
+    }
+    
+    if (db.data.progress) {
+      db.data.progress.push(progressRecord)
+    }
 
-    await db.write()
-
-    console.log(`✅ Auto-enrolled user ${user.email} in demo course: ${demoCourse.title}`)
+    console.log(\`✅ Auto-enrolled user \${user.email} in demo course: \${demoCourse.title}\`)
     
     return {
       success: true,

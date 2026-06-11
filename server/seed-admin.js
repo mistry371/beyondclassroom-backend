@@ -1,20 +1,14 @@
-const { db, initDB } = require('./database/db')
+const { db, initDB, models } = require('./database/db')
 const bcrypt = require('bcryptjs')
+const mongoose = require('mongoose')
 
 async function seedAdmin() {
   try {
     await initDB()
-    await db.read()
-    
-    // Initialize collections if they don't exist
-    db.data.users = db.data.users || []
-    db.data.settings = db.data.settings || []
-    db.data.activityLogs = db.data.activityLogs || []
-    db.data.subscriptions = db.data.subscriptions || []
     
     // Create admin user
     const adminEmail = 'mistryjenish1003@gmail.com'
-    const existingAdmin = db.data.users.find(u => u.email === adminEmail)
+    const existingAdmin = await models.users.findOne({ email: adminEmail }).lean()
     
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash('jenish@1019', 12)
@@ -30,11 +24,11 @@ async function seedAdmin() {
         isGuest: false,
         purchasedCourses: [],
         favorites: [],
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
       
-      db.data.users.push(adminUser)
+      await models.users.create(adminUser)
       console.log('✅ Admin user created:', adminEmail)
     } else {
       console.log('ℹ️  Admin user already exists')
@@ -42,7 +36,7 @@ async function seedAdmin() {
     
     // Create dummy user
     const dummyEmail = 'user@example.com'
-    const existingDummy = db.data.users.find(u => u.email === dummyEmail)
+    const existingDummy = await models.users.findOne({ email: dummyEmail }).lean()
     
     if (!existingDummy) {
       const hashedPassword = await bcrypt.hash('password123', 12)
@@ -58,11 +52,11 @@ async function seedAdmin() {
         isGuest: false,
         purchasedCourses: ['test-course-1'],
         favorites: [],
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       }
       
-      db.data.users.push(dummyUser)
+      await models.users.create(dummyUser)
       console.log('✅ Dummy user created:', dummyEmail)
     } else {
       console.log('ℹ️  Dummy user already exists')
@@ -79,7 +73,7 @@ async function seedAdmin() {
         displayName: 'Site Name',
         description: 'The name of your platform',
         isPublic: true,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-2',
@@ -90,7 +84,7 @@ async function seedAdmin() {
         displayName: 'Site Description',
         description: 'Short description of your platform',
         isPublic: true,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-3',
@@ -101,7 +95,7 @@ async function seedAdmin() {
         displayName: 'Default Course Duration (days)',
         description: 'Default access duration for courses',
         isPublic: false,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-4',
@@ -112,7 +106,7 @@ async function seedAdmin() {
         displayName: 'Enable Notifications',
         description: 'Enable/disable notification system',
         isPublic: false,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-5',
@@ -123,7 +117,7 @@ async function seedAdmin() {
         displayName: 'Enable AI Tutor',
         description: 'Enable/disable AI tutor feature',
         isPublic: false,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-6',
@@ -134,7 +128,7 @@ async function seedAdmin() {
         displayName: 'Enable Leaderboard',
         description: 'Enable/disable leaderboard feature',
         isPublic: false,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-7',
@@ -145,7 +139,7 @@ async function seedAdmin() {
         displayName: 'Email From Address',
         description: 'Default sender email address',
         isPublic: false,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-8',
@@ -156,7 +150,7 @@ async function seedAdmin() {
         displayName: 'Primary Color',
         description: 'Primary brand color (cyan)',
         isPublic: true,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       },
       {
         _id: 'setting-9',
@@ -167,21 +161,19 @@ async function seedAdmin() {
         displayName: 'Secondary Color',
         description: 'Secondary brand color (purple)',
         isPublic: true,
-        updatedAt: new Date()
+        updatedAt: new Date().toISOString()
       }
     ]
     
     // Add settings if they don't exist
-    defaultSettings.forEach(setting => {
-      const exists = db.data.settings.find(s => s.key === setting.key)
+    for (const setting of defaultSettings) {
+      const exists = await models.settings.findOne({ key: setting.key }).lean()
       if (!exists) {
-        db.data.settings.push(setting)
+        await models.settings.create(setting)
       }
-    })
+    }
     
     console.log('✅ Default settings initialized')
-    
-    await db.write()
     
     console.log('\n🎉 Admin seeding completed successfully!')
     console.log('\n📝 Login Credentials:')
@@ -194,6 +186,8 @@ async function seedAdmin() {
     
   } catch (error) {
     console.error('❌ Error seeding admin:', error)
+  } finally {
+    await mongoose.disconnect()
   }
 }
 

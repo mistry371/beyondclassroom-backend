@@ -1,15 +1,21 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get all student progress
 exports.getProgress = async (req, res) => {
   try {
-    await db.read();
+    const allProgress = await models.progress.find().lean()
     
-    const progressData = (db.data.progress || []).map(p => {
+    const userIds = [...new Set(allProgress.map(p => p.userId || p.user).filter(Boolean))]
+    const courseIds = [...new Set(allProgress.map(p => p.courseId || p.course).filter(Boolean))]
+    
+    const users = await models.users.find({ _id: { $in: userIds } }).select('name email _id').lean()
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title _id').lean()
+    
+    const progressData = allProgress.map(p => {
       const uid = p.userId || p.user
       const cid = p.courseId || p.course
-      const user = db.data.users?.find(u => u._id === uid)
-      const course = db.data.courses?.find(c => c._id === cid)
+      const user = users.find(u => u._id === uid)
+      const course = courses.find(c => c._id === cid)
       const completionPercentage = p.completionPercentage ?? p.overallProgress ?? 0
       const lessonsCompleted = p.lessonsCompleted || p.completedLessons || []
       const quizzesCompleted = p.quizzesCompleted || p.completedModules || []

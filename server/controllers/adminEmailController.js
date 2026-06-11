@@ -1,12 +1,12 @@
-const { db } = require('../database/db');
+const { db, models } = require('../database/db');
 
 // Get email logs
 exports.getEmailLogs = async (req, res) => {
   try {
-    await db.read();
+    let logs = await models.emailLogs.find().lean()
     
-    if (!db.data.emailLogs) {
-      db.data.emailLogs = [
+    if (!logs || logs.length === 0) {
+      const defaultLogs = [
         {
           _id: Date.now().toString() + '1',
           subject: 'Welcome to Beyond Classroom',
@@ -29,10 +29,12 @@ exports.getEmailLogs = async (req, res) => {
           sentAt: new Date(Date.now() - 259200000).toISOString()
         }
       ];
-      await db.write();
+      await models.emailLogs.insertMany(defaultLogs)
+      if (db.data.emailLogs) db.data.emailLogs.push(...defaultLogs)
+      logs = defaultLogs
     }
 
-    res.json({ emails: db.data.emailLogs });
+    res.json({ emails: logs });
   } catch (error) {
     console.error('Get email logs error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -69,9 +71,6 @@ exports.sendEmail = async (req, res) => {
   try {
     const { templateId, to, subject } = req.body;
     if (!to || !subject) return res.status(400).json({ message: 'Recipient and subject required' });
-
-    await db.read();
-    if (!db.data.emailLogs) db.data.emailLogs = [];
 
     // Build HTML from the real template matching templateId
     const {
@@ -124,8 +123,9 @@ exports.sendEmail = async (req, res) => {
       sentAt: new Date().toISOString(),
       sentBy: req.user._id
     };
-    db.data.emailLogs.push(log);
-    await db.write();
+    
+    await models.emailLogs.create(log)
+    if (db.data.emailLogs) db.data.emailLogs.push(log);
 
     res.json({ success: true, message: status === 'sent' ? 'Email sent successfully' : 'Email failed to send', log });
   } catch (error) {

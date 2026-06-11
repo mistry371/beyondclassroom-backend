@@ -2,27 +2,7 @@ const express = require('express')
 const router = express.Router()
 const promoterController = require('../controllers/promoterController')
 const { protectPromoter } = require('../middleware/promoterAuth')
-const jwt = require('jsonwebtoken')
-const { db } = require('../database/db')
-
-const adminOnly = async (req, res, next) => {
-  try {
-    let token
-    if (req.headers.authorization?.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1]
-    }
-    if (!token) return res.status(401).json({ message: 'Not authorized' })
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production')
-    await db.read()
-    req.user = db.data.users.find((u) => u._id === decoded.id)
-    if (!req.user || !['admin', 'super_admin'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Admin only' })
-    }
-    next()
-  } catch {
-    res.status(401).json({ message: 'Not authorized' })
-  }
-}
+const { admin, protect } = require('../middleware/auth')
 
 // Public
 router.get('/leaderboard', promoterController.getLeaderboard)
@@ -39,8 +19,8 @@ router.get('/referrals', protectPromoter, promoterController.getReferrals)
 router.post('/withdraw', protectPromoter, promoterController.requestWithdrawal)
 
 // Admin
-router.get('/admin/list', adminOnly, promoterController.adminListPromoters)
-router.get('/admin/payouts', adminOnly, promoterController.adminListPayouts)
-router.put('/admin/payouts/:id', adminOnly, promoterController.adminProcessPayout)
+router.get('/admin/list', protect, admin, promoterController.adminListPromoters)
+router.get('/admin/payouts', protect, admin, promoterController.adminListPayouts)
+router.put('/admin/payouts/:id', protect, admin, promoterController.adminProcessPayout)
 
 module.exports = router

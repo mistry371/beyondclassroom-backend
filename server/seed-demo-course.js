@@ -1,10 +1,12 @@
-const { db } = require('./database/db')
+const { db, initDB, models } = require('./database/db')
+const mongoose = require('mongoose')
 
 // Helper function to generate IDs
 const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9)
 
 async function seedDemoCourse() {
   try {
+    await initDB()
     await db.read()
 
     console.log('🌱 Starting demo course seeding...')
@@ -664,6 +666,23 @@ x = -3  OR  x = 3
       console.log(`✅ Auto-enrolled ${enrolledCount} existing users`)
     }
 
+    // Save to Mongoose
+    await models.courses.deleteOne({ _id: demoCourseId })
+    await models.courses.create(demoCourse)
+
+    await models.modules.deleteMany({ courseId: demoCourseId })
+    await models.modules.insertMany([module1, module2])
+
+    await models.lessons.deleteMany({ courseId: demoCourseId })
+    await models.lessons.insertMany([lesson1_1, lesson1_2, lesson2_1, lesson2_2])
+
+    await models.practices.deleteMany({ courseId: demoCourseId })
+    await models.practices.insertMany([...practices1_1, ...practices1_2, ...practices2_1, ...practices2_2])
+
+    await models.quizzes.deleteMany({ courseId: demoCourseId })
+    await models.quizzes.insertMany([quiz1, quiz2])
+
+
     console.log('\n🎉 Demo course seeding completed successfully!')
     console.log('\n📊 Summary:')
     console.log(`   - 1 FREE Demo Course: "${demoCourse.title}"`)
@@ -687,6 +706,8 @@ x = -3  OR  x = 3
   } catch (error) {
     console.error('❌ Error seeding demo course:', error)
     throw error
+  } finally {
+    await mongoose.disconnect()
   }
 }
 

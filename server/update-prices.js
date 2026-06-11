@@ -1,9 +1,12 @@
-const { db } = require('./database/db')
+const { db, models } = require('./database/db')
+const mongoose = require('mongoose')
 
 async function updatePrices() {
   await db.read()
 
   console.log('📝 Updating all course prices to ₹1...\n')
+
+  await models.courses.updateMany({}, { price: 1 })
 
   if (db.data.courses && db.data.courses.length > 0) {
     db.data.courses.forEach(course => {
@@ -16,6 +19,8 @@ async function updatePrices() {
   } else {
     console.log('❌ No courses found in database')
   }
+  
+  await mongoose.disconnect()
 }
 
 updatePrices().catch(console.error)
