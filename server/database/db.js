@@ -460,6 +460,18 @@ const packageSchema = new mongoose.Schema({
   updatedAt: Date,
 }, { _id: false })
 
+const testimonialSchema = new mongoose.Schema({
+  _id: { type: String },
+  name: String,
+  grade: String,
+  image: String,
+  content: String,
+  rating: { type: Number, default: 5 },
+  active: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
+}, { _id: false })
+
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
   packages:           mongoose.models.DbPackage           || mongoose.model('DbPackage',           packageSchema,           'packages'),
@@ -494,6 +506,7 @@ const models = {
   referrals:          mongoose.models.DbReferral          || mongoose.model('DbReferral',          referralSchema,          'referrals'),
   promoterPayouts:    mongoose.models.DbPromoterPayout    || mongoose.model('DbPromoterPayout',    promoterPayoutSchema,    'promoterPayouts'),
   promoCodes:         mongoose.models.DbPromoCode         || mongoose.model('DbPromoCode',         promoCodeSchema,         'promoCodes'),
+  testimonials:       mongoose.models.DbTestimonial       || mongoose.model('DbTestimonial',       testimonialSchema,       'testimonials'),
 }
 
 // ── db proxy — mimics LowDB API used throughout server-simple.js ──────────────
@@ -702,6 +715,58 @@ async function initDB() {
       }
     }
     if (migrated) console.log(`✅ Migrated ${migrated} course(s) to Mathematics/French categories`)
+  }
+
+  // Seed default testimonials if empty
+  if (!db.data.testimonials || db.data.testimonials.length === 0) {
+    const existingTestimonials = await models.testimonials.countDocuments();
+    if (existingTestimonials === 0) {
+      const initialTestimonials = [
+        {
+          _id: "testi-1",
+          name: "Aarav Sharma",
+          grade: "Grade 6 Student",
+          image: "/testimonials/student_aarav.png",
+          content: "Beyond Classroom has completely changed how I look at math. The practice resources are so engaging, and I actually look forward to solving problems now. My scores have improved significantly!",
+          rating: 5,
+          active: true,
+          createdAt: new Date()
+        },
+        {
+          _id: "testi-2",
+          name: "Priya Patel",
+          grade: "Parent of Grade 4 Student",
+          image: "/testimonials/parent_priya.png",
+          content: "As a parent, finding the right math resources was tough. This platform provides structured, reliable content that perfectly aligns with what my daughter needs. The progress tracking is a game-changer.",
+          rating: 5,
+          active: true,
+          createdAt: new Date()
+        },
+        {
+          _id: "testi-3",
+          name: "Rahul Verma",
+          grade: "Grade 8 Student",
+          image: "/testimonials/student_rahul.png",
+          content: "The advanced math challenges here are exactly what I needed to prepare for my competitive exams. The explanations are clear, and the platform is so easy to use.",
+          rating: 5,
+          active: true,
+          createdAt: new Date()
+        },
+        {
+          _id: "testi-4",
+          name: "Neha Gupta",
+          grade: "Math Educator",
+          image: "/testimonials/teacher_neha.png",
+          content: "I recommend Beyond Classroom to all my students. It's a fantastic supplementary tool that reinforces the concepts we cover in class. Truly a world-class educational platform.",
+          rating: 5,
+          active: true,
+          createdAt: new Date()
+        }
+      ];
+      await models.testimonials.insertMany(initialTestimonials);
+      db.data.testimonials = initialTestimonials;
+      console.log('✅ Seeded initial testimonials');
+    }
   }
 
   return db

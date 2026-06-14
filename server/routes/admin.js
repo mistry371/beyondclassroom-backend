@@ -18,6 +18,7 @@ const adminBadgeController = require('../controllers/adminBadgeController')
 const adminLogController = require('../controllers/adminLogController')
 const adminOrderController = require('../controllers/adminOrderController')
 const liveClassController = require('../controllers/liveClassController')
+const adminTestimonialController = require('../controllers/adminTestimonialController')
 
 // Middleware to check admin role
 const isAdmin = (req, res, next) => {
@@ -118,5 +119,11 @@ router.delete('/live-classes/:id', isAdmin, liveClassController.deleteClass)
 router.get('/orders/export', isAdmin, adminOrderController.exportOrders)
 router.get('/orders', isAdmin, adminOrderController.getAllOrders)
 router.post('/orders/:id/refund', isAdmin, adminOrderController.refundOrder)
+
+// Testimonials Management
+router.get('/testimonials', isAdmin, adminTestimonialController.getTestimonials)
+router.post('/testimonials', isAdmin, adminTestimonialController.createTestimonial)
+router.put('/testimonials/:id', isAdmin, adminTestimonialController.updateTestimonial)
+router.delete('/testimonials/:id', isAdmin, adminTestimonialController.deleteTestimonial)
 
 module.exports = router

@@ -43,6 +43,16 @@ app.use(express.static(path.join(__dirname, '../public')));
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
 
+// Public Testimonials route
+app.get('/api/testimonials', async (req, res) => {
+  try {
+    const testimonials = await models.testimonials.find({ active: true }).sort({ createdAt: -1 }).lean();
+    res.json({ success: true, testimonials });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Initialize database then start server
 app.post('/api/system/reseed-demo', async (req, res) => {
   try {
