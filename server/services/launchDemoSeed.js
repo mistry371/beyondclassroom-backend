@@ -133,7 +133,7 @@ async function seedLaunchDemo() {
     if (!existing) {
       const courseData = {
         _id: courseId,
-        title: `Class ${i} Mathematics`,
+        title: `Class ${i}`,
         description: `Complete mathematics curriculum and practice for Class ${i}.`,
         category: 'Mathematics',
         grade: `Class ${i}`,

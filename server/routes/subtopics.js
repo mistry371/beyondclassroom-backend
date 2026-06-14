@@ -4,8 +4,8 @@ const subtopicController = require('../controllers/subtopicController')
 const { protect, admin } = require('../middleware/auth')
 
 // Public / student routes
-router.get('/lesson/:lessonId', protect, subtopicController.getSubtopicsByLesson)
-router.get('/:subtopicId', protect, subtopicController.getSubtopic)
+router.get('/lesson/:lessonId', subtopicController.getSubtopicsByLesson)
+router.get('/:subtopicId', subtopicController.getSubtopic)
 
 // Admin routes
 router.get('/', protect, admin, subtopicController.getAllSubtopics)

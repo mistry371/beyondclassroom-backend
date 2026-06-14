@@ -8,11 +8,51 @@ const {
 
 const ADMIN_EMAIL = 'mistryjenish1003@gmail.com'
 
+const getUserPackageLimits = async (user) => {
+  let limit = 0;
+  let hasUnlimited = false;
+
+  const pkgs = user.purchasedCourses || [];
+  if (pkgs.includes('beta') || pkgs.includes('school')) {
+    hasUnlimited = true;
+    limit = Infinity;
+  } else if (pkgs.includes('teachers')) {
+    limit = Math.max(limit, 100);
+  } else if (pkgs.includes('pro')) {
+    limit = Math.max(limit, 50);
+  } else if (pkgs.includes('basic')) {
+    limit = Math.max(limit, 25);
+  }
+
+  const used = await models.customRequests.countDocuments({ userId: user._id });
+  return { 
+    limit: hasUnlimited ? 'unlimited' : limit, 
+    used, 
+    hasUnlimited,
+    remaining: hasUnlimited ? 'unlimited' : Math.max(0, limit - used)
+  };
+}
+
+// Student: Get my package limits
+exports.getMyLimits = async (req, res) => {
+  try {
+    const usage = await getUserPackageLimits(req.user)
+    res.json({ success: true, usage })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 // Student: submit a new custom request
 exports.createRequest = async (req, res) => {
   try {
     const user = req.user
     
+    const usage = await getUserPackageLimits(user);
+    if (!usage.hasUnlimited && usage.used >= usage.limit) {
+      return res.status(403).json({ success: false, message: 'You have reached the custom request limit for your current package. Please upgrade to request more.' });
+    }
+
     const request = {
       _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
       ...req.body,
@@ -57,7 +97,8 @@ exports.createRequest = async (req, res) => {
 exports.getMyRequests = async (req, res) => {
   try {
     const requests = await models.customRequests.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean()
-    res.json({ success: true, requests })
+    const usage = await getUserPackageLimits(req.user)
+    res.json({ success: true, requests, usage })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -67,6 +108,21 @@ exports.getMyRequests = async (req, res) => {
 exports.getAllRequests = async (req, res) => {
   try {
     const requests = await models.customRequests.find().sort({ createdAt: -1 }).lean()
+    
+    // Attach usage limits for admin context
+    const userMap = new Map()
+    for (const req of requests) {
+      if (!userMap.has(req.userId)) {
+        const u = await models.users.findOne({ _id: req.userId }).lean()
+        if (u) {
+          userMap.set(req.userId, await getUserPackageLimits(u))
+        } else {
+          userMap.set(req.userId, { limit: 0, used: 0, hasUnlimited: false })
+        }
+      }
+      req.userUsage = userMap.get(req.userId)
+    }
+
     res.json({ success: true, requests })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -209,5 +265,38 @@ exports.deleteRequest = async (req, res) => {
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Admin: assign PDF and complete the request
+exports.assignPdf = async (req, res) => {
+  try {
+    const { assignedPdf } = req.body;
+    if (!assignedPdf) {
+      return res.status(400).json({ success: false, message: 'PDF file is required' });
+    }
+
+    const updates = {
+      assignedPdf,
+      status: 'completed',
+      updatedAt: new Date()
+    };
+
+    const updated = await models.customRequests.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: updates },
+      { new: true }
+    ).lean();
+
+    if (!updated) return res.status(404).json({ success: false, message: 'Request not found' });
+
+    if (db.data.customRequests) {
+      const idx = db.data.customRequests.findIndex(r => r._id === req.params.id);
+      if (idx !== -1) Object.assign(db.data.customRequests[idx], updates);
+    }
+
+    res.json({ success: true, request: updated });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 }

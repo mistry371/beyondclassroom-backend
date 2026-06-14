@@ -51,6 +51,7 @@ const userSchema = new mongoose.Schema({
   referralCode: String,
   passwordResetToken: String,
   passwordResetExpires: String,
+  activeSessionId: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false })
@@ -316,6 +317,9 @@ const customRequestSchema = new mongoose.Schema({
   assignedToUserName: String,
   deliveryItems: mongoose.Schema.Types.Mixed,
   studentMessages: mongoose.Schema.Types.Mixed,
+  marks: Number,
+  studentAttachedFile: String,
+  assignedPdf: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false })
