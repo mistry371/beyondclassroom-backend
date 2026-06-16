@@ -849,10 +849,12 @@ app.use('/api/subtopics', subtopicRoutes);
 app.use('/api/exams', examRoutes);
 const customRequestRoutes = require('./routes/customRequests');
 const promoterRoutes = require('./routes/promoters');
+const teamRoutes = require('./routes/team');
 const packageRoutes = require('./routes/packages');
 const promoCodeRoutes = require('./routes/promoCodes');
 app.use('/api/custom-requests', customRequestRoutes);
 app.use('/api/promoters', promoterRoutes);
+app.use('/api/team', teamRoutes);
 // Packages — public GET at /api/packages, admin routes at /api/packages/admin/* (require auth)
 app.get('/api/packages', async (req, res) => {
   try {

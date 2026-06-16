@@ -30,6 +30,17 @@ exports.getSubtopicsByLesson = async (req, res) => {
   }
 }
 
+// Get all subtopics for a module
+exports.getSubtopicsByModule = async (req, res) => {
+  try {
+    const { moduleId } = req.params
+    const subtopics = await models.subtopics.find({ moduleId }).sort({ order: 1 }).lean()
+    res.json({ success: true, subtopics })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 // Get single subtopic
 exports.getSubtopic = async (req, res) => {
   try {

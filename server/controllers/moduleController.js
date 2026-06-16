@@ -22,12 +22,14 @@ exports.getModulesByCourse = async (req, res) => {
     
     const lessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
     const quizzes = await models.quizzes.find({ moduleId: { $in: moduleIds } }).lean()
+    const allSubtopics = await models.subtopics.find({ moduleId: { $in: moduleIds } }).lean()
     
     // Populate lesson count and lessons for each module
     modules = modules.map(m => {
       const modLessons = lessons.filter(l => l.moduleId === m._id) || []
       const quiz = quizzes.find(q => q.moduleId === m._id) || null
-      return { ...m, lessons: modLessons, lessonCount: modLessons.length, quiz }
+      const directSubtopics = allSubtopics.filter(s => s.moduleId === m._id && (!s.lessonId || String(s.lessonId).trim() === ''))
+      return { ...m, lessons: modLessons, lessonCount: modLessons.length, quiz, directSubtopics }
     })
     
     res.json({
