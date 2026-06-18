@@ -16,29 +16,50 @@ const getRazorpay = () => {
 // Create Order
 exports.createOrder = async (req, res) => {
   try {
-    const { courseId, packageId, amount } = req.body
+    const { courseId, packageId, amount, selectedCourseIds } = req.body
     const userId = req.user._id
 
-    // Create Razorpay order
-    const razorpay = getRazorpay()
-    const options = {
-      amount: amount * 100, // amount in paise
-      currency: 'INR',
-      receipt: `order_${Date.now()}`,
-      notes: {
-        courseId: courseId || '',
-        packageId: packageId || '',
-        userId: userId.toString()
+    let order;
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret || keyId === 'your_razorpay_key_id') {
+      // Mock order for local development or missing keys
+      order = {
+        id: `order_mock_${Date.now()}`,
+        amount: amount * 100,
+        currency: 'INR'
+      }
+    } else {
+      try {
+        const razorpay = getRazorpay()
+        const options = {
+          amount: amount * 100, // amount in paise
+          currency: 'INR',
+          receipt: `order_${Date.now()}`,
+          notes: {
+            courseId: courseId || '',
+            packageId: packageId || '',
+            userId: userId.toString()
+          }
+        }
+        order = await razorpay.orders.create(options)
+      } catch (rzpErr) {
+        console.warn('Razorpay API failed, falling back to mock order:', rzpErr.message);
+        order = {
+          id: `order_mock_${Date.now()}`,
+          amount: amount * 100,
+          currency: 'INR'
+        }
       }
     }
-
-    const order = await razorpay.orders.create(options)
 
     const payment = {
       _id: `payment-${Date.now()}`,
       userId,
       courseId,
       packageId,
+      selectedCourseIds: Array.isArray(selectedCourseIds) ? selectedCourseIds : [],
       amount,
       currency: 'INR',
       razorpayOrderId: order.id,
@@ -80,17 +101,19 @@ exports.verifyPayment = async (req, res) => {
     const userId = req.user._id
 
     // Verify signature
-    const sign = razorpay_order_id + '|' + razorpay_payment_id
-    const expectedSign = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(sign.toString())
-      .digest('hex')
+    if (process.env.RAZORPAY_KEY_ID !== 'your_razorpay_key_id') {
+      const sign = razorpay_order_id + '|' + razorpay_payment_id
+      const expectedSign = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(sign.toString())
+        .digest('hex')
 
-    if (razorpay_signature !== expectedSign) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment signature'
-      })
+      if (razorpay_signature !== expectedSign) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment signature'
+        })
+      }
     }
 
     // Payment verified - Update database
@@ -123,11 +146,20 @@ exports.verifyPayment = async (req, res) => {
       packageId = payment.packageId
     }
 
-    // If a package was purchased, get all its courseIds
+    // If a package was purchased, process it
     if (packageId) {
       const pkg = await models.packages.findById(packageId).lean()
-      if (pkg && pkg.courseIds) {
-        purchasedCourseIds = [...new Set([...purchasedCourseIds, ...pkg.courseIds])]
+      if (pkg) {
+        // Only grant access to the specifically selected courses if provided, else all pkg courses (fallback)
+        const coursesToGrant = (payment && payment.selectedCourseIds && payment.selectedCourseIds.length > 0)
+          ? payment.selectedCourseIds
+          : (pkg.courseIds || [])
+          
+        purchasedCourseIds = [...new Set([...purchasedCourseIds, ...coursesToGrant])]
+        
+        // Also add the package name/ID to purchasedCourses so customRequest limits work
+        // getUserPackageLimits checks for 'beta', 'school', 'teachers', 'pro', 'basic' in purchasedCourses.
+        purchasedCourseIds.push(pkg._id)
       }
     }
 
