@@ -144,6 +144,7 @@ const subtopicSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: true },
   document: mongoose.Schema.Types.Mixed,
   documents: [mongoose.Schema.Types.Mixed],
+  packageIds: [String],
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false })
