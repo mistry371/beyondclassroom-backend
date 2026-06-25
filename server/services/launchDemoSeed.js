@@ -187,10 +187,12 @@ async function seedLaunchDemo() {
     if (db.data.courses) db.data.courses.push(demoData)
   }
 
-  // Seed packages
-  await models.packages.deleteMany({})
-  await models.packages.insertMany(staticPackages)
-  db.data.packages = staticPackages
+  // Seed packages only if none exist
+  const packageCount = await models.packages.countDocuments()
+  if (packageCount === 0) {
+    await models.packages.insertMany(staticPackages)
+    if (db.data) db.data.packages = staticPackages
+  }
 
   // Seed admin user
   const adminEmail = 'mistryjenish1003@gmail.com'

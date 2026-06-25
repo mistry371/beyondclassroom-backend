@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { models } = require('../database/db')
+const { db, models } = require('../database/db')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -70,6 +70,7 @@ router.post('/admin', isAdmin, async (req, res) => {
     }
     
     await models.packages.create(pkg)
+    if (db.data.packages) db.data.packages.push(pkg)
     res.status(201).json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -102,6 +103,11 @@ router.put('/admin/:id', isAdmin, async (req, res) => {
 
     if (!pkg) return res.status(404).json({ message: 'Package not found' })
     
+    if (db.data.packages) {
+      const idx = db.data.packages.findIndex(p => p._id === req.params.id)
+      if (idx !== -1) Object.assign(db.data.packages[idx], updates)
+    }
+
     res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -113,6 +119,11 @@ router.delete('/admin/:id', isAdmin, async (req, res) => {
   try {
     const result = await models.packages.deleteOne({ _id: req.params.id })
     if (result.deletedCount === 0) return res.status(404).json({ message: 'Package not found' })
+    
+    if (db.data.packages) {
+      db.data.packages = db.data.packages.filter(p => p._id !== req.params.id)
+    }
+
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -129,6 +140,14 @@ router.patch('/admin/:id/toggle', isAdmin, async (req, res) => {
     pkg.updatedAt = new Date()
     await pkg.save()
     
+    if (db.data.packages) {
+      const idx = db.data.packages.findIndex(p => p._id === req.params.id)
+      if (idx !== -1) {
+        db.data.packages[idx].active = pkg.active
+        db.data.packages[idx].updatedAt = pkg.updatedAt
+      }
+    }
+
     res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
@@ -153,6 +172,15 @@ router.patch('/admin/:id/reorder', isAdmin, async (req, res) => {
     await models.packages.updateOne({ _id: sorted[idx]._id }, { $set: { sortOrder: sorted[swapIdx].sortOrder } })
     await models.packages.updateOne({ _id: sorted[swapIdx]._id }, { $set: { sortOrder: tempOrder } })
     
+    if (db.data.packages) {
+      const p1 = db.data.packages.find(p => p._id === sorted[idx]._id)
+      const p2 = db.data.packages.find(p => p._id === sorted[swapIdx]._id)
+      if (p1 && p2) {
+        p1.sortOrder = sorted[swapIdx].sortOrder
+        p2.sortOrder = tempOrder
+      }
+    }
+
     const newSorted = await models.packages.find().sort({ sortOrder: 1 })
     res.json({ success: true, packages: newSorted })
   } catch (error) {

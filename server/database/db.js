@@ -573,39 +573,8 @@ const db = {
       if (!this._data[c] || !Array.isArray(this._data[c])) continue
       
       const currentJson = JSON.stringify(this._data[c])
-      const oldJson = this._lastStateJson[c]
       
-      // Skip if unchanged
-      if (currentJson === oldJson) continue
-      
-      const Model = models[c]
-      const oldDocs = oldJson ? JSON.parse(oldJson) : []
-      const oldDocsMap = new Map(oldDocs.map(d => [d._id, JSON.stringify(d)]))
-      const currentIds = new Set(this._data[c].map(d => d._id).filter(Boolean))
-      
-      // Update/Insert docs
-      for (const doc of this._data[c]) {
-        if (!doc._id) continue
-        const docJson = JSON.stringify(doc)
-        const cachedDocJson = oldDocsMap.get(doc._id)
-        
-        if (docJson !== cachedDocJson) {
-          await Model.findOneAndUpdate(
-            { _id: doc._id },
-            { $set: doc },
-            { upsert: true, new: true }
-          ).lean()
-        }
-      }
-      
-      // Delete removed docs
-      const oldIds = oldDocs.map(d => d._id).filter(Boolean)
-      const removedIds = oldIds.filter(id => !currentIds.has(id))
-      if (removedIds.length > 0) {
-        await Model.deleteMany({ _id: { $in: removedIds } })
-      }
-      
-      // Sync the snapshot state
+      // Update snapshot state so memory sync works but without overwriting DB
       this._lastStateJson[c] = currentJson
     }
 

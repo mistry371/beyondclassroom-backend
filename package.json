@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
-    "client": "cd client && npm run dev",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
+    "client": "cd ../beyondclassroom-frontend && npm run dev",
+    "install-all": "npm install && cd server && npm install && cd ../../beyondclassroom-frontend && npm install",
     "start": "cd server && npm start",
     "postinstall": "cd server && npm install"
   },
