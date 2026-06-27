@@ -476,6 +476,46 @@ app.get('/api/courses/:id', async (req, res) => {
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
+
+    if (req.query.populate === 'true') {
+      const modules = await models.modules.find({ courseId: course._id }).lean();
+      const moduleIds = modules.map(m => m._id);
+      
+      const lessons = moduleIds.length > 0 
+        ? await models.lessons.find({ moduleId: { $in: moduleIds } }).lean() 
+        : [];
+      const lessonIds = lessons.map(l => l._id);
+
+      const subtopics = (moduleIds.length > 0 || lessonIds.length > 0)
+        ? await models.subtopics.find({
+            $or: [
+              { moduleId: { $in: moduleIds } },
+              { lessonId: { $in: lessonIds } }
+            ]
+          }).lean()
+        : [];
+
+      // Construct nested structure
+      const populatedModules = modules.map(moduleItem => {
+        const moduleLessons = lessons
+          .filter(l => l.moduleId === moduleItem._id)
+          .map(lesson => {
+            const lessonSubtopics = subtopics.filter(s => s.lessonId === lesson._id);
+            return { ...lesson, subtopics: lessonSubtopics };
+          });
+
+        const directSubtopics = subtopics.filter(s => s.moduleId === moduleItem._id && !s.lessonId);
+        
+        return { 
+          ...moduleItem, 
+          title: moduleItem.title,
+          lessons: moduleLessons,
+          directSubtopics
+        };
+      });
+
+      course.modules = populatedModules;
+    }
     
     res.json({ success: true, course });
   } catch (error) {

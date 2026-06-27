@@ -120,13 +120,10 @@ const staticPackages = [
 ]
 
 async function seedLaunchDemo() {
-  // Clear demo courses
-  await models.courses.deleteMany({ isDemo: true })
-  if (db.data.courses) {
-    db.data.courses = db.data.courses.filter(c => !c.isDemo)
-  }
+  // NOTE: Do NOT delete demo courses on restart — this overwrites admin price changes.
+  // Only clean up orphaned demo courses that have no valid data.
 
-  // Seed Class 1-8 courses
+  // Seed Class 1-8 courses (only if they don't already exist)
   for (let i = 1; i <= 8; i++) {
     const courseId = `course-class-${i}`
     let existing = await models.courses.findOne({ _id: courseId }).lean()
@@ -158,7 +155,7 @@ async function seedLaunchDemo() {
     }
   }
 
-  // Add the specific ₹599 demo class course the user asked for
+  // Add the specific demo class course (only if it doesn't already exist)
   const demoExists = await models.courses.findOne({ _id: 'course-class-6-demo' }).lean()
   if (!demoExists) {
     const demoData = {
