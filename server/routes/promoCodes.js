@@ -137,8 +137,9 @@ router.post('/validate', protect, async (req, res) => {
     }
     
     const originalAmount = Number(amount) || 0
-    const discountAmount = Math.round((originalAmount * promo.discountPercent) / 100)
-    const finalAmount = Math.max(0, originalAmount - discountAmount)
+    const rawDiscount = (originalAmount * promo.discountPercent) / 100
+    const discountAmount = Number(rawDiscount.toFixed(2))
+    const finalAmount = Number(Math.max(0, originalAmount - discountAmount).toFixed(2))
     res.json({
       success: true,
       promoCode: promo.code,
