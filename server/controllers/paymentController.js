@@ -23,7 +23,13 @@ exports.createOrder = async (req, res) => {
     if (packageId) {
       const pkg = await models.packages.findOne({ _id: packageId }).lean();
       if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
-      originalAmount = pkg.priceINR || 0;
+      
+      const basePrice = pkg.priceINR || 0;
+      if (selectedCourseIds && Array.isArray(selectedCourseIds) && selectedCourseIds.length > 0) {
+        originalAmount = basePrice * selectedCourseIds.length;
+      } else {
+        originalAmount = basePrice;
+      }
     } else if (courseId) {
       const course = await models.courses.findOne({ _id: courseId }).lean();
       if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
@@ -38,8 +44,9 @@ exports.createOrder = async (req, res) => {
     if (promoCode) {
       const promo = await models.promoCodes.findOne({ code: promoCode.toUpperCase().trim() }).lean();
       if (promo && promo.active !== false && (!promo.expiryDate || new Date(promo.expiryDate) >= new Date()) && (!promo.usageLimit || promo.usedCount < promo.usageLimit)) {
-        const discountAmount = Math.round((originalAmount * promo.discountPercent) / 100);
-        finalAmount = Math.max(0, originalAmount - discountAmount);
+        const rawDiscount = (originalAmount * promo.discountPercent) / 100;
+        const discountAmount = Number(rawDiscount.toFixed(2));
+        finalAmount = Number(Math.max(0, originalAmount - discountAmount).toFixed(2));
         appliedPromo = promo.code;
       }
     }
