@@ -30,13 +30,58 @@ router.get('/admin', isAdmin, async (req, res) => {
   }
 })
 
-// GET /api/packages/:id — public, returns single package
+// GET /api/packages/:id - public, returns single package
 router.get('/:id', async (req, res) => {
   try {
     const pkg = await models.packages.findById(req.params.id).lean()
     if (!pkg || pkg.active === false) {
       return res.status(404).json({ message: 'Package not found' })
     }
+
+    if (req.query.populate === 'true' && pkg.courseIds && pkg.courseIds.length > 0) {
+      // Fetch all courses for this package
+      const courses = await models.courses.find({ _id: { $in: pkg.courseIds } }).lean()
+      
+      // Fetch all modules for these courses
+      const modules = await models.modules.find({ courseId: { $in: pkg.courseIds } }).lean()
+      const moduleIds = modules.map(m => m._id)
+      
+      // Fetch all lessons for these modules
+      const lessons = moduleIds.length > 0 
+        ? await models.lessons.find({ moduleId: { $in: moduleIds } }).lean() 
+        : []
+      const lessonIds = lessons.map(l => l._id)
+
+      // Fetch all subtopics for these modules/lessons
+      const subtopics = (moduleIds.length > 0 || lessonIds.length > 0)
+        ? await models.subtopics.find({
+            $or: [
+              { moduleId: { $in: moduleIds } },
+              { lessonId: { $in: lessonIds } }
+            ]
+          }).lean()
+        : []
+
+      // Map subtopics to lessons
+      const mappedLessons = lessons.map(l => ({
+        ...l,
+        subtopics: subtopics.filter(st => st.lessonId === l._id)
+      }))
+
+      // Map lessons and remaining subtopics to modules
+      const mappedModules = modules.map(m => ({
+        ...m,
+        lessons: mappedLessons.filter(l => l.moduleId === m._id),
+        subtopics: subtopics.filter(st => st.moduleId === m._id && !st.lessonId)
+      }))
+
+      // Map modules to courses
+      pkg.courses = courses.map(c => ({
+        ...c,
+        modules: mappedModules.filter(m => m.courseId === c._id)
+      }))
+    }
+
     res.json({ success: true, package: pkg })
   } catch (error) {
     res.status(500).json({ message: error.message })
