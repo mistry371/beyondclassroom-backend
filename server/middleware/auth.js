@@ -54,3 +54,26 @@ exports.admin = (req, res, next) => {
     res.status(403).json({ message: 'Admin access required' });
   }
 };
+
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (!token) return next();
+    
+    const decoded = jwt.verify(token, JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
+    let user = await models.users.findOne({ _id: decoded.id }).lean();
+    if (!user && db.data.users) {
+      user = db.data.users.find(u => u._id === decoded.id);
+    }
+    
+    if (user && user.status !== 'suspended') {
+      req.user = user;
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+};

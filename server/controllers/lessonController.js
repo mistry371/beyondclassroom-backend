@@ -8,9 +8,30 @@ exports.getLessonsByModule = async (req, res) => {
     
     const lessons = await models.lessons.find({ moduleId }).sort({ order: 1 }).lean()
     
+    // Authorization check to protect paid content
+    let isAuthorized = false;
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
+      isAuthorized = true;
+    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.length > 0) {
+      // Find the course this module belongs to
+      const moduleDoc = await models.modules.findOne({ _id: moduleId }).lean();
+      if (moduleDoc && req.user.purchasedCourses.includes(moduleDoc.courseId)) {
+        isAuthorized = true;
+      }
+    }
+    
+    const safeLessons = lessons.map(lesson => {
+      if (!isAuthorized) {
+        // Strip sensitive/paid content
+        const { videoUrl, content, ...safeLesson } = lesson;
+        return safeLesson;
+      }
+      return lesson;
+    });
+    
     res.json({
       success: true,
-      lessons
+      lessons: safeLessons
     })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -26,6 +47,22 @@ exports.getLesson = async (req, res) => {
     
     if (!lesson) {
       return res.status(404).json({ success: false, message: 'Lesson not found' })
+    }
+    
+    // Authorization check to protect paid content
+    let isAuthorized = false;
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
+      isAuthorized = true;
+    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.length > 0) {
+      const moduleDoc = await models.modules.findOne({ _id: lesson.moduleId }).lean();
+      if (moduleDoc && req.user.purchasedCourses.includes(moduleDoc.courseId)) {
+        isAuthorized = true;
+      }
+    }
+    
+    if (!isAuthorized) {
+      delete lesson.videoUrl;
+      delete lesson.content;
     }
     
     res.json({ success: true, lesson })

@@ -6,7 +6,17 @@ exports.getQuizzesByModule = async (req, res) => {
   try {
     const { moduleId } = req.params
     const quizzes = await models.quizzes.find({ moduleId }).lean()
-    res.json({ success: true, quizzes })
+    
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+    
+    const safeQuizzes = quizzes.map(quiz => {
+      if (!isAdmin && quiz.questions) {
+        quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
+      }
+      return quiz;
+    });
+
+    res.json({ success: true, quizzes: safeQuizzes })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -20,6 +30,12 @@ exports.getQuizByModule = async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
+    
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+    if (!isAdmin && quiz.questions) {
+      quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
+    }
+    
     res.json({ success: true, quiz })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -34,6 +50,12 @@ exports.getQuiz = async (req, res) => {
     if (!quiz) {
       return res.status(404).json({ success: false, message: 'Quiz not found' })
     }
+    
+    const isAdmin = req.user && (req.user.role === 'admin' || req.user.role === 'super_admin');
+    if (!isAdmin && quiz.questions) {
+      quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
+    }
+
     res.json({ success: true, quiz })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

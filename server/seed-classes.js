@@ -37,14 +37,14 @@ async function seedClasses() {
     
     // Create Class 1 to 8 courses
     for (let i = 1; i <= 8; i++) {
-      const courseId = \`course-class-\${i}\`
+      const courseId = `course-class-${i}`
       
       const newCourse = {
         _id: courseId,
-        title: \`Class \${i} Mathematics\`,
-        description: \`Complete mathematics curriculum and practice for Class \${i}.\`,
+        title: `Class ${i} Mathematics`,
+        description: `Complete mathematics curriculum and practice for Class ${i}.`,
         category: 'Mathematics',
-        grade: \`Class \${i}\`,
+        grade: `Class ${i}`,
         difficulty: 'Intermediate',
         price: 999,
         discountPrice: 499,
@@ -63,7 +63,7 @@ async function seedClasses() {
       }
 
       newCoursesList.push(newCourse)
-      console.log(\`✅ Created Course: Class \${i} Mathematics\`)
+      console.log(`✅ Created Course: Class ${i} Mathematics`)
     }
 
     await models.courses.deleteMany({})

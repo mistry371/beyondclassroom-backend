@@ -1,12 +1,13 @@
 const express = require('express')
 const router = express.Router()
 const moduleController = require('../controllers/moduleController')
+const { protect, admin, optionalAuth } = require('../middleware/auth')
 
-router.get('/', moduleController.getAllModules)
-router.get('/course/:courseId', moduleController.getModulesByCourse)
-router.get('/:moduleId', moduleController.getModule)
-router.post('/', moduleController.createModule)
-router.put('/:moduleId', moduleController.updateModule)
-router.delete('/:moduleId', moduleController.deleteModule)
+router.get('/', optionalAuth, moduleController.getAllModules)
+router.get('/course/:courseId', optionalAuth, moduleController.getModulesByCourse)
+router.get('/:moduleId', optionalAuth, moduleController.getModule)
+router.post('/', protect, admin, moduleController.createModule)
+router.put('/:moduleId', protect, admin, moduleController.updateModule)
+router.delete('/:moduleId', protect, admin, moduleController.deleteModule)
 
 module.exports = router

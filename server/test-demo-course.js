@@ -15,8 +15,8 @@ async function setupTestUser() {
       return
     }
 
-    console.log(\`✅ Found demo course: \${demoCourse.title}\`)
-    console.log(\`   Course ID: \${demoCourse._id}\`)
+    console.log(`✅ Found demo course: ${demoCourse.title}`)
+    console.log(`   Course ID: ${demoCourse._id}`)
 
     // Find or create a test user
     let testUser = await models.users.findOne({ email: 'test@demo.com' }).lean()

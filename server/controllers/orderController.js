@@ -3,10 +3,7 @@ const Cart = require('../models/Cart');
 const User = require('../models/User');
 const Course = require('../models/Course');
 
-const Order = require('../models/Order');
-const Cart = require('../models/Cart');
-const User = require('../models/User');
-const Course = require('../models/Course');
+
 
 exports.createOrder = async (req, res) => {
   try {

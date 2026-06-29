@@ -289,7 +289,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       await sendEmail({
         to: email,
         subject: 'Reset Your Password - Beyond Classroom',
-        html: passwordResetEmailTemplate(db.data.users[userIdx].name, resetLink)
+        html: passwordResetEmailTemplate(user.name, resetLink)
       })
     } catch (emailErr) {
       console.error('Password reset email failed:', emailErr.message)
@@ -386,7 +386,7 @@ app.post('/api/auth/login', async (req, res) => {
     setImmediate(async () => {
       try {
         await models.activityLogs.create({ _id: generateId(), userId: user._id, userName: user.name, action: 'login', module: 'user', description: `User logged in: ${user.email || user.phone}` });
-      } catch (_) {}
+      } catch (err) {}
     });
 
     res.json({
@@ -446,7 +446,7 @@ app.post('/api/auth/guest', async (req, res) => {
 app.get('/api/courses', async (req, res) => {
   try {
     const { category, difficulty, search } = req.query;
-    let query = {};
+    let query = { status: 'published' };
     if (category) query.category = category;
     if (difficulty) query.difficulty = difficulty;
     if (search) query.title = { $regex: search, $options: 'i' };
@@ -462,7 +462,7 @@ app.get('/api/courses', async (req, res) => {
 
 app.get('/api/courses/featured', async (req, res) => {
   try {
-    const courses = await models.courses.find({ isFeatured: true }).limit(6).lean();
+    const courses = await models.courses.find({ isFeatured: true, status: 'published' }).limit(6).lean();
     res.json({ success: true, courses });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -810,7 +810,7 @@ app.get('/api/live-classes', protect, async (req, res) => {
   try {
     const user = await models.users.findOne({ _id: req.user._id }).lean();
     const purchased = user?.purchasedCourses || [];
-    const liveClasses = await models.liveClasses.find().lean();
+    let liveClasses = await models.liveClasses.find().lean();
 
     // Admin sees all classes
     if (user?.role === 'admin' || user?.role === 'super_admin') {
@@ -821,6 +821,9 @@ app.get('/api/live-classes', protect, async (req, res) => {
     if (purchased.length === 0) {
       return res.json({ success: true, liveClasses: [], locked: true, message: 'Purchase a course to access live classes' });
     }
+
+    // Filter live classes to only those for courses the user has purchased (or general classes without a courseId)
+    liveClasses = liveClasses.filter(lc => !lc.courseId || purchased.includes(lc.courseId));
 
     res.json({ success: true, liveClasses, locked: false });
   } catch (error) {

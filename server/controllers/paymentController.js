@@ -16,8 +16,33 @@ const getRazorpay = () => {
 // Create Order
 exports.createOrder = async (req, res) => {
   try {
-    const { courseId, packageId, amount, selectedCourseIds } = req.body
+    const { courseId, packageId, amount: requestedAmount, selectedCourseIds, promoCode } = req.body
     const userId = req.user._id
+
+    let originalAmount = 0;
+    if (packageId) {
+      const pkg = await models.packages.findOne({ _id: packageId }).lean();
+      if (!pkg) return res.status(404).json({ success: false, message: 'Package not found' });
+      originalAmount = pkg.priceINR || 0;
+    } else if (courseId) {
+      const course = await models.courses.findOne({ _id: courseId }).lean();
+      if (!course) return res.status(404).json({ success: false, message: 'Course not found' });
+      originalAmount = course.price || 0;
+    } else {
+      return res.status(400).json({ success: false, message: 'Course or Package ID required' });
+    }
+
+    let finalAmount = originalAmount;
+    let appliedPromo = null;
+
+    if (promoCode) {
+      const promo = await models.promoCodes.findOne({ code: promoCode.toUpperCase().trim() }).lean();
+      if (promo && promo.active !== false && (!promo.expiryDate || new Date(promo.expiryDate) >= new Date()) && (!promo.usageLimit || promo.usedCount < promo.usageLimit)) {
+        const discountAmount = Math.round((originalAmount * promo.discountPercent) / 100);
+        finalAmount = Math.max(0, originalAmount - discountAmount);
+        appliedPromo = promo.code;
+      }
+    }
 
     let order;
     const keyId = process.env.RAZORPAY_KEY_ID;
@@ -27,14 +52,14 @@ exports.createOrder = async (req, res) => {
       // Mock order for local development or missing keys
       order = {
         id: `order_mock_${Date.now()}`,
-        amount: amount * 100,
+        amount: finalAmount * 100,
         currency: 'INR'
       }
     } else {
       try {
         const razorpay = getRazorpay()
         const options = {
-          amount: amount * 100, // amount in paise
+          amount: finalAmount * 100, // amount in paise
           currency: 'INR',
           receipt: `order_${Date.now()}`,
           notes: {
@@ -48,7 +73,7 @@ exports.createOrder = async (req, res) => {
         console.warn('Razorpay API failed, falling back to mock order:', rzpErr.message);
         order = {
           id: `order_mock_${Date.now()}`,
-          amount: amount * 100,
+          amount: finalAmount * 100,
           currency: 'INR'
         }
       }
@@ -60,7 +85,8 @@ exports.createOrder = async (req, res) => {
       courseId,
       packageId,
       selectedCourseIds: Array.isArray(selectedCourseIds) ? selectedCourseIds : [],
-      amount,
+      amount: finalAmount,
+      promoCode: appliedPromo,
       currency: 'INR',
       razorpayOrderId: order.id,
       status: 'pending',
@@ -100,24 +126,30 @@ exports.verifyPayment = async (req, res) => {
 
     const userId = req.user._id
 
-    // Verify signature
-    if (process.env.RAZORPAY_KEY_ID !== 'your_razorpay_key_id') {
-      const sign = razorpay_order_id + '|' + razorpay_payment_id
-      const expectedSign = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-        .update(sign.toString())
-        .digest('hex')
+    // Fetch payment record first to check for 100% discount (0 amount) mock orders
+    const payment = await models.payments.findOne({ razorpayOrderId: razorpay_order_id }).lean()
 
-      if (razorpay_signature !== expectedSign) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid payment signature'
-        })
+    // Verify signature (bypass if amount is 0 and it's a mock order)
+    if (process.env.RAZORPAY_KEY_ID !== 'your_razorpay_key_id') {
+      const isFreeMockOrder = payment && payment.amount === 0 && razorpay_order_id.startsWith('order_mock_')
+      
+      if (!isFreeMockOrder) {
+        const sign = razorpay_order_id + '|' + razorpay_payment_id
+        const expectedSign = crypto
+          .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+          .update(sign.toString())
+          .digest('hex')
+
+        if (razorpay_signature !== expectedSign) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid payment signature'
+          })
+        }
       }
     }
 
     // Payment verified - Update database
-    const payment = await models.payments.findOne({ razorpayOrderId: razorpay_order_id }).lean()
 
     let purchasedCourseIds = [courseId].filter(Boolean)
     let packageId = null
@@ -144,6 +176,22 @@ exports.verifyPayment = async (req, res) => {
       }
       
       packageId = payment.packageId
+      
+      // Increment promo code usage if applicable
+      if (payment.promoCode) {
+        const updatedPromo = await models.promoCodes.findOneAndUpdate(
+          { code: payment.promoCode },
+          { $inc: { usedCount: 1 } },
+          { new: true }
+        ).lean();
+        
+        if (db.data.promoCodes && updatedPromo) {
+          const promoIdx = db.data.promoCodes.findIndex(p => p.code === payment.promoCode);
+          if (promoIdx !== -1) {
+            db.data.promoCodes[promoIdx].usedCount = updatedPromo.usedCount;
+          }
+        }
+      }
     }
 
     // If a package was purchased, process it

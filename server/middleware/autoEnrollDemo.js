@@ -63,7 +63,7 @@ async function autoEnrollDemoCourse(userId) {
       db.data.progress.push(progressRecord)
     }
 
-    console.log(\`✅ Auto-enrolled user \${user.email} in demo course: \${demoCourse.title}\`)
+    console.log(`✅ Auto-enrolled user ${user.email} in demo course: ${demoCourse.title}`)
     
     return {
       success: true,

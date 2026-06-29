@@ -24,11 +24,36 @@ exports.getModulesByCourse = async (req, res) => {
     const quizzes = await models.quizzes.find({ moduleId: { $in: moduleIds } }).lean()
     const allSubtopics = await models.subtopics.find({ moduleId: { $in: moduleIds } }).lean()
     
+    let isAuthorized = false;
+    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
+      isAuthorized = true;
+    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.includes(courseId)) {
+      isAuthorized = true;
+    }
+    
     // Populate lesson count and lessons for each module
     modules = modules.map(m => {
-      const modLessons = lessons.filter(l => l.moduleId === m._id) || []
-      const quiz = quizzes.find(q => q.moduleId === m._id) || null
-      const directSubtopics = allSubtopics.filter(s => s.moduleId === m._id && (!s.lessonId || String(s.lessonId).trim() === ''))
+      let modLessons = lessons.filter(l => l.moduleId === m._id) || []
+      let quiz = quizzes.find(q => q.moduleId === m._id) || null
+      let directSubtopics = allSubtopics.filter(s => s.moduleId === m._id && (!s.lessonId || String(s.lessonId).trim() === ''))
+      
+      if (!isAuthorized) {
+        modLessons = modLessons.map(({ videoUrl, content, ...rest }) => rest);
+        if (quiz && quiz.questions) {
+          quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
+        }
+        directSubtopics = directSubtopics.map(subtopic => {
+          if (subtopic.documents) {
+            subtopic.documents = subtopic.documents.map(({ data, url, ...doc }) => doc);
+          }
+          if (subtopic.document) {
+            const { data, url, ...doc } = subtopic.document;
+            subtopic.document = doc;
+          }
+          return subtopic;
+        });
+      }
+      
       return { ...m, lessons: modLessons, lessonCount: modLessons.length, quiz, directSubtopics }
     })
     
