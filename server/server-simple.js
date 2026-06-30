@@ -91,6 +91,35 @@ initDB().then(async () => {
       res.status(500).json({ success: false, err: err.message });
     }
   });
+  // Diagnostic: fetch full Razorpay order details for successful payments
+  app.get('/api/system/razorpay-debug', async (req, res) => {
+    try {
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID || 'dummy',
+        key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy'
+      });
+      const successfulPayments = await models.payments.find({ status: 'success' }).lean();
+      const results = [];
+      for (const p of successfulPayments) {
+        let rzpOrder = null;
+        let rzpPayments = null;
+        try {
+          rzpOrder = await razorpay.orders.fetch(p.razorpayOrderId);
+          rzpPayments = await razorpay.orders.fetchPayments(p.razorpayOrderId);
+        } catch (e) {
+          rzpOrder = { error: e.message };
+        }
+        results.push({
+          dbPayment: p,
+          razorpayOrder: rzpOrder,
+          razorpayPayments: rzpPayments
+        });
+      }
+      res.json({ success: true, results });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
   app.get('/api/system/recover-missing-courses', async (req, res) => {
     try {
       const successfulPayments = await models.payments.find({ status: 'success' }).lean();

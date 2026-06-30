@@ -73,7 +73,8 @@ exports.createOrder = async (req, res) => {
           notes: {
             courseId: courseId || '',
             packageId: packageId || '',
-            userId: userId.toString()
+            userId: userId.toString(),
+            selectedCourseIds: Array.isArray(selectedCourseIds) ? selectedCourseIds.join(',') : ''
           }
         }
         order = await razorpay.orders.create(options)
