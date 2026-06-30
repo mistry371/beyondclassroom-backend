@@ -898,28 +898,7 @@ const promoCodeRoutes = require('./routes/promoCodes');
 app.use('/api/custom-requests', customRequestRoutes);
 app.use('/api/promoters', promoterRoutes);
 app.use('/api/team', teamRoutes);
-// Packages — public GET at /api/packages, admin routes at /api/packages/admin/* (require auth)
-app.get('/api/packages', async (req, res) => {
-  try {
-    const packages = await models.packages.find({ active: true }).sort({ sortOrder: 1 }).lean();
-    res.json({ success: true, packages });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-app.get('/api/packages/:id', async (req, res, next) => {
-  if (req.params.id === 'admin') return next();
-  try {
-    const pkg = await models.packages.findById(req.params.id).lean();
-    if (!pkg || pkg.active === false) {
-      return res.status(404).json({ message: 'Package not found' });
-    }
-    res.json({ success: true, package: pkg });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-app.use('/api/packages', protect, packageRoutes);
+app.use('/api/packages', packageRoutes);
 // Promo codes — admin CRUD under /api/admin/promo-codes, public validate/apply
 app.use('/api/admin/promo-codes', protect, promoCodeRoutes);
 app.use('/api/promo-codes', promoCodeRoutes);

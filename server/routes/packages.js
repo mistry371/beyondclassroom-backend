@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { db, models } = require('../database/db')
+const { protect } = require('../middleware/auth')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
 })
 
 // GET /api/admin/packages — admin, returns all packages
-router.get('/admin', isAdmin, async (req, res) => {
+router.get('/admin', protect, isAdmin, async (req, res) => {
   try {
     const packages = await models.packages.find().sort({ sortOrder: 1 }).lean()
     res.json({ success: true, packages })
@@ -89,7 +90,7 @@ router.get('/:id', async (req, res) => {
 })
 
 // POST /api/admin/packages — create
-router.post('/admin', isAdmin, async (req, res) => {
+router.post('/admin', protect, isAdmin, async (req, res) => {
   try {
     const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
     if (!name || priceINR === undefined) {
@@ -123,7 +124,7 @@ router.post('/admin', isAdmin, async (req, res) => {
 })
 
 // PUT /api/admin/packages/:id — update
-router.put('/admin/:id', isAdmin, async (req, res) => {
+router.put('/admin/:id', protect, isAdmin, async (req, res) => {
   try {
     const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
     
@@ -160,7 +161,7 @@ router.put('/admin/:id', isAdmin, async (req, res) => {
 })
 
 // DELETE /api/admin/packages/:id
-router.delete('/admin/:id', isAdmin, async (req, res) => {
+router.delete('/admin/:id', protect, isAdmin, async (req, res) => {
   try {
     const result = await models.packages.deleteOne({ _id: req.params.id })
     if (result.deletedCount === 0) return res.status(404).json({ message: 'Package not found' })
@@ -176,7 +177,7 @@ router.delete('/admin/:id', isAdmin, async (req, res) => {
 })
 
 // PATCH /api/admin/packages/:id/toggle — toggle active
-router.patch('/admin/:id/toggle', isAdmin, async (req, res) => {
+router.patch('/admin/:id/toggle', protect, isAdmin, async (req, res) => {
   try {
     const pkg = await models.packages.findById(req.params.id)
     if (!pkg) return res.status(404).json({ message: 'Package not found' })
@@ -200,7 +201,7 @@ router.patch('/admin/:id/toggle', isAdmin, async (req, res) => {
 })
 
 // PATCH /api/admin/packages/:id/reorder — move up or down
-router.patch('/admin/:id/reorder', isAdmin, async (req, res) => {
+router.patch('/admin/:id/reorder', protect, isAdmin, async (req, res) => {
   try {
     const { direction } = req.body // 'up' | 'down'
     const sorted = await models.packages.find().sort({ sortOrder: 1 })
