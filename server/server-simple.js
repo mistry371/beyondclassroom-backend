@@ -138,7 +138,7 @@ initDB().then(async () => {
 
         if (coursesToRestore.length === 0) continue;
 
-        const user = await User.findById(payment.userId).lean();
+        const user = await models.users.findById(payment.userId).lean();
         if (!user) continue;
 
         const userCourses = user.purchasedCourses || [];
@@ -156,7 +156,7 @@ initDB().then(async () => {
 
       let restoredCount = 0;
       for (const action of recoveryActions) {
-        const result = await User.updateOne(
+        const result = await models.users.updateOne(
           { _id: action.userId },
           { $addToSet: { purchasedCourses: { $each: action.missingCourses } } }
         );
