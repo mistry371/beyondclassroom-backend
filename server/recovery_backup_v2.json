@@ -1,0 +1,770 @@
+{
+  "beyondclassroom": {
+    "emailLogs": [],
+    "exams": [],
+    "adminNotifications": [],
+    "lessons": [],
+    "liveClasses": [],
+    "packages": [
+      {
+        "_id": "beta",
+        "name": "Beta Package",
+        "description": "Strong Start. Smart Practice. Bright Future.",
+        "features": [
+          {
+            "label": "Valid for Classes 1 to 4",
+            "detail": "Full access to early classes"
+          },
+          {
+            "label": "Validity 365 Days",
+            "detail": "Enjoy full access for 365 Days"
+          },
+          {
+            "label": "5 Practice Paper for Each Topic",
+            "detail": "Comprehensive practice for every topic"
+          },
+          {
+            "label": "20 Questions in Each Practice Paper",
+            "detail": "Well-structured papers for effective practice"
+          },
+          {
+            "label": "Provided with Hint and Solved Example",
+            "detail": "Learn better with hints and solved examples"
+          },
+          {
+            "label": "PDF Download",
+            "detail": "Download papers with your logo and name"
+          },
+          {
+            "label": "Answer Key Included",
+            "detail": "Check your answers and improve accuracy"
+          },
+          {
+            "label": "Unlimited Customize Practice Paper",
+            "detail": "Create unlimited practice papers as per your need"
+          },
+          {
+            "label": "All Board Included",
+            "detail": "CBSE, ICSE, State Board & All Other Boards"
+          }
+        ],
+        "priceINR": 499,
+        "priceUSD": 5.5,
+        "validity": "365 Days",
+        "active": true,
+        "popular": false,
+        "courseIds": [
+          "course-class-1",
+          "course-class-2",
+          "course-class-3",
+          "course-class-4"
+        ],
+        "sortOrder": 0,
+        "createdAt": "2026-06-30T08:23:14.393Z",
+        "__v": 0
+      },
+      {
+        "_id": "basic",
+        "name": "Basic Package",
+        "description": "Build Concepts. Practice More. Score Better.",
+        "features": [
+          {
+            "label": "Valid for Classes 5 to 8",
+            "detail": "Access to middle school curriculum"
+          },
+          {
+            "label": "Validity 365 Days",
+            "detail": "Enjoy full access for 365 Days"
+          },
+          {
+            "label": "5 Practice Paper for Each Topic",
+            "detail": "Comprehensive practice for every topic"
+          },
+          {
+            "label": "20 Questions in Each Practice Paper",
+            "detail": "Well-structured papers for effective practice"
+          },
+          {
+            "label": "Provided with Hint and Solved Example",
+            "detail": "Learn better with hints and solved examples"
+          },
+          {
+            "label": "PDF Download",
+            "detail": "Download papers with your logo and name"
+          },
+          {
+            "label": "Basic Type of Questions",
+            "detail": "Covers all basic concepts clearly"
+          },
+          {
+            "label": "Easy Level",
+            "detail": "Designed for better understanding"
+          },
+          {
+            "label": "Answer Key Included",
+            "detail": "Check your answers and improve accuracy"
+          },
+          {
+            "label": "Allowed 25 Customize Practice Paper (40 Marks)",
+            "detail": "Create up to 25 papers of 40 marks each"
+          },
+          {
+            "label": "All Board Included",
+            "detail": "CBSE, ICSE, State Board & All Other Boards"
+          }
+        ],
+        "priceINR": 699,
+        "priceUSD": 7.5,
+        "validity": "365 Days",
+        "active": true,
+        "popular": false,
+        "courseIds": [
+          "course-class-5",
+          "course-class-6",
+          "course-class-7",
+          "course-class-8"
+        ],
+        "sortOrder": 1,
+        "createdAt": "2026-06-30T08:23:14.393Z",
+        "__v": 0
+      },
+      {
+        "_id": "pro",
+        "name": "Pro Package",
+        "description": "Advanced Practice. Better Preparation. Excellent Results.",
+        "features": [
+          {
+            "label": "Valid for Classes 5 to 8",
+            "detail": "Access to middle school curriculum"
+          },
+          {
+            "label": "Validity 365 Days",
+            "detail": "Enjoy full access for 365 Days"
+          },
+          {
+            "label": "Include Basic Package Also",
+            "detail": "All Basic Package features included"
+          },
+          {
+            "label": "10 Practice Paper for Each Topic",
+            "detail": "Comprehensive practice for every topic"
+          },
+          {
+            "label": "20 Questions in Each Practice Paper",
+            "detail": "Well-structured papers for effective practice"
+          },
+          {
+            "label": "Provided with Hint and Solved Example",
+            "detail": "Learn better with hints and solved examples"
+          },
+          {
+            "label": "PDF Download",
+            "detail": "Download papers with your logo and name"
+          },
+          {
+            "label": "Subjective and Competitive Type of Questions",
+            "detail": "Covers both subjective and competitive questions"
+          },
+          {
+            "label": "Hard, Competency Based and Case Based Level",
+            "detail": "Advanced level questions for in-depth preparation"
+          },
+          {
+            "label": "Answer Key with Solution Included",
+            "detail": "Detailed solutions for better understanding"
+          },
+          {
+            "label": "Allowed 50 Customize Practice Paper (80 Marks)",
+            "detail": "Create up to 50 papers of 80 marks each"
+          },
+          {
+            "label": "All Board Included",
+            "detail": "CBSE, ICSE, State Board & All Other Boards"
+          }
+        ],
+        "priceINR": 999,
+        "priceUSD": 10.5,
+        "validity": "365 Days",
+        "active": true,
+        "popular": true,
+        "courseIds": [
+          "course-class-5",
+          "course-class-6",
+          "course-class-7",
+          "course-class-8"
+        ],
+        "sortOrder": 2,
+        "createdAt": "2026-06-30T08:23:14.394Z",
+        "__v": 0
+      },
+      {
+        "_id": "teachers",
+        "name": "Teachers Package",
+        "description": "Smart Tools. Better Teaching. Brighter Results.",
+        "features": [
+          {
+            "label": "Valid for All Classes 1 to 8",
+            "detail": "Full access to entire platform"
+          },
+          {
+            "label": "Validity 365 Days",
+            "detail": "Enjoy full access for 365 Days"
+          },
+          {
+            "label": "Include Basic + Pro Package",
+            "detail": "All Basic and Pro features included"
+          },
+          {
+            "label": "PDF Download",
+            "detail": "Download papers with your logo and name"
+          },
+          {
+            "label": "Allowed 100 Customize Practice Paper",
+            "detail": "Create up to 100 customize papers"
+          },
+          {
+            "label": "All Board Included",
+            "detail": "CBSE, ICSE, State Board & All Other Boards"
+          }
+        ],
+        "priceINR": 1999,
+        "priceUSD": 21,
+        "validity": "365 Days",
+        "active": true,
+        "popular": false,
+        "courseIds": [
+          "course-class-1",
+          "course-class-2",
+          "course-class-3",
+          "course-class-4",
+          "course-class-5",
+          "course-class-6",
+          "course-class-7",
+          "course-class-8"
+        ],
+        "sortOrder": 3,
+        "createdAt": "2026-06-30T08:23:14.394Z",
+        "__v": 0
+      },
+      {
+        "_id": "school",
+        "name": "School or Institute Package",
+        "description": "Complete Solution for Exam Excellence.",
+        "features": [
+          {
+            "label": "Valid for All Classes 1 to 8",
+            "detail": "Full access to entire platform"
+          },
+          {
+            "label": "Validity 365 Days",
+            "detail": "Enjoy full access for 365 Days"
+          },
+          {
+            "label": "Include Basic + Pro Package",
+            "detail": "All Basic and Pro features included"
+          },
+          {
+            "label": "PDF Download with Branding",
+            "detail": "Download papers with your logo and name"
+          },
+          {
+            "label": "Unlimited Customize Practice Paper",
+            "detail": "Create unlimited papers"
+          },
+          {
+            "label": "All Board Included",
+            "detail": "CBSE, ICSE, State Board & All Other Boards"
+          },
+          {
+            "label": "Priority Support",
+            "detail": "Get faster response & dedicated support"
+          }
+        ],
+        "priceINR": 9999,
+        "priceUSD": 105,
+        "validity": "365 Days",
+        "active": true,
+        "popular": false,
+        "courseIds": [
+          "course-class-1",
+          "course-class-2",
+          "course-class-3",
+          "course-class-4",
+          "course-class-5",
+          "course-class-6",
+          "course-class-7",
+          "course-class-8"
+        ],
+        "sortOrder": 4,
+        "createdAt": "2026-06-30T08:23:14.394Z",
+        "__v": 0
+      }
+    ],
+    "cart": [],
+    "subtopics": [],
+    "activityLogs": [],
+    "certificates": [],
+    "practices": [],
+    "promoterPayouts": [],
+    "referrals": [],
+    "courses": [
+      {
+        "_id": "course-class-1",
+        "title": "Class 1",
+        "description": "Complete mathematics curriculum and practice for Class 1.",
+        "category": "Mathematics",
+        "grade": "Class 1",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 360,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.361Z",
+        "updatedAt": "2026-06-30T08:23:14.369Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-2",
+        "title": "Class 2",
+        "description": "Complete mathematics curriculum and practice for Class 2.",
+        "category": "Mathematics",
+        "grade": "Class 2",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 325,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.375Z",
+        "updatedAt": "2026-06-30T08:23:14.375Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-3",
+        "title": "Class 3",
+        "description": "Complete mathematics curriculum and practice for Class 3.",
+        "category": "Mathematics",
+        "grade": "Class 3",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 424,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.377Z",
+        "updatedAt": "2026-06-30T08:23:14.377Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-4",
+        "title": "Class 4",
+        "description": "Complete mathematics curriculum and practice for Class 4.",
+        "category": "Mathematics",
+        "grade": "Class 4",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 100,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.380Z",
+        "updatedAt": "2026-06-30T08:23:14.380Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-5",
+        "title": "Class 5",
+        "description": "Complete mathematics curriculum and practice for Class 5.",
+        "category": "Mathematics",
+        "grade": "Class 5",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 448,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.382Z",
+        "updatedAt": "2026-06-30T08:23:14.382Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-6",
+        "title": "Class 6",
+        "description": "Complete mathematics curriculum and practice for Class 6.",
+        "category": "Mathematics",
+        "grade": "Class 6",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 541,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.384Z",
+        "updatedAt": "2026-06-30T08:23:14.384Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-7",
+        "title": "Class 7",
+        "description": "Complete mathematics curriculum and practice for Class 7.",
+        "category": "Mathematics",
+        "grade": "Class 7",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 527,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.386Z",
+        "updatedAt": "2026-06-30T08:23:14.386Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-8",
+        "title": "Class 8",
+        "description": "Complete mathematics curriculum and practice for Class 8.",
+        "category": "Mathematics",
+        "grade": "Class 8",
+        "difficulty": "Intermediate",
+        "price": 999,
+        "discountPrice": 499,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra",
+          "Geometry"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": false,
+        "enrolledCount": 547,
+        "rating": 4.8,
+        "createdAt": "2026-06-30T08:23:14.388Z",
+        "updatedAt": "2026-06-30T08:23:14.388Z",
+        "__v": 0
+      },
+      {
+        "_id": "course-class-6-demo",
+        "title": "Class 6 Complete Demo (₹599)",
+        "description": "Full featured demo course for Class 6 mathematics.",
+        "category": "Mathematics",
+        "grade": "Class 6",
+        "difficulty": "Intermediate",
+        "price": 1999,
+        "discountPrice": 599,
+        "instructor": "Beyond Classroom Experts",
+        "duration": "1 Year",
+        "topics": [
+          "Number System",
+          "Algebra"
+        ],
+        "thumbnail": "",
+        "status": "published",
+        "isFeatured": true,
+        "isFree": false,
+        "isDemo": true,
+        "enrolledCount": 420,
+        "rating": 4.9,
+        "createdAt": "2026-06-30T08:23:14.391Z",
+        "updatedAt": "2026-06-30T08:23:14.391Z",
+        "__v": 0
+      }
+    ],
+    "promoCodes": [],
+    "progress": [],
+    "examAttempts": [],
+    "modules": [],
+    "badges": [],
+    "promoters": [],
+    "media": [],
+    "users": [
+      {
+        "_id": "admin-default",
+        "__v": 0,
+        "createdAt": "2026-06-30T08:23:14.316Z",
+        "email": "mistryjenish1003@gmail.com",
+        "emailVerified": true,
+        "favorites": [],
+        "isGuest": false,
+        "name": "Jenish Mistry",
+        "password": "$2a$12$fQiPqqvxrrmBlOIhZeFelORP2gJ9y4V3nw7aozi3oL7AnwVRbhX9S",
+        "profilePhoto": "",
+        "purchasedCourses": [],
+        "role": "admin",
+        "status": "active",
+        "trialExpired": false
+      }
+    ],
+    "customRequests": [],
+    "announcements": [],
+    "orders": [],
+    "notifications": [],
+    "quizzes": [],
+    "teams": [],
+    "settings": [
+      {
+        "_id": "1",
+        "__v": 0,
+        "category": "general",
+        "description": "The name of your platform",
+        "displayName": "Site Name",
+        "isPublic": true,
+        "key": "site_name",
+        "type": "string",
+        "value": "Beyond Classroom"
+      },
+      {
+        "_id": "2",
+        "__v": 0,
+        "category": "general",
+        "description": "Brief description of your platform",
+        "displayName": "Site Description",
+        "isPublic": true,
+        "key": "site_description",
+        "type": "string",
+        "value": "Advanced Mathematics Learning Platform"
+      },
+      {
+        "_id": "3",
+        "__v": 0,
+        "category": "general",
+        "description": "Primary contact email",
+        "displayName": "Contact Email",
+        "isPublic": true,
+        "key": "contact_email",
+        "type": "string",
+        "value": "admin@beyondclassroom.com"
+      },
+      {
+        "_id": "4",
+        "__v": 0,
+        "category": "general",
+        "description": "Allow new user registrations",
+        "displayName": "Allow Registration",
+        "isPublic": false,
+        "key": "allow_registration",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "_id": "5",
+        "__v": 0,
+        "category": "general",
+        "description": "Put site in maintenance mode",
+        "displayName": "Maintenance Mode",
+        "isPublic": false,
+        "key": "maintenance_mode",
+        "type": "boolean",
+        "value": "false"
+      },
+      {
+        "_id": "6",
+        "__v": 0,
+        "category": "email",
+        "description": "Email server hostname",
+        "displayName": "SMTP Host",
+        "isPublic": false,
+        "key": "smtp_host",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "_id": "7",
+        "__v": 0,
+        "category": "email",
+        "description": "Email server port",
+        "displayName": "SMTP Port",
+        "isPublic": false,
+        "key": "smtp_port",
+        "type": "number",
+        "value": "587"
+      },
+      {
+        "_id": "8",
+        "__v": 0,
+        "category": "email",
+        "description": "Email server username",
+        "displayName": "SMTP Username",
+        "isPublic": false,
+        "key": "smtp_user",
+        "type": "string",
+        "value": ""
+      },
+      {
+        "_id": "9",
+        "__v": 0,
+        "category": "features",
+        "description": "Show math tools section",
+        "displayName": "Enable Math Tools",
+        "isPublic": false,
+        "key": "enable_tools",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "_id": "10",
+        "__v": 0,
+        "category": "features",
+        "description": "Allow quiz functionality",
+        "displayName": "Enable Quizzes",
+        "isPublic": false,
+        "key": "enable_quizzes",
+        "type": "boolean",
+        "value": "true"
+      },
+      {
+        "_id": "11",
+        "__v": 0,
+        "category": "theme",
+        "description": "Main brand color",
+        "displayName": "Primary Color",
+        "isPublic": true,
+        "key": "primary_color",
+        "type": "color",
+        "value": "#6366f1"
+      },
+      {
+        "_id": "12",
+        "__v": 0,
+        "category": "theme",
+        "description": "Secondary brand color",
+        "displayName": "Secondary Color",
+        "isPublic": true,
+        "key": "secondary_color",
+        "type": "color",
+        "value": "#8b5cf6"
+      }
+    ],
+    "siteContents": [],
+    "otps": [],
+    "testimonials": [
+      {
+        "_id": "testi-1",
+        "name": "Aarav Sharma",
+        "grade": "Grade 6 Student",
+        "image": "/testimonials/student_aarav.png",
+        "content": "Beyond Classroom has completely changed how I look at math. The practice resources are so engaging, and I actually look forward to solving problems now. My scores have improved significantly!",
+        "rating": 5,
+        "active": true,
+        "createdAt": "2026-06-30T08:23:14.348Z",
+        "__v": 0
+      },
+      {
+        "_id": "testi-2",
+        "name": "Priya Patel",
+        "grade": "Parent of Grade 4 Student",
+        "image": "/testimonials/parent_priya.png",
+        "content": "As a parent, finding the right math resources was tough. This platform provides structured, reliable content that perfectly aligns with what my daughter needs. The progress tracking is a game-changer.",
+        "rating": 5,
+        "active": true,
+        "createdAt": "2026-06-30T08:23:14.348Z",
+        "__v": 0
+      },
+      {
+        "_id": "testi-3",
+        "name": "Rahul Verma",
+        "grade": "Grade 8 Student",
+        "image": "/testimonials/student_rahul.png",
+        "content": "The advanced math challenges here are exactly what I needed to prepare for my competitive exams. The explanations are clear, and the platform is so easy to use.",
+        "rating": 5,
+        "active": true,
+        "createdAt": "2026-06-30T08:23:14.348Z",
+        "__v": 0
+      },
+      {
+        "_id": "testi-4",
+        "name": "Neha Gupta",
+        "grade": "Math Educator",
+        "image": "/testimonials/teacher_neha.png",
+        "content": "I recommend Beyond Classroom to all my students. It's a fantastic supplementary tool that reinforces the concepts we cover in class. Truly a world-class educational platform.",
+        "rating": 5,
+        "active": true,
+        "createdAt": "2026-06-30T08:23:14.348Z",
+        "__v": 0
+      }
+    ],
+    "payments": [],
+    "blockedIPs": []
+  }
+}

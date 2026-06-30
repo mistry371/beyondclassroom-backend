@@ -1,6 +1,7 @@
 const Razorpay = require('razorpay')
 const crypto = require('crypto')
 const { db, models } = require('../database/db')
+const User = require('../models/User')
 
 // Lazy init — only create instance when keys are available
 const getRazorpay = () => {
@@ -219,7 +220,7 @@ exports.verifyPayment = async (req, res) => {
     }
 
     // Grant course access - Add to user's purchasedCourses
-    await models.users.updateOne(
+    await User.updateOne(
       { _id: userId },
       { $addToSet: { purchasedCourses: { $each: purchasedCourseIds } } }
     )

@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { db, initDB, models } = require('./database/db');
+const User = require('./models/User');
 const { normalizeCourseCategory } = require('./constants/categories');
 
 dotenv.config();
@@ -96,13 +97,20 @@ initDB().then(async () => {
       const recoveryActions = [];
 
       for (const payment of successfulPayments) {
-        if (!payment.packageId || !payment.selectedCourseIds || payment.selectedCourseIds.length === 0) continue;
+        let coursesToRestore = [];
+        if (payment.packageId && payment.selectedCourseIds && payment.selectedCourseIds.length > 0) {
+          coursesToRestore = payment.selectedCourseIds;
+        } else if (payment.courseId) {
+          coursesToRestore = [payment.courseId];
+        }
 
-        const user = await models.users.findById(payment.userId).lean();
+        if (coursesToRestore.length === 0) continue;
+
+        const user = await User.findById(payment.userId).lean();
         if (!user) continue;
 
         const userCourses = user.purchasedCourses || [];
-        const missingCourses = payment.selectedCourseIds.filter(id => !userCourses.includes(id));
+        const missingCourses = coursesToRestore.filter(id => !userCourses.includes(id));
 
         if (missingCourses.length > 0) {
           affectedPurchasesCount++;
@@ -116,7 +124,7 @@ initDB().then(async () => {
 
       let restoredCount = 0;
       for (const action of recoveryActions) {
-        const result = await models.users.updateOne(
+        const result = await User.updateOne(
           { _id: action.userId },
           { $addToSet: { purchasedCourses: { $each: action.missingCourses } } }
         );
