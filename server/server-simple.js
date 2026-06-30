@@ -80,6 +80,47 @@ initDB().then(async () => {
   }
   console.log('Finished seeding courses');
   console.log('Database initialized');
+  // ── TEMPORARY RECOVERY ENDPOINT ─────────────────────────────────────
+  app.get('/api/system/recover-missing-courses', async (req, res) => {
+    try {
+      const successfulPayments = await models.payments.find({ status: 'success' }).lean();
+      let affectedPurchasesCount = 0;
+      const recoveryActions = [];
+
+      for (const payment of successfulPayments) {
+        if (!payment.packageId || !payment.selectedCourseIds || payment.selectedCourseIds.length === 0) continue;
+
+        const user = await models.users.findById(payment.userId).lean();
+        if (!user) continue;
+
+        const userCourses = user.purchasedCourses || [];
+        const missingCourses = payment.selectedCourseIds.filter(id => !userCourses.includes(id));
+
+        if (missingCourses.length > 0) {
+          affectedPurchasesCount++;
+          recoveryActions.push({
+            paymentId: payment._id,
+            userId: user._id,
+            missingCourses
+          });
+        }
+      }
+
+      let restoredCount = 0;
+      for (const action of recoveryActions) {
+        const result = await models.users.updateOne(
+          { _id: action.userId },
+          { $addToSet: { purchasedCourses: { $each: action.missingCourses } } }
+        );
+        if (result.modifiedCount > 0) restoredCount++;
+      }
+
+      res.json({ success: true, affectedPurchasesCount, restoredCount, recoveryActions });
+    } catch (error) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT} with local database`));
 }).catch(err => {
