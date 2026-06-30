@@ -120,6 +120,28 @@ initDB().then(async () => {
       res.status(500).json({ success: false, error: err.message });
     }
   });
+  // One-time fix: remove incorrectly assigned courses for user 1782563847727qxi6dqojq
+  app.get('/api/system/fix-courses', async (req, res) => {
+    try {
+      const userId = '1782563847727qxi6dqojq';
+      const coursesToRemove = ['course-class-2', 'course-class-3', 'course-class-4'];
+      const userBefore = await models.users.findById(userId).lean();
+      const result = await models.users.updateOne(
+        { _id: userId },
+        { $pull: { purchasedCourses: { $in: coursesToRemove } } }
+      );
+      const userAfter = await models.users.findById(userId).lean();
+      res.json({
+        success: true,
+        removed: coursesToRemove,
+        before: userBefore?.purchasedCourses,
+        after: userAfter?.purchasedCourses,
+        modifiedCount: result.modifiedCount
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
   app.get('/api/system/recover-missing-courses', async (req, res) => {
     try {
       const successfulPayments = await models.payments.find({ status: 'success' }).lean();

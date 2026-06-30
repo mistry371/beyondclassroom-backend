@@ -221,7 +221,7 @@ exports.verifyPayment = async (req, res) => {
     }
 
     // Grant course access - Add to user's purchasedCourses
-    await User.updateOne(
+    await models.users.updateOne(
       { _id: userId },
       { $addToSet: { purchasedCourses: { $each: purchasedCourseIds } } }
     )
