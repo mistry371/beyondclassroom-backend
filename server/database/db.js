@@ -201,6 +201,9 @@ const paymentSchema = new mongoose.Schema({
   _id: { type: String },
   userId: String,
   courseId: String,
+  packageId: String,
+  selectedCourseIds: [String],
+  promoCode: String,
   amount: Number,
   currency: String,
   razorpayOrderId: String,
@@ -209,7 +212,7 @@ const paymentSchema = new mongoose.Schema({
   status: { type: String, default: 'pending' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false, strict: false })
 
 const toolSchema = new mongoose.Schema({
   _id: { type: String },

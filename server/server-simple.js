@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { db, initDB, models } = require('./database/db');
 const User = require('./models/User');
+const Razorpay = require('razorpay');
 const { normalizeCourseCategory } = require('./constants/categories');
 
 dotenv.config();
@@ -96,12 +97,43 @@ initDB().then(async () => {
       let affectedPurchasesCount = 0;
       const recoveryActions = [];
 
+      const razorpay = new Razorpay({
+        key_id: process.env.RAZORPAY_KEY_ID || 'dummy',
+        key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy'
+      });
+
       for (const payment of successfulPayments) {
         let coursesToRestore = [];
-        if (payment.packageId && payment.selectedCourseIds && payment.selectedCourseIds.length > 0) {
-          coursesToRestore = payment.selectedCourseIds;
-        } else if (payment.courseId) {
-          coursesToRestore = [payment.courseId];
+        let pId = payment.packageId;
+        let cId = payment.courseId;
+        let sIds = payment.selectedCourseIds;
+
+        // If packageId and courseId are both missing (due to DB strict schema stripping them), fetch from Razorpay!
+        if (!pId && !cId && payment.razorpayOrderId && process.env.RAZORPAY_KEY_ID) {
+          try {
+            const rzpOrder = await razorpay.orders.fetch(payment.razorpayOrderId);
+            if (rzpOrder && rzpOrder.notes) {
+              pId = rzpOrder.notes.packageId;
+              cId = rzpOrder.notes.courseId;
+            }
+          } catch (e) {
+            console.error('Failed to fetch razorpay order', e.message);
+          }
+        }
+
+        if (pId) {
+          // If we have packageId, but no selectedCourseIds (because it was stripped), fetch package default courses!
+          if (!sIds || sIds.length === 0) {
+            const pkg = await models.packages.findById(pId).lean();
+            if (pkg && pkg.courseIds) {
+              sIds = pkg.courseIds;
+            }
+          }
+          if (sIds && sIds.length > 0) {
+            coursesToRestore = sIds;
+          }
+        } else if (cId) {
+          coursesToRestore = [cId];
         }
 
         if (coursesToRestore.length === 0) continue;
@@ -131,7 +163,20 @@ initDB().then(async () => {
         if (result.modifiedCount > 0) restoredCount++;
       }
 
-      res.json({ success: true, affectedPurchasesCount, restoredCount, recoveryActions });
+      // DEBUG: also dump the payments for the user "Mistry Jenish"
+      const allPayments = await models.payments.find().sort({ createdAt: -1 }).lean();
+      const allUsers = await User.find({ email: 'mistryjenish1003@gmail.com' }).lean();
+
+      res.json({ 
+        success: true, 
+        affectedPurchasesCount, 
+        restoredCount, 
+        recoveryActions,
+        debug: {
+          recentPayments: allPayments.slice(0, 5),
+          usersFound: allUsers
+        }
+      });
     } catch (error) {
       res.status(500).json({ success: false, error: error.message });
     }
