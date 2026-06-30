@@ -65,7 +65,13 @@ exports.updateLessonProgress = async (req, res) => {
     // Calculate completion percentage based on total lessons in course
     const modules = await models.modules.find({ courseId }).lean()
     const moduleIds = modules.map(m => m._id)
-    const courseLessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
+    
+    let courseLessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
+    
+    // If the course uses direct subtopics instead of lessons (like the Demo course)
+    if (courseLessons.length === 0) {
+      courseLessons = await models.subtopics.find({ moduleId: { $in: moduleIds } }).lean()
+    }
     
     const totalLessons = courseLessons.length || 1
     const completionPercentage = Math.round((lessonsCompleted.length / totalLessons) * 100)
