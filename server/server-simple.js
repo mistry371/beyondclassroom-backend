@@ -81,6 +81,14 @@ initDB().then(async () => {
   console.log('Finished seeding courses');
   console.log('Database initialized');
   // ── TEMPORARY RECOVERY ENDPOINT ─────────────────────────────────────
+  app.get('/api/system/check-payments', async (req, res) => {
+    try {
+      const payments = await models.payments.find().sort({ createdAt: -1 }).limit(10).lean();
+      res.json({ success: true, payments });
+    } catch (err) {
+      res.status(500).json({ success: false, err: err.message });
+    }
+  });
   app.get('/api/system/recover-missing-courses', async (req, res) => {
     try {
       const successfulPayments = await models.payments.find({ status: 'success' }).lean();
