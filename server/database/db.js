@@ -108,7 +108,7 @@ const notificationSchema = new mongoose.Schema({
 
 const moduleSchema = new mongoose.Schema({
   _id: { type: String },
-  courseId: String,
+  courseId: { type: String, index: true },
   title: String,
   description: String,
   order: Number,
@@ -121,8 +121,8 @@ const moduleSchema = new mongoose.Schema({
 
 const lessonSchema = new mongoose.Schema({
   _id: { type: String },
-  moduleId: String,
-  courseId: String,
+  moduleId: { type: String, index: true },
+  courseId: { type: String, index: true },
   title: String,
   content: mongoose.Schema.Types.Mixed,
   videoUrl: String,
@@ -135,9 +135,9 @@ const lessonSchema = new mongoose.Schema({
 
 const subtopicSchema = new mongoose.Schema({
   _id: { type: String },
-  lessonId: String,
-  moduleId: String,
-  courseId: String,
+  lessonId: { type: String, index: true },
+  moduleId: { type: String, index: true },
+  courseId: { type: String, index: true },
   title: String,
   content: String,
   order: Number,
@@ -151,9 +151,9 @@ const subtopicSchema = new mongoose.Schema({
 
 const practiceSchema = new mongoose.Schema({
   _id: { type: String },
-  lessonId: String,
-  moduleId: String,
-  courseId: String,
+  lessonId: { type: String, index: true },
+  moduleId: { type: String, index: true },
+  courseId: { type: String, index: true },
   question: String,
   options: [String],
   correctAnswer: mongoose.Schema.Types.Mixed,
@@ -165,8 +165,8 @@ const practiceSchema = new mongoose.Schema({
 
 const quizSchema = new mongoose.Schema({
   _id: { type: String },
-  moduleId: String,
-  courseId: String,
+  moduleId: { type: String, index: true },
+  courseId: { type: String, index: true },
   title: String,
   questions: mongoose.Schema.Types.Mixed,
   passingScore: Number,
@@ -209,6 +209,15 @@ const paymentSchema = new mongoose.Schema({
   status: { type: String, default: 'pending' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
+}, { _id: false })
+
+const toolSchema = new mongoose.Schema({
+  _id: { type: String },
+  name: String,
+  description: String,
+  category: String,
+  enabled: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now },
 }, { _id: false })
 
 const activityLogSchema = new mongoose.Schema({
@@ -508,6 +517,7 @@ const models = {
   promoterPayouts:    mongoose.models.DbPromoterPayout    || mongoose.model('DbPromoterPayout',    promoterPayoutSchema,    'promoterPayouts'),
   promoCodes:         mongoose.models.DbPromoCode         || mongoose.model('DbPromoCode',         promoCodeSchema,         'promoCodes'),
   testimonials:       mongoose.models.DbTestimonial       || mongoose.model('DbTestimonial',       testimonialSchema,       'testimonials'),
+  tools:              mongoose.models.DbTool              || mongoose.model('DbTool',              toolSchema,              'tools'),
 }
 
 // ── db proxy — mimics LowDB API used throughout server-simple.js ──────────────
