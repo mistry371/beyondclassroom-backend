@@ -309,25 +309,46 @@ exports.getPaymentHistory = async (req, res) => {
 
     const payments = await models.payments.find({ userId }).sort({ createdAt: -1 }).lean()
 
-    const courseIds = [...new Set(payments.map(p => p.courseId).filter(Boolean))]
-    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title thumbnail _id').lean()
+    const courseIds = [...new Set(payments.flatMap(p => [p.courseId, ...(p.selectedCourseIds || [])]).filter(Boolean))]
+    const packageIds = [...new Set(payments.map(p => p.packageId).filter(Boolean))]
 
-    // Populate course details
-    const paymentsWithCourses = payments.map(payment => {
-      const course = courses.find(c => c._id === payment.courseId)
+    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title thumbnail _id').lean()
+    const packages = await models.packages.find({ _id: { $in: packageIds } }).select('name _id').lean()
+
+    // Populate course and package details
+    const populatedPayments = payments.map(payment => {
+      let courseDetails = null;
+      let packageDetails = null;
+      let selectedCoursesDetails = [];
+
+      if (payment.courseId) {
+        const c = courses.find(c => c._id === payment.courseId)
+        if (c) courseDetails = { _id: c._id, title: c.title, thumbnail: c.thumbnail }
+      }
+
+      if (payment.packageId) {
+        const pkg = packages.find(p => p._id === payment.packageId)
+        if (pkg) packageDetails = { _id: pkg._id, name: pkg.name }
+        
+        if (payment.selectedCourseIds && payment.selectedCourseIds.length > 0) {
+          selectedCoursesDetails = payment.selectedCourseIds.map(id => {
+            const c = courses.find(c => c._id === id)
+            return c ? { _id: c._id, title: c.title } : { _id: id, title: 'Unknown Course' }
+          })
+        }
+      }
+
       return {
         ...payment,
-        course: course ? {
-          _id: course._id,
-          title: course.title,
-          thumbnail: course.thumbnail
-        } : null
+        course: courseDetails,
+        package: packageDetails,
+        selectedCourses: selectedCoursesDetails
       }
     })
 
     res.json({
       success: true,
-      payments: paymentsWithCourses
+      payments: populatedPayments
     })
   } catch (error) {
     console.error('Get payment history error:', error)
