@@ -33,4 +33,4 @@ services:
       - key: RAZORPAY_KEY_SECRET
         sync: false
       - key: FRONTEND_URL
-        value: https://beyondclassroom.netlify.app
+        value: https://beyondclassroom.co.in
