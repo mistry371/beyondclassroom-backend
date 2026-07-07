@@ -27,7 +27,7 @@ const createTransporter = () => {
     secure: false, // use TLS
     auth: {
       user: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
-      pass: process.env.EMAIL_PASS || 'ffuz tfxf esbh dhje',
+      pass: process.env.EMAIL_PASS || 'cvgp jxor pign ihhd',
     },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
