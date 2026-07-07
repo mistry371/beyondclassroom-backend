@@ -32,6 +32,7 @@ class CustomRequest {
     this.assignedToUserName = data.assignedToUserName || this.userName
     this.deliveryItems = data.deliveryItems || []
     this.studentMessages = data.studentMessages || []
+    this.studentAttachedFile = data.studentAttachedFile || null
     this.createdAt = data.createdAt || new Date()
     this.updatedAt = data.updatedAt || new Date()
   }
