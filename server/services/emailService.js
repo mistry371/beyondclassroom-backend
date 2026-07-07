@@ -1,23 +1,11 @@
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-// ── Resend via SMTP (works on Render) ────────────────────────────────────────
-// Resend provides an SMTP relay that works on all hosting platforms
-// Set RESEND_API_KEY in environment variables
+// ── Resend via API (Bypasses Render Port Blocks) ─────────────────────────────
 // Get free API key at https://resend.com (3000 emails/month free)
 
 const createTransporter = () => {
-  // If Resend API key is available, use Resend SMTP
-  if (process.env.RESEND_API_KEY) {
-    return nodemailer.createTransport({
-      host: 'smtp.resend.com',
-      port: 465,
-      secure: true,
-      auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY,
-      },
-    });
-  }
+  // Fallback: Gmail SMTP (works locally, but Render blocks outbound 465/587 on free tier)
 
   // Fallback: Gmail SMTP (works locally and on some platforms)
   return nodemailer.createTransport({
@@ -48,6 +36,21 @@ const getFromAddress = () => {
 exports.sendEmail = async ({ to, subject, text, html }) => {
   const sendPromise = (async () => {
     try {
+      // If Resend API key exists, use Resend SDK (HTTPS port 443 - never blocked)
+      if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        const data = await resend.emails.send({
+          from: getFromAddress(),
+          to,
+          subject,
+          text: text || '',
+          html,
+        });
+        console.log('✅ Email sent via Resend API successfully:', data.id);
+        return { success: true, messageId: data.id };
+      }
+
+      // Otherwise fallback to Nodemailer (Gmail SMTP)
       const transporter = createTransporter();
       const mailOptions = {
         from: getFromAddress(),
@@ -57,7 +60,7 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
         html,
       };
       const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully:', info.messageId);
+      console.log('✅ Email sent via Gmail SMTP successfully:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('❌ Email send error:', error.message);
