@@ -238,30 +238,64 @@ exports.forgotPassword = async (req, res) => {
       return res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     }
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit OTP
+    const resetExpires = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes
 
     await models.users.updateOne(
       { _id: user._id },
-      { $set: { passwordResetToken: resetToken, passwordResetExpires: resetExpires } }
+      { $set: { passwordResetToken: otp, passwordResetExpires: resetExpires } }
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app';
-    const resetLink = `${frontendUrl}/auth/forgot-password?token=${resetToken}`;
-
     try {
-      const { passwordResetEmailTemplate } = require('../services/emailTemplates');
       const { sendEmail } = require('../services/emailService');
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
+          <h2 style="color: #1e3a8a; text-align: center;">Reset Your Password</h2>
+          <p style="color: #475569; font-size: 16px;">Hello ${user.name},</p>
+          <p style="color: #475569; font-size: 16px;">We received a request to reset your password for your Beyond Classroom account. Your OTP for resetting the password is:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <span style="display: inline-block; padding: 15px 30px; font-size: 24px; font-weight: bold; color: #ffffff; background-color: #3b82f6; border-radius: 8px; letter-spacing: 4px;">${otp}</span>
+          </div>
+          <p style="color: #475569; font-size: 14px;">This OTP is valid for 15 minutes. If you did not request a password reset, please ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+          <p style="color: #94a3b8; font-size: 12px; text-align: center;">&copy; ${new Date().getFullYear()} Beyond Classroom. All rights reserved.</p>
+        </div>
+      `;
       await sendEmail({
         to: email,
-        subject: 'Reset Your Password - Beyond Classroom',
-        html: passwordResetEmailTemplate(user.name, resetLink)
+        subject: 'Password Reset OTP - Beyond Classroom',
+        html: emailHtml
       });
     } catch (emailErr) {
       console.error('Password reset email failed:', emailErr.message);
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again later.' });
     }
 
-    res.json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    res.json({ success: true, message: 'If that email exists, an OTP has been sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' });
+    }
+
+    const emailNorm = String(email).toLowerCase().trim();
+    const user = await models.users.findOne({ email: emailNorm });
+    
+    if (!user || user.passwordResetToken !== otp.toString()) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (!user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
+    }
+
+    res.json({ success: true, message: 'OTP verified successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -269,21 +303,23 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
-    if (!token || !newPassword) {
-      return res.status(400).json({ message: 'Reset token and new password are required' });
+    const { email, otp, newPassword } = req.body;
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ message: 'Email, OTP, and new password are required' });
     }
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'Password must be at least 6 characters' });
     }
-    const user = await models.users.findOne({
-      passwordResetToken: token,
-      passwordResetExpires: { $gte: new Date().toISOString() }
-    });
 
-    // Manual check because stored dates might be strings
-    if (!user || !user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
-      return res.status(400).json({ message: 'Invalid or expired reset link. Please request a new one.' });
+    const emailNorm = String(email).toLowerCase().trim();
+    const user = await models.users.findOne({ email: emailNorm });
+
+    if (!user || user.passwordResetToken !== otp.toString()) {
+      return res.status(400).json({ message: 'Invalid OTP' });
+    }
+
+    if (!user.passwordResetExpires || new Date(user.passwordResetExpires) < new Date()) {
+      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
     }
 
     const newHashedPassword = await bcrypt.hash(newPassword, 12);
