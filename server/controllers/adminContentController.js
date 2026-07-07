@@ -3,7 +3,7 @@ const { db, models } = require('../database/db');
 // Get content
 exports.getContent = async (req, res) => {
   try {
-    let siteContent = await models.siteContent.findOne().lean()
+    let siteContent = await models.siteContents.findOne().lean()
     
     if (!siteContent) {
       siteContent = {
@@ -14,7 +14,7 @@ exports.getContent = async (req, res) => {
         contactEmail: 'support@beyondclassroom.com',
         footerText: '© 2024 Beyond Classroom. All rights reserved.'
       };
-      await models.siteContent.create(siteContent)
+      await models.siteContents.create(siteContent)
       if (db.data.siteContent) Object.assign(db.data.siteContent, siteContent)
     }
 
@@ -28,7 +28,7 @@ exports.getContent = async (req, res) => {
 // Update content
 exports.updateContent = async (req, res) => {
   try {
-    const updated = await models.siteContent.findOneAndUpdate(
+    const updated = await models.siteContents.findOneAndUpdate(
       { _id: 'default_content' },
       { $set: req.body },
       { new: true, upsert: true }
