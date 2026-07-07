@@ -56,18 +56,18 @@ exports.createOrder = async (req, res) => {
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (!keyId || !keySecret || keyId === 'your_razorpay_key_id') {
-      // Mock order for local development or missing keys
+    if (finalAmount === 0 || !keyId || !keySecret || keyId === 'your_razorpay_key_id') {
+      // Mock order for free courses, local development, or missing keys
       order = {
         id: `order_mock_${Date.now()}`,
-        amount: finalAmount * 100,
+        amount: Math.round(finalAmount * 100),
         currency: 'INR'
       }
     } else {
       try {
         const razorpay = getRazorpay()
         const options = {
-          amount: finalAmount * 100, // amount in paise
+          amount: Math.round(finalAmount * 100), // amount in paise, rounded to integer
           currency: 'INR',
           receipt: `order_${Date.now()}`,
           notes: {
@@ -82,7 +82,7 @@ exports.createOrder = async (req, res) => {
         console.warn('Razorpay API failed, falling back to mock order:', rzpErr.message);
         order = {
           id: `order_mock_${Date.now()}`,
-          amount: finalAmount * 100,
+          amount: Math.round(finalAmount * 100),
           currency: 'INR'
         }
       }
