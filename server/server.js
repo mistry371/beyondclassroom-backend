@@ -50,6 +50,7 @@ const practiceRoutes = require('./routes/practices');
 const quizRoutes = require('./routes/quizzes');
 const progressRoutes = require('./routes/progress');
 const adminRoutes = require('./routes/admin');
+const testRoutes = require('./routes/test');
 const otpRoutes = require('./routes/otp');
 const paymentRoutes = require('./routes/payment');
 const subtopicRoutes = require('./routes/subtopics');
