@@ -13,15 +13,24 @@ const getUserPackageLimits = async (user) => {
   let hasUnlimited = false;
 
   const pkgs = user.purchasedCourses || [];
-  if (pkgs.includes('beta') || pkgs.includes('school')) {
-    hasUnlimited = true;
-    limit = Infinity;
-  } else if (pkgs.includes('teachers')) {
-    limit = Math.max(limit, 100);
-  } else if (pkgs.includes('pro')) {
-    limit = Math.max(limit, 50);
-  } else if (pkgs.includes('basic')) {
-    limit = Math.max(limit, 25);
+  if (pkgs.length > 0) {
+    let dbPackages = await models.packages.find({ _id: { $in: pkgs } }).lean();
+    
+    // Fallback for legacy users who only have course IDs but no package ID
+    if (dbPackages.length === 0) {
+      dbPackages = await models.packages.find({ courseIds: { $in: pkgs } }).lean();
+    }
+
+    for (const pkg of dbPackages) {
+      const pkgLimit = pkg.customRequestLimit !== undefined ? pkg.customRequestLimit : 0;
+      if (pkgLimit === -1) {
+        hasUnlimited = true;
+        limit = Infinity;
+        break; // Max possible limit achieved
+      } else {
+        limit = Math.max(limit, pkgLimit);
+      }
+    }
   }
 
   const used = await models.customRequests.countDocuments({ userId: user._id });

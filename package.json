@@ -20,12 +20,11 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "lowdb": "^5.1.0",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.2",
     "razorpay": "^2.9.6"
   },
-  "main": "server-simple.js",
+  "main": "server/server.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mistry371/beyondclassroom-backend.git"

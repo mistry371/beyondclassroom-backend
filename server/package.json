@@ -1,10 +1,10 @@
 {
   "name": "math-platform-server",
   "version": "1.0.0",
-  "main": "server-simple.js",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon server-simple.js",
-    "start": "node server-simple.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -13,7 +13,6 @@
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
-    "lowdb": "^7.0.1",
     "mongoose": "^8.0.3",
     "nodemailer": "^6.9.7",
     "razorpay": "^2.9.2",

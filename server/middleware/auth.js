@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { db, models } = require('../database/db');
+const { models } = require('../database/db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -19,11 +19,7 @@ exports.protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
 
-    let user = await models.users.findOne({ _id: decoded.id }).lean();
-    
-    if (!user && db.data.users) {
-      user = db.data.users.find(u => u._id === decoded.id);
-    }
+    const user = await models.users.findOne({ _id: decoded.id }).lean();
 
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
@@ -32,6 +28,11 @@ exports.protect = async (req, res, next) => {
     // Block suspended users from all protected routes
     if (user.status === 'suspended') {
       return res.status(403).json({ message: 'Your account has been suspended. Please contact support.' });
+    }
+
+    // Session validation (if activeSessionId exists on user and token)
+    if (user.activeSessionId && decoded.sid && decoded.sid !== user.activeSessionId) {
+      return res.status(401).json({ message: 'Session expired. Logged in from another device.' });
     }
 
     req.user = user;
@@ -62,13 +63,10 @@ exports.optionalAuth = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
     }
     if (!token) return next();
-    
+
     const decoded = jwt.verify(token, JWT_SECRET || 'beyond-classroom-fallback-secret-change-in-production');
-    let user = await models.users.findOne({ _id: decoded.id }).lean();
-    if (!user && db.data.users) {
-      user = db.data.users.find(u => u._id === decoded.id);
-    }
-    
+    const user = await models.users.findOne({ _id: decoded.id }).lean();
+
     if (user && user.status !== 'suspended') {
       req.user = user;
     }

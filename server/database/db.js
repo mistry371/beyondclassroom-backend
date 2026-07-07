@@ -1,32 +1,32 @@
-const mongoose = require('mongoose')
-const bcrypt = require('bcryptjs')
-const { normalizeCourseCategory } = require('../constants/categories')
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const { normalizeCourseCategory } = require('../constants/categories');
 
 // ── MongoDB connection ────────────────────────────────────────────────────────
-let isConnected = false
-let memoryServer = null
+let isConnected = false;
+let memoryServer = null;
 
 async function connectMongo() {
-  if (isConnected) return
+  if (isConnected) return;
 
-  let uri = process.env.MONGODB_URI
+  let uri = process.env.MONGODB_URI;
   if (process.env.USE_MEMORY_DB === 'true') {
-    const { MongoMemoryServer } = require('mongodb-memory-server')
-    memoryServer = await MongoMemoryServer.create()
-    uri = memoryServer.getUri('beyondclassroom')
-    console.log('📦 Using in-memory MongoDB for local development')
+    const { MongoMemoryServer } = require('mongodb-memory-server');
+    memoryServer = await MongoMemoryServer.create();
+    uri = memoryServer.getUri('beyondclassroom');
+    console.log('📦 Using in-memory MongoDB for local development');
   }
 
   if (!uri) {
-    throw new Error('MONGODB_URI is not set. Add it to server/.env or set USE_MEMORY_DB=true')
+    throw new Error('MONGODB_URI is not set. Add it to server/.env or set USE_MEMORY_DB=true');
   }
 
   await mongoose.connect(uri, {
     serverSelectionTimeoutMS: 15000,
     socketTimeoutMS: 15000,
-  })
-  isConnected = true
-  console.log('✅ MongoDB connected')
+  });
+  isConnected = true;
+  console.log('✅ MongoDB connected');
 }
 
 // ── Mongoose Schemas ──────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
   activeSessionId: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const courseSchema = new mongoose.Schema({
   _id: { type: String },
@@ -77,13 +77,13 @@ const courseSchema = new mongoose.Schema({
   rating: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const cartSchema = new mongoose.Schema({
   user: String,
   items: [{ _id: String, course: String, addedAt: Date }],
-}, { _id: false })
-cartSchema.index({ user: 1 }, { unique: true })
+}, { _id: false });
+cartSchema.index({ user: 1 }, { unique: true });
 
 const orderSchema = new mongoose.Schema({
   _id: { type: String },
@@ -94,7 +94,7 @@ const orderSchema = new mongoose.Schema({
   status: { type: String, default: 'completed' },
   paymentId: String,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const notificationSchema = new mongoose.Schema({
   _id: { type: String },
@@ -104,7 +104,7 @@ const notificationSchema = new mongoose.Schema({
   type: String,
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const moduleSchema = new mongoose.Schema({
   _id: { type: String },
@@ -117,7 +117,7 @@ const moduleSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const lessonSchema = new mongoose.Schema({
   _id: { type: String },
@@ -131,7 +131,7 @@ const lessonSchema = new mongoose.Schema({
   isPublished: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const subtopicSchema = new mongoose.Schema({
   _id: { type: String },
@@ -147,7 +147,7 @@ const subtopicSchema = new mongoose.Schema({
   packageIds: [String],
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const practiceSchema = new mongoose.Schema({
   _id: { type: String },
@@ -161,7 +161,7 @@ const practiceSchema = new mongoose.Schema({
   type: String,
   difficulty: String,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const quizSchema = new mongoose.Schema({
   _id: { type: String },
@@ -172,7 +172,7 @@ const quizSchema = new mongoose.Schema({
   passingScore: Number,
   timeLimit: Number,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const progressSchema = new mongoose.Schema({
   _id: { type: String },
@@ -184,7 +184,7 @@ const progressSchema = new mongoose.Schema({
   enrolledAt: Date,
   expiryDate: Date,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const otpSchema = new mongoose.Schema({
   _id: { type: String },
@@ -195,7 +195,7 @@ const otpSchema = new mongoose.Schema({
   attempts: { type: Number, default: 0 },
   expiresAt: Date,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const paymentSchema = new mongoose.Schema({
   _id: { type: String },
@@ -212,7 +212,7 @@ const paymentSchema = new mongoose.Schema({
   status: { type: String, default: 'pending' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false, strict: false })
+}, { _id: false, strict: false });
 
 const toolSchema = new mongoose.Schema({
   _id: { type: String },
@@ -221,7 +221,7 @@ const toolSchema = new mongoose.Schema({
   category: String,
   enabled: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const activityLogSchema = new mongoose.Schema({
   _id: { type: String },
@@ -232,7 +232,7 @@ const activityLogSchema = new mongoose.Schema({
   description: String,
   metadata: mongoose.Schema.Types.Mixed,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const announcementSchema = new mongoose.Schema({
   _id: { type: String },
@@ -241,7 +241,7 @@ const announcementSchema = new mongoose.Schema({
   type: String,
   isActive: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const liveClassSchema = new mongoose.Schema({
   _id: { type: String },
@@ -256,7 +256,7 @@ const liveClassSchema = new mongoose.Schema({
   courseId: String,
   status: { type: String, default: 'scheduled' },
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const settingSchema = new mongoose.Schema({
   _id: { type: String },
@@ -267,7 +267,7 @@ const settingSchema = new mongoose.Schema({
   displayName: String,
   description: String,
   isPublic: Boolean,
-}, { _id: false })
+}, { _id: false });
 
 const examSchema = new mongoose.Schema({
   _id: { type: String },
@@ -282,7 +282,7 @@ const examSchema = new mongoose.Schema({
   totalMarks: Number,
   passingMarks: Number,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const examAttemptSchema = new mongoose.Schema({
   _id: { type: String },
@@ -294,7 +294,7 @@ const examAttemptSchema = new mongoose.Schema({
   startedAt: Date,
   submittedAt: Date,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const customRequestSchema = new mongoose.Schema({
   _id: { type: String },
@@ -335,7 +335,7 @@ const customRequestSchema = new mongoose.Schema({
   assignedPdf: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const mediaSchema = new mongoose.Schema({
   _id: { type: String },
@@ -345,7 +345,7 @@ const mediaSchema = new mongoose.Schema({
   size: Number,
   uploadedBy: String,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const certificateSchema = new mongoose.Schema({
   _id: { type: String },
@@ -353,7 +353,7 @@ const certificateSchema = new mongoose.Schema({
   courseId: String,
   issuedAt: Date,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const badgeSchema = new mongoose.Schema({
   _id: { type: String },
@@ -362,7 +362,7 @@ const badgeSchema = new mongoose.Schema({
   icon: String,
   condition: mongoose.Schema.Types.Mixed,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const emailLogSchema = new mongoose.Schema({
   _id: { type: String },
@@ -372,7 +372,7 @@ const emailLogSchema = new mongoose.Schema({
   templateId: String,
   sentAt: Date,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const adminNotificationSchema = new mongoose.Schema({
   _id: { type: String },
@@ -381,20 +381,20 @@ const adminNotificationSchema = new mongoose.Schema({
   type: String,
   isRead: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const siteContentSchema = new mongoose.Schema({
   _id: { type: String, default: 'site-content' },
   data: mongoose.Schema.Types.Mixed,
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const blockedIPSchema = new mongoose.Schema({
   _id: { type: String },
   ip: String,
   reason: String,
   createdAt: { type: Date, default: Date.now },
-}, { _id: false })
+}, { _id: false });
 
 const promoterSchema = new mongoose.Schema({
   _id: { type: String },
@@ -415,7 +415,7 @@ const promoterSchema = new mongoose.Schema({
   lastLoginAt: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const referralSchema = new mongoose.Schema({
   _id: { type: String },
@@ -431,7 +431,7 @@ const referralSchema = new mongoose.Schema({
   commissionAmount: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   convertedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const promoterPayoutSchema = new mongoose.Schema({
   _id: { type: String },
@@ -441,7 +441,7 @@ const promoterPayoutSchema = new mongoose.Schema({
   note: String,
   createdAt: { type: Date, default: Date.now },
   processedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const promoCodeSchema = new mongoose.Schema({
   _id: { type: String },
@@ -454,7 +454,7 @@ const promoCodeSchema = new mongoose.Schema({
   assignedTo: String,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const packageSchema = new mongoose.Schema({
   _id: { type: String },
@@ -469,9 +469,11 @@ const packageSchema = new mongoose.Schema({
   popular: { type: Boolean, default: false },
   courseIds: [String],
   sortOrder: Number,
+  customRequestLimit: { type: Number, default: 0 },
+  customRequestMaxMarks: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 const testimonialSchema = new mongoose.Schema({
   _id: { type: String },
@@ -483,7 +485,7 @@ const testimonialSchema = new mongoose.Schema({
   active: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
-}, { _id: false })
+}, { _id: false });
 
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
@@ -521,113 +523,33 @@ const models = {
   promoCodes:         mongoose.models.DbPromoCode         || mongoose.model('DbPromoCode',         promoCodeSchema,         'promoCodes'),
   testimonials:       mongoose.models.DbTestimonial       || mongoose.model('DbTestimonial',       testimonialSchema,       'testimonials'),
   tools:              mongoose.models.DbTool              || mongoose.model('DbTool',              toolSchema,              'tools'),
-}
+};
 
-// ── db proxy — mimics LowDB API used throughout server-simple.js ──────────────
-// db.data.users is now a live proxy that reads/writes MongoDB
-const collectionCache = {}
-
-function makeCollectionProxy(collectionName) {
-  return {
-    // Array-like: find, filter, findIndex, push, etc. — all operate on MongoDB
-    _model: () => models[collectionName],
-    _name: collectionName,
-  }
-}
-
-// ── db object — compatible with existing code ─────────────────────────────────
-// ── db object — compatible with existing code ─────────────────────────────────
+// ── db object — backward compatibility for admin controllers that still use db.data ──
+// This is a minimal compatibility shim. Controllers should migrate to use `models` directly.
 const db = {
   _data: {},
-  _lastStateJson: {},
-  _lastRead: 0,
-  
-  async read(force = false) {
-    await connectMongo()
-    const now = Date.now()
-    // 60-second cache TTL to reduce repeated full-DB reads under burst traffic
-    if (!force && this._lastRead && (now - this._lastRead < 60000) && Object.keys(this._data).length > 0) {
-      return
-    }
-    
-    // SCALABILITY ADVISORY: 'users' and 'activityLogs' grow unbounded.
-    // At 100k+ records, this bulk load approach will consume significant RAM (~100MB).
-    // For V1 Launch, we are loading them into memory to maintain compatibility with server-simple.js
-    // Post-launch, controllers must be refactored to use Mongoose (models.users.findOne) directly.
-    const SKIP_BULK_LOAD = new Set([])
-    
-    const colls = Object.keys(models).filter(c => !SKIP_BULK_LOAD.has(c))
-    const results = await Promise.all(
-      colls.map(c => models[c].find({}).lean())
-    )
-    colls.forEach((c, i) => {
-      this._data[c] = results[i]
-      this._lastStateJson[c] = JSON.stringify(results[i])
-    })
-    
-    // For safety, initialize empty arrays if not present
-    if (!this._data.users) this._data.users = []
-    if (!this._data.activityLogs) this._data.activityLogs = []
-    
-    // Special: content and siteContent
-    this._data.content = this._data.content || {}
-    this._data.siteContent = this._data.siteContents?.[0]?.data || null
-    this._data.trials = this._data.trials || []
-    this._data.blockedIPs = this._data.blockedIPs || []
-    this._data.payments = this._data.payments || []
-    
-    this._lastRead = now
-  },
-
-  async write() {
-    await connectMongo()
-    const colls = Object.keys(models)
-    for (const c of colls) {
-      if (!this._data[c] || !Array.isArray(this._data[c])) continue
-      
-      const currentJson = JSON.stringify(this._data[c])
-      
-      // Update snapshot state so memory sync works but without overwriting DB
-      this._lastStateJson[c] = currentJson
-    }
-
-    // Persist siteContent singleton into siteContents collection
-    if (this._data.siteContent && typeof this._data.siteContent === 'object') {
-      const siteDoc = {
-        _id: 'site-content',
-        data: this._data.siteContent,
-        updatedAt: new Date(),
-      }
-      await models.siteContents.findOneAndUpdate(
-        { _id: 'site-content' },
-        { $set: siteDoc },
-        { upsert: true, new: true }
-      )
-    }
-    // Since our local cache is already up-to-date, reset the last read timestamp
-    this._lastRead = Date.now()
-  },
 
   get data() {
-    return this._data
+    return this._data;
   },
   set data(val) {
-    this._data = val
+    this._data = val;
   }
-}
+};
 
 // ── initDB — connect + seed admin ─────────────────────────────────────────────
 async function initDB() {
-  await connectMongo()
-  const usersCollection = mongoose.connection.collection('users')
-  try { await usersCollection.dropIndex('email_1') } catch (_) {}
-  try { await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true, partialFilterExpression: { email: { $type: 'string', $ne: '' } } }) } catch (_) {}
-  try { await usersCollection.createIndex({ phone: 1 }, { unique: true, sparse: true, partialFilterExpression: { phone: { $type: 'string', $ne: '' } } }) } catch (_) {}
-  await db.read()
+  await connectMongo();
+  const usersCollection = mongoose.connection.collection('users');
+  try { await usersCollection.dropIndex('email_1'); } catch (_) {}
+  try { await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true, partialFilterExpression: { email: { $type: 'string', $ne: '' } } }); } catch (_) {}
+  try { await usersCollection.createIndex({ phone: 1 }, { unique: true, sparse: true, partialFilterExpression: { phone: { $type: 'string', $ne: '' } } }); } catch (_) {}
 
   // Ensure settings exist
-  if (!db.data.settings || db.data.settings.length === 0) {
-    db.data.settings = [
+  const settingsCount = await models.settings.countDocuments();
+  if (settingsCount === 0) {
+    const defaultSettings = [
       { _id: '1',  key: 'site_name',        value: 'Beyond Classroom',                       type: 'string',  category: 'general',  displayName: 'Site Name',          description: 'The name of your platform',          isPublic: true  },
       { _id: '2',  key: 'site_description', value: 'Advanced Mathematics Learning Platform', type: 'string',  category: 'general',  displayName: 'Site Description',   description: 'Brief description of your platform', isPublic: true  },
       { _id: '3',  key: 'contact_email',    value: 'admin@beyondclassroom.com',               type: 'string',  category: 'general',  displayName: 'Contact Email',      description: 'Primary contact email',              isPublic: true  },
@@ -640,27 +562,28 @@ async function initDB() {
       { _id: '10', key: 'enable_quizzes',   value: 'true',                                   type: 'boolean', category: 'features', displayName: 'Enable Quizzes',     description: 'Allow quiz functionality',           isPublic: false },
       { _id: '11', key: 'primary_color',    value: '#6366f1',                                type: 'color',   category: 'theme',    displayName: 'Primary Color',      description: 'Main brand color',                   isPublic: true  },
       { _id: '12', key: 'secondary_color',  value: '#8b5cf6',                                type: 'color',   category: 'theme',    displayName: 'Secondary Color',    description: 'Secondary brand color',              isPublic: true  },
-    ]
-    for (const s of db.data.settings) {
-      await models.settings.findOneAndUpdate({ _id: s._id }, { $set: s }, { upsert: true })
+    ];
+    for (const s of defaultSettings) {
+      await models.settings.findOneAndUpdate({ _id: s._id }, { $set: s }, { upsert: true });
     }
+    console.log('✅ Default settings seeded');
   }
 
-  // Admin user — query MongoDB directly (users are no longer bulk-loaded)
-  const adminEmail = 'mistryjenish1003@gmail.com'
-  const adminPassword = 'Jenish@1019'
-  const adminHash = await bcrypt.hash(adminPassword, 12)
-  
+  // Admin user
+  const adminEmail = 'mistryjenish1003@gmail.com';
+  const adminPassword = 'Jenish@1019';
+  const adminHash = await bcrypt.hash(adminPassword, 12);
+
   // Remove duplicate admin entries with same email but different _id
-  await models.users.deleteMany({ email: adminEmail, _id: { $ne: 'admin-default' } })
-  
-  const existingAdmin = await models.users.findById('admin-default').lean()
+  await models.users.deleteMany({ email: adminEmail, _id: { $ne: 'admin-default' } });
+
+  const existingAdmin = await models.users.findById('admin-default').lean();
   if (existingAdmin) {
     await models.users.findOneAndUpdate(
       { _id: 'admin-default' },
       { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } },
       { upsert: false }
-    )
+    );
   } else {
     const adminUser = {
       _id:              'admin-default',
@@ -675,84 +598,77 @@ async function initDB() {
       favorites:        [],
       emailVerified:    true,
       createdAt:        new Date(),
-    }
-    await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: adminUser }, { upsert: true })
+    };
+    await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: adminUser }, { upsert: true });
   }
-  console.log('✅ Admin user ready:', adminEmail)
+  console.log('✅ Admin user ready:', adminEmail);
 
-  // Normalize legacy course categories → Mathematics | French
-  if (db.data.courses?.length) {
-    let migrated = 0
-    for (const course of db.data.courses) {
-      const next = normalizeCourseCategory(course.category)
-      if (course.category !== next) {
-        course.category = next
-        migrated++
-        if (course._id) {
-          await models.courses.findOneAndUpdate(
-            { _id: course._id },
-            { $set: { category: next } },
-            { upsert: false }
-          )
-        }
-      }
+  // Normalize legacy course categories → Mathematics
+  const courses = await models.courses.find().lean();
+  let migrated = 0;
+  for (const course of courses) {
+    const next = normalizeCourseCategory(course.category);
+    if (course.category !== next) {
+      migrated++;
+      await models.courses.findOneAndUpdate(
+        { _id: course._id },
+        { $set: { category: next } },
+        { upsert: false }
+      );
     }
-    if (migrated) console.log(`✅ Migrated ${migrated} course(s) to Mathematics/French categories`)
   }
+  if (migrated) console.log(`✅ Migrated ${migrated} course(s) to Mathematics category`);
 
   // Seed default testimonials if empty
-  if (!db.data.testimonials || db.data.testimonials.length === 0) {
-    const existingTestimonials = await models.testimonials.countDocuments();
-    if (existingTestimonials === 0) {
-      const initialTestimonials = [
-        {
-          _id: "testi-1",
-          name: "Aarav Sharma",
-          grade: "Grade 6 Student",
-          image: "/testimonials/student_aarav.png",
-          content: "Beyond Classroom has completely changed how I look at math. The practice resources are so engaging, and I actually look forward to solving problems now. My scores have improved significantly!",
-          rating: 5,
-          active: true,
-          createdAt: new Date()
-        },
-        {
-          _id: "testi-2",
-          name: "Priya Patel",
-          grade: "Parent of Grade 4 Student",
-          image: "/testimonials/parent_priya.png",
-          content: "As a parent, finding the right math resources was tough. This platform provides structured, reliable content that perfectly aligns with what my daughter needs. The progress tracking is a game-changer.",
-          rating: 5,
-          active: true,
-          createdAt: new Date()
-        },
-        {
-          _id: "testi-3",
-          name: "Rahul Verma",
-          grade: "Grade 8 Student",
-          image: "/testimonials/student_rahul.png",
-          content: "The advanced math challenges here are exactly what I needed to prepare for my competitive exams. The explanations are clear, and the platform is so easy to use.",
-          rating: 5,
-          active: true,
-          createdAt: new Date()
-        },
-        {
-          _id: "testi-4",
-          name: "Neha Gupta",
-          grade: "Math Educator",
-          image: "/testimonials/teacher_neha.png",
-          content: "I recommend Beyond Classroom to all my students. It's a fantastic supplementary tool that reinforces the concepts we cover in class. Truly a world-class educational platform.",
-          rating: 5,
-          active: true,
-          createdAt: new Date()
-        }
-      ];
-      await models.testimonials.insertMany(initialTestimonials);
-      db.data.testimonials = initialTestimonials;
-      console.log('✅ Seeded initial testimonials');
-    }
+  const existingTestimonials = await models.testimonials.countDocuments();
+  if (existingTestimonials === 0) {
+    const initialTestimonials = [
+      {
+        _id: "testi-1",
+        name: "Aarav Sharma",
+        grade: "Grade 6 Student",
+        image: "/testimonials/student_aarav.png",
+        content: "Beyond Classroom has completely changed how I look at math. The practice resources are so engaging, and I actually look forward to solving problems now. My scores have improved significantly!",
+        rating: 5,
+        active: true,
+        createdAt: new Date()
+      },
+      {
+        _id: "testi-2",
+        name: "Priya Patel",
+        grade: "Parent of Grade 4 Student",
+        image: "/testimonials/parent_priya.png",
+        content: "As a parent, finding the right math resources was tough. This platform provides structured, reliable content that perfectly aligns with what my daughter needs. The progress tracking is a game-changer.",
+        rating: 5,
+        active: true,
+        createdAt: new Date()
+      },
+      {
+        _id: "testi-3",
+        name: "Rahul Verma",
+        grade: "Grade 8 Student",
+        image: "/testimonials/student_rahul.png",
+        content: "The advanced math challenges here are exactly what I needed to prepare for my competitive exams. The explanations are clear, and the platform is so easy to use.",
+        rating: 5,
+        active: true,
+        createdAt: new Date()
+      },
+      {
+        _id: "testi-4",
+        name: "Neha Gupta",
+        grade: "Math Educator",
+        image: "/testimonials/teacher_neha.png",
+        content: "I recommend Beyond Classroom to all my students. It's a fantastic supplementary tool that reinforces the concepts we cover in class. Truly a world-class educational platform.",
+        rating: 5,
+        active: true,
+        createdAt: new Date()
+      }
+    ];
+    await models.testimonials.insertMany(initialTestimonials);
+    console.log('✅ Seeded initial testimonials');
   }
 
-  return db
+  return db;
 }
 
-module.exports = { db, initDB, models }
+module.exports = { db, initDB, models };

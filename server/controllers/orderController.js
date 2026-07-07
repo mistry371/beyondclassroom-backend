@@ -1,50 +1,69 @@
-const Order = require('../models/Order');
-const Cart = require('../models/Cart');
-const User = require('../models/User');
-const Course = require('../models/Course');
+const { models } = require('../database/db');
 
-
+const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11);
 
 exports.createOrder = async (req, res) => {
   try {
-    const cart = await Cart.findOne({ user: req.user.id }).populate('items.course');
-    
+    const cart = await models.cart.findOne({ user: req.user._id }).lean();
+
     if (!cart || cart.items.length === 0) {
       return res.status(400).json({ message: 'Cart is empty' });
     }
 
-    const courses = cart.items.map(item => item.course);
-    const totalAmount = courses.reduce((sum, course) => sum + (course.price || 0), 0);
+    const courseIds = cart.items.map(item => item.course);
+    const coursesObj = await models.courses.find({ _id: { $in: courseIds } }).lean();
 
-    // Block direct order creation for paid courses — must go through Razorpay
-    const paidCourses = courses.filter(c => c.price > 0 && !c.isFree && !c.isDemo);
+    // Block direct order for paid courses — must go through Razorpay payment
+    const paidCourses = courseIds.filter(courseId => {
+      const course = coursesObj.find(c => c._id === courseId);
+      return course && course.price > 0 && !course.isFree && !course.isDemo;
+    });
+
     if (paidCourses.length > 0) {
+      const paidTitles = paidCourses.map(courseId => {
+        const course = coursesObj.find(c => c._id === courseId);
+        return course?.title || courseId;
+      });
       return res.status(403).json({
         message: 'Paid courses require payment. Please complete payment via the course page.',
-        paidCourses: paidCourses.map(c => c.title)
+        paidCourses: paidTitles
       });
     }
 
-    // Only free/demo courses can be enrolled via this route
-    const courseIds = courses.map(c => c._id);
+    // Only free/demo courses allowed here
+    const totalAmount = 0;
 
-    const order = await Order.create({
-      user: req.user.id,
+    const order = {
+      _id: generateId(),
+      user: req.user._id,
       courses: courseIds,
       totalAmount,
-      status: 'completed'
-    });
+      status: 'completed',
+      createdAt: new Date()
+    };
 
-    await User.findByIdAndUpdate(req.user.id, {
-      $addToSet: { purchasedCourses: { $each: courseIds } }
-    });
+    await models.orders.create(order);
 
-    await Promise.all(courseIds.map(courseId => 
-      Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } })
-    ));
+    // Add courses to user's purchased courses
+    const user = await models.users.findOne({ _id: req.user._id });
+    if (user) {
+      const newCourses = [...new Set([...(user.purchasedCourses || []), ...courseIds])];
+      await models.users.updateOne({ _id: req.user._id }, { $set: { purchasedCourses: newCourses } });
+    }
 
-    cart.items = [];
-    await cart.save();
+    // Clear cart
+    await models.cart.updateOne({ user: req.user._id }, { $set: { items: [] } });
+
+    // Send enrollment notifications for each course
+    const notificationService = require('../services/notificationService');
+    for (const courseId of courseIds) {
+      const course = coursesObj.find(c => c._id === courseId);
+      if (course) {
+        await notificationService.sendEnrollmentNotification(
+          req.user._id, req.user.name, req.user.email, course.title
+        );
+      }
+    }
 
     res.status(201).json({ success: true, order });
   } catch (error) {
@@ -54,9 +73,7 @@ exports.createOrder = async (req, res) => {
 
 exports.getUserOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id })
-      .populate('courses')
-      .sort({ createdAt: -1 });
+    const orders = await models.orders.find({ user: req.user._id }).sort({ createdAt: -1 }).lean();
     res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -65,10 +82,7 @@ exports.getUserOrders = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
   try {
-    const orders = await Order.find()
-      .populate('user', 'name email')
-      .populate('courses')
-      .sort({ createdAt: -1 });
+    const orders = await models.orders.find().sort({ createdAt: -1 }).lean();
     res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -92,7 +92,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/admin/packages — create
 router.post('/admin', protect, isAdmin, async (req, res) => {
   try {
-    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
+    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds, customRequestLimit, customRequestMaxMarks } = req.body
     if (!name || priceINR === undefined) {
       return res.status(400).json({ message: 'Name and priceINR are required' })
     }
@@ -111,6 +111,8 @@ router.post('/admin', protect, isAdmin, async (req, res) => {
       active: active !== false,
       popular: popular || false,
       courseIds: Array.isArray(courseIds) ? courseIds : [],
+      customRequestLimit: customRequestLimit !== undefined ? Number(customRequestLimit) : 0,
+      customRequestMaxMarks: customRequestMaxMarks !== undefined ? Number(customRequestMaxMarks) : 0,
       sortOrder: count,
       createdAt: new Date(),
     }
@@ -126,7 +128,7 @@ router.post('/admin', protect, isAdmin, async (req, res) => {
 // PUT /api/admin/packages/:id — update
 router.put('/admin/:id', protect, isAdmin, async (req, res) => {
   try {
-    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds } = req.body
+    const { name, description, features, priceINR, priceUSD, validity, image, active, popular, courseIds, customRequestLimit, customRequestMaxMarks } = req.body
     
     const updates = {}
     if (name !== undefined) updates.name = name
@@ -139,6 +141,8 @@ router.put('/admin/:id', protect, isAdmin, async (req, res) => {
     if (active !== undefined) updates.active = active
     if (popular !== undefined) updates.popular = popular
     if (Array.isArray(courseIds)) updates.courseIds = courseIds
+    if (customRequestLimit !== undefined) updates.customRequestLimit = Number(customRequestLimit)
+    if (customRequestMaxMarks !== undefined) updates.customRequestMaxMarks = Number(customRequestMaxMarks)
     updates.updatedAt = new Date()
 
     const pkg = await models.packages.findOneAndUpdate(
