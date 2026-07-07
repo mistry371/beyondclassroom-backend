@@ -19,12 +19,12 @@ const createTransporter = () => {
     });
   }
 
-  // Fallback: Gmail SMTP (works locally)
+  // Fallback: Gmail SMTP (works locally and on some platforms)
   return nodemailer.createTransport({
     service: 'gmail',
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
+    port: 587,
+    secure: false, // use TLS
     auth: {
       user: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
       pass: process.env.EMAIL_PASS || 'ffuz tfxf esbh dhje',
