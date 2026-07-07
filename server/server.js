@@ -88,6 +88,7 @@ app.use('/api/subtopics', subtopicRoutes);
 app.use('/api/exams', examRoutes);
 app.use('/api/custom-requests', customRequestRoutes);
 app.use('/api/promoters', promoterRoutes);
+app.use('/api/test', testRoutes);
 app.use('/api/team', teamRoutes);
 app.use('/api/packages', packageRoutes);
 app.use('/api/admin/promo-codes', protect, promoCodeRoutes);
