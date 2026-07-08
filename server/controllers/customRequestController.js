@@ -8,17 +8,27 @@ const {
 
 const ADMIN_EMAIL = 'mistryjenish1003@gmail.com'
 
-const getUserPackageLimits = async (user) => {
+const getUserPackageLimits = async (user, courseId) => {
   let limit = 0;
   let hasUnlimited = false;
 
   const pkgs = user.purchasedCourses || [];
   if (pkgs.length > 0) {
-    let dbPackages = await models.packages.find({ _id: { $in: pkgs } }).lean();
+    let query = { _id: { $in: pkgs } };
+    if (courseId) {
+      query.courseIds = courseId; // Filter to packages that include this course
+    }
+    
+    let dbPackages = await models.packages.find(query).lean();
     
     // Fallback for legacy users who only have course IDs but no package ID
-    if (dbPackages.length === 0) {
+    if (dbPackages.length === 0 && !courseId) {
       dbPackages = await models.packages.find({ courseIds: { $in: pkgs } }).lean();
+    } else if (dbPackages.length === 0 && courseId) {
+      // If courseId provided but no explicit package, see if the user bought the course directly as a legacy fallback
+      if (pkgs.includes(courseId)) {
+        dbPackages = await models.packages.find({ courseIds: courseId }).lean();
+      }
     }
 
     for (const pkg of dbPackages) {
@@ -33,7 +43,12 @@ const getUserPackageLimits = async (user) => {
     }
   }
 
-  const used = await models.customRequests.countDocuments({ userId: user._id });
+  const queryCondition = { userId: user._id };
+  if (courseId) {
+    queryCondition.courseId = courseId;
+  }
+
+  const used = await models.customRequests.countDocuments(queryCondition);
   return { 
     limit: hasUnlimited ? 'unlimited' : limit, 
     used, 
@@ -42,10 +57,11 @@ const getUserPackageLimits = async (user) => {
   };
 }
 
+
 // Student: Get my package limits
 exports.getMyLimits = async (req, res) => {
   try {
-    const usage = await getUserPackageLimits(req.user)
+    const usage = await getUserPackageLimits(req.user, req.query.courseId)
     res.json({ success: true, usage })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -57,7 +73,8 @@ exports.createRequest = async (req, res) => {
   try {
     const user = req.user
     
-    const usage = await getUserPackageLimits(user);
+    const courseId = req.body.courseId;
+    const usage = await getUserPackageLimits(user, courseId);
     if (!usage.hasUnlimited && usage.used >= usage.limit) {
       return res.status(403).json({ success: false, message: 'You have reached the custom request limit for your current package. Please upgrade to request more.' });
     }

@@ -37,7 +37,11 @@ exports.register = async (req, res) => {
       }
     }
 
-    const phoneExists = await models.users.findOne({ phone: phoneNorm }).lean();
+    let phoneQuery = [{ phone: phoneNorm }];
+    if (phoneNorm.startsWith('91') && phoneNorm.length > 10) {
+      phoneQuery.push({ phone: phoneNorm.replace(/^91/, '') });
+    }
+    const phoneExists = await models.users.findOne({ $or: phoneQuery }).lean();
     if (phoneExists) {
       return res.status(400).json({ message: 'Mobile number already registered' });
     }
@@ -144,7 +148,11 @@ exports.login = async (req, res) => {
 
     let user = null;
     if (phoneNorm) {
-      user = await models.users.findOne({ phone: phoneNorm }).lean();
+      let phoneQuery = [{ phone: phoneNorm }];
+      if (phoneNorm.startsWith('91') && phoneNorm.length > 10) {
+        phoneQuery.push({ phone: phoneNorm.replace(/^91/, '') });
+      }
+      user = await models.users.findOne({ $or: phoneQuery }).lean();
     }
     if (!user && emailNorm) {
       user = await models.users.findOne({ email: emailNorm }).lean();

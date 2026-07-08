@@ -4,6 +4,8 @@ class CustomRequest {
     this.userId = data.userId
     this.userName = data.userName
     this.userEmail = data.userEmail
+    this.courseId = data.courseId || null
+    this.packageId = data.packageId || null
     this.title = data.title || 'Custom Study Plan'
     this.description = data.description || ''
     this.selectedTopics = data.selectedTopics || []  // [{ courseId, courseTitle, moduleId, moduleTitle }]

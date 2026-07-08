@@ -34,6 +34,43 @@ app.use(cors({
 app.use(express.json({ limit: '250mb' }));
 app.use(express.urlencoded({ extended: true, limit: '250mb' }));
 
+// ── S3 Proxy Route for Private File Streaming ────────────────────────────────
+if (process.env.AWS_S3_BUCKET_NAME) {
+  const { S3Client, GetObjectCommand } = require('@aws-sdk/client-s3');
+  const s3Config = { region: process.env.AWS_REGION || 'ap-south-1' };
+  
+  if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    s3Config.credentials = {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    };
+  }
+  const s3Client = new S3Client(s3Config);
+
+  app.get('/uploads/:filename', async (req, res, next) => {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: process.env.AWS_S3_BUCKET_NAME,
+        Key: req.params.filename,
+      });
+      const s3Response = await s3Client.send(command);
+      
+      if (s3Response.ContentType) res.set('Content-Type', s3Response.ContentType);
+      if (s3Response.ContentLength) res.set('Content-Length', s3Response.ContentLength);
+      
+      s3Response.Body.pipe(res);
+    } catch (error) {
+      if (error.name === 'NoSuchKey') {
+        // File not found in S3, maybe it's a legacy local file. Pass to express.static.
+        next();
+      } else {
+        console.error(`S3 Fetch Error for ${req.params.filename}:`, error.message);
+        res.status(500).send('Error fetching file');
+      }
+    }
+  });
+}
+
 // ── Static Files ─────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../public')));
 

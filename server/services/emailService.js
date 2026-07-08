@@ -39,18 +39,23 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
       // If Resend API key exists, use Resend SDK (HTTPS port 443 - never blocked)
       if (process.env.RESEND_API_KEY) {
         const resend = new Resend(process.env.RESEND_API_KEY);
-        const data = await resend.emails.send({
+        const { data, error } = await resend.emails.send({
           from: getFromAddress(),
           to,
           subject,
           text: text || '',
           html,
         });
-        console.log('✅ Email sent via Resend API successfully:', data.id);
-        return { success: true, messageId: data.id };
+
+        if (!error && data?.id) {
+          console.log('✅ Email sent via Resend API successfully:', data.id);
+          return { success: true, messageId: data.id };
+        } else {
+          console.error('⚠️ Resend failed (falling back to SMTP):', error?.message || 'Unknown Resend Error');
+        }
       }
 
-      // Otherwise fallback to Nodemailer (Gmail SMTP)
+      // Fallback to Nodemailer (Gmail SMTP)
       const transporter = createTransporter();
       const mailOptions = {
         from: getFromAddress(),
