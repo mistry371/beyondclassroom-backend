@@ -20,8 +20,11 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "@aws-sdk/client-ec2": "^3.1083.0",
+    "@aws-sdk/client-ssm": "^3.1083.0",
     "multer": "^2.1.1",
     "nodemailer": "^8.0.2",
+    "puppeteer": "^25.3.0",
     "razorpay": "^2.9.6"
   },
   "main": "server/server.js",
