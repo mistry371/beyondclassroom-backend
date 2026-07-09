@@ -58,11 +58,25 @@ exports.getCourseById = async (req, res) => {
         const moduleLessons = lessons
           .filter(l => l.moduleId === moduleItem._id)
           .map(lesson => {
-            const lessonSubtopics = subtopics.filter(s => s.lessonId === lesson._id);
+            const lessonSubtopics = subtopics.filter(s => s.lessonId === lesson._id).map(s => {
+              if (s.documents) s.documents = s.documents.map(({ data, ...doc }) => doc);
+              if (s.document) {
+                const { data, ...doc } = s.document;
+                s.document = doc;
+              }
+              return s;
+            });
             return { ...lesson, subtopics: lessonSubtopics };
           });
 
-        const directSubtopics = subtopics.filter(s => s.moduleId === moduleItem._id && !s.lessonId);
+        const directSubtopics = subtopics.filter(s => s.moduleId === moduleItem._id && !s.lessonId).map(s => {
+          if (s.documents) s.documents = s.documents.map(({ data, ...doc }) => doc);
+          if (s.document) {
+            const { data, ...doc } = s.document;
+            s.document = doc;
+          }
+          return s;
+        });
 
         return {
           ...moduleItem,

@@ -37,17 +37,30 @@ exports.getModulesByCourse = async (req, res) => {
       let quiz = quizzes.find(q => q.moduleId === m._id) || null
       let directSubtopics = allSubtopics.filter(s => s.moduleId === m._id && (!s.lessonId || String(s.lessonId).trim() === ''))
       
+      // ALWAYS strip massive base64 data payloads
+      directSubtopics = directSubtopics.map(subtopic => {
+        if (subtopic.documents) {
+          subtopic.documents = subtopic.documents.map(({ data, ...doc }) => doc);
+        }
+        if (subtopic.document) {
+          const { data, ...doc } = subtopic.document;
+          subtopic.document = doc;
+        }
+        return subtopic;
+      });
+
       if (!isAuthorized) {
         modLessons = modLessons.map(({ videoUrl, content, ...rest }) => rest);
         if (quiz && quiz.questions) {
           quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
         }
+        // URLs are stripped only if unauthorized
         directSubtopics = directSubtopics.map(subtopic => {
           if (subtopic.documents) {
-            subtopic.documents = subtopic.documents.map(({ data, url, ...doc }) => doc);
+            subtopic.documents = subtopic.documents.map(({ url, ...doc }) => doc);
           }
           if (subtopic.document) {
-            const { data, url, ...doc } = subtopic.document;
+            const { url, ...doc } = subtopic.document;
             subtopic.document = doc;
           }
           return subtopic;

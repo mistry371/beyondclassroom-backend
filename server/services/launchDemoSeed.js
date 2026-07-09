@@ -23,6 +23,8 @@ const staticPackages = [
     ],
     active: true,
     courseIds: ['course-class-1', 'course-class-2', 'course-class-3', 'course-class-4'],
+    customRequestLimit: -1,
+    customRequestMaxMarks: -1,
     sortOrder: 0
   },
   {
@@ -48,6 +50,8 @@ const staticPackages = [
     ],
     active: true,
     courseIds: ['course-class-5', 'course-class-6', 'course-class-7', 'course-class-8'],
+    customRequestLimit: 25,
+    customRequestMaxMarks: 40,
     sortOrder: 1
   },
   {
@@ -74,6 +78,8 @@ const staticPackages = [
     ],
     active: true,
     courseIds: ['course-class-5', 'course-class-6', 'course-class-7', 'course-class-8'],
+    customRequestLimit: 50,
+    customRequestMaxMarks: 80,
     sortOrder: 2
   },
   {
@@ -94,6 +100,8 @@ const staticPackages = [
     ],
     active: true,
     courseIds: ['course-class-1', 'course-class-2', 'course-class-3', 'course-class-4', 'course-class-5', 'course-class-6', 'course-class-7', 'course-class-8'],
+    customRequestLimit: 100,
+    customRequestMaxMarks: -1,
     sortOrder: 3
   },
   {
@@ -115,6 +123,8 @@ const staticPackages = [
     ],
     active: true,
     courseIds: ['course-class-1', 'course-class-2', 'course-class-3', 'course-class-4', 'course-class-5', 'course-class-6', 'course-class-7', 'course-class-8'],
+    customRequestLimit: -1,
+    customRequestMaxMarks: -1,
     sortOrder: 4
   },
 ]

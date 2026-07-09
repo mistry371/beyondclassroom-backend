@@ -301,6 +301,8 @@ const customRequestSchema = new mongoose.Schema({
   userId: String,
   userName: String,
   userEmail: String,
+  courseId: String,
+  packageId: String,
   subject: String,
   title: String,
   description: String,
