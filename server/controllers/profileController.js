@@ -11,6 +11,7 @@ exports.getProfile = async (req, res) => {
       res.json({ success: true, user: {
         ...userWithoutPassword,
         purchasedCourses: populatedCourses,
+        purchasedCourseIds: user.purchasedCourses || [],
         trialEndsAt: user.trialEndsAt || null,
         trialExpired: user.trialExpired || false
       } });
