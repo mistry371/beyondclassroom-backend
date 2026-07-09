@@ -208,9 +208,12 @@ exports.verifyPayment = async (req, res) => {
       const pkg = await models.packages.findById(packageId).lean()
       if (pkg) {
         // Only grant access to the specifically selected courses if provided, else all pkg courses (fallback)
-        const coursesToGrant = (payment && payment.selectedCourseIds && payment.selectedCourseIds.length > 0)
-          ? payment.selectedCourseIds
-          : (pkg.courseIds || [])
+        let coursesToGrant = [];
+        if (payment && payment.selectedCourseIds && payment.selectedCourseIds.length > 0 && payment.selectedCourseIds !== 'undefined' && payment.selectedCourseIds[0] !== '') {
+          coursesToGrant = Array.isArray(payment.selectedCourseIds) ? payment.selectedCourseIds : [payment.selectedCourseIds];
+        } else {
+          coursesToGrant = (pkg.courseIds && pkg.courseIds.length > 0) ? pkg.courseIds : ['course-class-1','course-class-2','course-class-3','course-class-4','course-class-5','course-class-6','course-class-7','course-class-8'];
+        }
           
         purchasedCourseIds = [...new Set([...purchasedCourseIds, ...coursesToGrant])]
         
