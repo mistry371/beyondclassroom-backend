@@ -239,6 +239,19 @@ exports.studentAction = async (req, res) => {
       await models.orders.create(order)
       if (db.data.orders) db.data.orders.push(order)
 
+      if (current.courseId) {
+        await models.users.updateOne(
+          { _id: req.user._id },
+          { $addToSet: { purchasedCourses: current.courseId } }
+        );
+        if (db.data.users) {
+          const uIdx = db.data.users.findIndex(u => u._id === req.user._id);
+          if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.includes(current.courseId)) {
+            db.data.users[uIdx].purchasedCourses.push(current.courseId);
+          }
+        }
+      }
+
       const notification = {
         _id: 'custom-ready-' + Date.now(),
         user: req.user._id,
@@ -305,6 +318,19 @@ exports.assignPdf = async (req, res) => {
       { $set: updates },
       { new: true }
     ).lean();
+
+    if (updated && updated.userId && updated.courseId) {
+      await models.users.updateOne(
+        { _id: updated.userId },
+        { $addToSet: { purchasedCourses: updated.courseId } }
+      );
+      if (db.data.users) {
+        const uIdx = db.data.users.findIndex(u => u._id === updated.userId);
+        if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.includes(updated.courseId)) {
+          db.data.users[uIdx].purchasedCourses.push(updated.courseId);
+        }
+      }
+    }
 
     if (!updated) return res.status(404).json({ success: false, message: 'Request not found' });
 
