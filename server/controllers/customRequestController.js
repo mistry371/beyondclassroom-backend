@@ -15,20 +15,12 @@ const getUserPackageLimits = async (user, courseId) => {
   const pkgs = user.purchasedCourses || [];
   if (pkgs.length > 0) {
     let query = { _id: { $in: pkgs } };
-    if (courseId) {
-      query.courseIds = courseId; // Filter to packages that include this course
-    }
     
     let dbPackages = await models.packages.find(query).lean();
     
     // Fallback for legacy users who only have course IDs but no package ID
-    if (dbPackages.length === 0 && !courseId) {
+    if (dbPackages.length === 0) {
       dbPackages = await models.packages.find({ courseIds: { $in: pkgs } }).lean();
-    } else if (dbPackages.length === 0 && courseId) {
-      // If courseId provided but no explicit package, see if the user bought the course directly as a legacy fallback
-      if (pkgs.includes(courseId)) {
-        dbPackages = await models.packages.find({ courseIds: courseId }).lean();
-      }
     }
 
     for (const pkg of dbPackages) {
