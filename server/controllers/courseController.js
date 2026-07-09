@@ -50,7 +50,7 @@ exports.getCourseById = async (req, res) => {
               { moduleId: { $in: moduleIds } },
               { lessonId: { $in: lessonIds } }
             ]
-          }).lean()
+          }).select({ 'documents.data': 0, 'document.data': 0 }).lean()
         : [];
 
       // Construct nested structure

@@ -22,7 +22,7 @@ exports.getModulesByCourse = async (req, res) => {
     
     const lessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
     const quizzes = await models.quizzes.find({ moduleId: { $in: moduleIds } }).lean()
-    const allSubtopics = await models.subtopics.find({ moduleId: { $in: moduleIds } }).lean()
+    const allSubtopics = await models.subtopics.find({ moduleId: { $in: moduleIds } }).select({ 'documents.data': 0, 'document.data': 0 }).lean()
     
     let isAuthorized = false;
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {

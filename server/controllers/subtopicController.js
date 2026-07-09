@@ -23,7 +23,7 @@ const validateDocuments = (documents) => {
 exports.getSubtopicsByLesson = async (req, res) => {
   try {
     const { lessonId } = req.params
-    const subtopics = await models.subtopics.find({ lessonId }).sort({ order: 1 }).lean()
+    const subtopics = await models.subtopics.find({ lessonId }).select({ 'documents.data': 0, 'document.data': 0 }).sort({ order: 1 }).lean()
     
     let isAuthorized = false;
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
@@ -59,7 +59,7 @@ exports.getSubtopicsByLesson = async (req, res) => {
 exports.getSubtopicsByModule = async (req, res) => {
   try {
     const { moduleId } = req.params
-    const subtopics = await models.subtopics.find({ moduleId }).sort({ order: 1 }).lean()
+    const subtopics = await models.subtopics.find({ moduleId }).select({ 'documents.data': 0, 'document.data': 0 }).sort({ order: 1 }).lean()
     
     let isAuthorized = false;
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
@@ -201,7 +201,7 @@ exports.deleteSubtopic = async (req, res) => {
 // Get all subtopics (admin overview)
 exports.getAllSubtopics = async (req, res) => {
   try {
-    const subtopics = await models.subtopics.find().sort({ order: 1 }).lean()
+    const subtopics = await models.subtopics.find().select({ 'documents.data': 0, 'document.data': 0 }).sort({ order: 1 }).lean()
     res.json({ success: true, subtopics })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

@@ -70,7 +70,7 @@ exports.updateLessonProgress = async (req, res) => {
     
     // If the course uses direct subtopics instead of lessons (like the Demo course)
     if (courseLessons.length === 0) {
-      courseLessons = await models.subtopics.find({ moduleId: { $in: moduleIds } }).lean()
+      courseLessons = await models.subtopics.find({ moduleId: { $in: moduleIds } }).select({ 'documents.data': 0, 'document.data': 0 }).lean()
     }
     
     const totalLessons = courseLessons.length || 1
