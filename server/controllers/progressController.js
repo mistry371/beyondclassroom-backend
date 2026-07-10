@@ -63,7 +63,8 @@ exports.updateLessonProgress = async (req, res) => {
     const lessonsCompleted = [...new Set([...(progress.lessonsCompleted || []), lessonId])]
     
     // Calculate completion percentage based on total lessons in course
-    const modules = await models.modules.find({ courseId }).lean()
+    const baseCourseId = courseId.includes('_') ? courseId.split('_')[0] : courseId;
+    const modules = await models.modules.find({ courseId: baseCourseId }).lean()
     const moduleIds = modules.map(m => m._id)
     
     let courseLessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()

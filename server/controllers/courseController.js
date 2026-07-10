@@ -29,7 +29,13 @@ exports.getFeaturedCourses = async (req, res) => {
 
 exports.getCourseById = async (req, res) => {
   try {
-    const course = await models.courses.findOne({ _id: req.params.id }).lean();
+    const rawId = req.params.id;
+    const isCompound = rawId.includes('_');
+    const baseId = isCompound ? rawId.split('_')[0] : rawId;
+    const pkgId = isCompound ? rawId.split('_')[1] : null;
+
+    const course = await models.courses.findOne({ _id: baseId }).lean();
+    if (course) course._id = rawId;
 
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
@@ -44,7 +50,7 @@ exports.getCourseById = async (req, res) => {
         : [];
       const lessonIds = lessons.map(l => l._id);
 
-      const subtopics = (moduleIds.length > 0 || lessonIds.length > 0)
+      let subtopics = (moduleIds.length > 0 || lessonIds.length > 0)
         ? await models.subtopics.find({
             $or: [
               { moduleId: { $in: moduleIds } },
@@ -52,6 +58,13 @@ exports.getCourseById = async (req, res) => {
             ]
           }).select({ 'documents.data': 0, 'document.data': 0 }).lean()
         : [];
+        
+      if (pkgId) {
+        subtopics = subtopics.filter(st => {
+          if (!st.packageIds || st.packageIds.length === 0) return true;
+          return st.packageIds.includes(pkgId);
+        });
+      }
 
       // Construct nested structure
       const populatedModules = modules.map(moduleItem => {

@@ -11,11 +11,14 @@ exports.getCertificates = async (req, res) => {
     const users = await models.users.find({ _id: { $in: userIds } }).select('name email _id').lean()
     
     const courseIds = [...new Set(certificates.map(c => c.course || c.courseId).filter(Boolean))]
-    const courses = await models.courses.find({ _id: { $in: courseIds } }).select('title _id').lean()
+    const baseCourseIds = courseIds.map(id => id.includes('_') ? id.split('_')[0] : id)
+    const courses = await models.courses.find({ _id: { $in: baseCourseIds } }).select('title _id').lean()
 
     const populated = certificates.map(cert => {
       const user = users.find(u => u._id === (cert.user || cert.userId))
-      const course = courses.find(c => c._id === (cert.course || cert.courseId))
+      const rawCourseId = cert.course || cert.courseId
+      const baseCourseId = rawCourseId ? (rawCourseId.includes('_') ? rawCourseId.split('_')[0] : rawCourseId) : null
+      const course = courses.find(c => c._id === baseCourseId)
       return {
         ...cert,
         user: user ? { _id: user._id, name: user.name, email: user.email } : cert.user,
@@ -41,7 +44,8 @@ exports.generateCertificate = async (req, res) => {
     const user = await models.users.findOne({ _id: userId }).lean()
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const course = await models.courses.findOne({ _id: courseId }).lean()
+    const baseCourseId = courseId.includes('_') ? courseId.split('_')[0] : courseId;
+    const course = await models.courses.findOne({ _id: baseCourseId }).lean()
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
     // Check if user is enrolled

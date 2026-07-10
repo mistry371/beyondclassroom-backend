@@ -8,9 +8,32 @@ exports.getDashboardSummary = async (req, res) => {
 
     // 1. Courses
     const courseIds = user.purchasedCourses || [];
-    const courses = await models.courses.find({ _id: { $in: courseIds } })
+    const baseCourseIds = [...new Set(courseIds.map(id => id.includes('_') ? id.split('_')[0] : id))];
+    const packageIds = [...new Set(courseIds.filter(id => id.includes('_')).map(id => id.split('_')[1]))];
+
+    const dbCourses = await models.courses.find({ _id: { $in: baseCourseIds } })
       .select('title description duration difficulty _id thumbnail')
       .lean();
+      
+    const dbPackages = await models.packages.find({ _id: { $in: packageIds } }).select('name _id').lean();
+
+    const courses = courseIds.map(purchasedId => {
+      const isCompound = purchasedId.includes('_');
+      const baseId = isCompound ? purchasedId.split('_')[0] : purchasedId;
+      const pkgId = isCompound ? purchasedId.split('_')[1] : null;
+      
+      const c = dbCourses.find(c => c._id === baseId);
+      if (!c) return null;
+      
+      const pkg = pkgId ? dbPackages.find(p => p._id === pkgId) : null;
+      
+      return {
+        ...c,
+        _id: purchasedId,
+        originalCourseId: baseId,
+        title: pkg ? `${c.title} (${pkg.name})` : c.title
+      };
+    }).filter(Boolean);
 
     // 2. Progress
     const progress = await models.progress.find({ userId, courseId: { $in: courseIds } }).lean();
