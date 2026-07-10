@@ -17,6 +17,8 @@ router.post('/login', promoterController.login)
 router.get('/dashboard', protectPromoter, promoterController.getDashboard)
 router.get('/referrals', protectPromoter, promoterController.getReferrals)
 router.post('/withdraw', protectPromoter, promoterController.requestWithdrawal)
+router.put('/profile', protectPromoter, promoterController.updateProfile)
+router.put('/change-password', protectPromoter, promoterController.changePassword)
 
 // Admin
 router.get('/admin/list', protect, admin, promoterController.adminListPromoters)

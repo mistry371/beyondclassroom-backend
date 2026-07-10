@@ -344,3 +344,34 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters' });
+    }
+
+    const user = await models.users.findById(req.user._id).lean();
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!(await bcrypt.compare(currentPassword, user.password))) {
+      return res.status(400).json({ message: 'Incorrect current password' });
+    }
+
+    const newHashedPassword = await bcrypt.hash(newPassword, 12);
+    await models.users.updateOne(
+      { _id: user._id },
+      { $set: { password: newHashedPassword, updatedAt: new Date() } }
+    );
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

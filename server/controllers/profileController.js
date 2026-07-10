@@ -61,6 +61,7 @@ exports.getDashboardSummary = async (req, res) => {
       trialStatus
     });
   } catch (error) {
+    console.error('getDashboardSummary Error:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -90,10 +91,11 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, email, profilePhoto } = req.body;
+    const { name, email, phone, profilePhoto } = req.body;
     let updates = { updatedAt: new Date() };
     if (name) updates.name = name;
     if (email) updates.email = email;
+    if (phone !== undefined) updates.phone = phone;
     if (profilePhoto !== undefined) updates.profilePhoto = profilePhoto;
 
     const user = await models.users.findOneAndUpdate(
