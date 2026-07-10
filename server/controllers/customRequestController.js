@@ -114,7 +114,7 @@ exports.createRequest = async (req, res) => {
 // Student: get my requests
 exports.getMyRequests = async (req, res) => {
   try {
-    const requests = await models.customRequests.find({ userId: req.user._id }).sort({ createdAt: -1 }).lean()
+    const requests = await models.customRequests.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(500).lean()
     const usage = await getUserPackageLimits(req.user)
     res.json({ success: true, requests, usage })
   } catch (error) {
@@ -125,7 +125,7 @@ exports.getMyRequests = async (req, res) => {
 // Admin: get all requests
 exports.getAllRequests = async (req, res) => {
   try {
-    const requests = await models.customRequests.find().sort({ createdAt: -1 }).lean()
+    const requests = await models.customRequests.find().sort({ createdAt: -1 }).limit(500).lean()
     
     // Attach usage limits for admin context
     const userMap = new Map()

@@ -82,7 +82,7 @@ exports.getUserOrders = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
   try {
-    const orders = await models.orders.find().sort({ createdAt: -1 }).lean();
+    const orders = await models.orders.find().sort({ createdAt: -1 }).limit(500).lean();
     res.json({ success: true, orders });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -489,6 +489,19 @@ const testimonialSchema = new mongoose.Schema({
   updatedAt: Date,
 }, { _id: false });
 
+// ── Indexes for Performance Optimization ──────────────────────────────────────
+orderSchema.index({ createdAt: -1 });
+orderSchema.index({ user: 1 });
+paymentSchema.index({ createdAt: -1 });
+paymentSchema.index({ userId: 1 });
+progressSchema.index({ createdAt: -1 });
+progressSchema.index({ userId: 1 });
+customRequestSchema.index({ createdAt: -1 });
+customRequestSchema.index({ userId: 1 });
+courseSchema.index({ createdAt: -1 });
+promoterSchema.index({ createdAt: -1 });
+referralSchema.index({ createdAt: -1 });
+
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
   packages:           mongoose.models.DbPackage           || mongoose.model('DbPackage',           packageSchema,           'packages'),

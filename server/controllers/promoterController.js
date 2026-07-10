@@ -165,7 +165,7 @@ exports.getDashboard = async (req, res) => {
 
 exports.getReferrals = async (req, res) => {
   try {
-    const referrals = await models.referrals.find({ promoterId: req.promoter._id }).sort({ createdAt: -1 }).lean()
+    const referrals = await models.referrals.find({ promoterId: req.promoter._id }).sort({ createdAt: -1 }).limit(500).lean()
     res.json({ success: true, referrals })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -278,7 +278,7 @@ exports.trackClick = async (req, res) => {
 // Admin: list promoters
 exports.adminListPromoters = async (req, res) => {
   try {
-    const promoters = await models.promoters.find().sort({ createdAt: -1 }).lean()
+    const promoters = await models.promoters.find().sort({ createdAt: -1 }).limit(500).lean()
     const mapped = promoters.map((p) => ({
       ...referralService.sanitizePromoter(p),
       createdAt: p.createdAt,
@@ -351,7 +351,7 @@ exports.adminProcessPayout = async (req, res) => {
 
 exports.adminListPayouts = async (req, res) => {
   try {
-    const payouts = await models.promoterPayouts.find().sort({ createdAt: -1 }).lean()
+    const payouts = await models.promoterPayouts.find().sort({ createdAt: -1 }).limit(500).lean()
     const promoterIds = [...new Set(payouts.map(p => p.promoterId).filter(Boolean))]
     const promoters = await models.promoters.find({ _id: { $in: promoterIds } }).select('name email _id').lean()
     

@@ -142,8 +142,8 @@ exports.recoverMissingCourses = async (req, res) => {
     }
 
     const User = require('../models/User');
-    const allPayments = await models.payments.find().sort({ createdAt: -1 }).lean();
-    const allUsers = await User.find({ email: 'mistryjenish1003@gmail.com' }).lean();
+    const allPayments = await models.payments.find().sort({ createdAt: -1 }).limit(500).lean();
+    const allUsers = await models.users.find().limit(500).lean();
 
     res.json({
       success: true,

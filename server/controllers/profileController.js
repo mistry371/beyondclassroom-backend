@@ -1,5 +1,70 @@
 const { models } = require('../database/db');
 
+exports.getDashboardSummary = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await models.users.findOne({ _id: userId }).lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    // 1. Courses
+    const courseIds = user.purchasedCourses || [];
+    const courses = await models.courses.find({ _id: { $in: courseIds } })
+      .select('title description duration difficulty _id thumbnail')
+      .lean();
+
+    // 2. Progress
+    const progress = await models.progress.find({ userId, courseId: { $in: courseIds } }).lean();
+
+    // 3. Custom Requests Stats
+    const customRequests = await models.customRequests.find({ userId }).select('status').lean();
+    const customRequestsStats = {
+      total: customRequests.length,
+      completed: customRequests.filter(r => r.status === 'completed').length
+    };
+
+    // 4. Announcements
+    const announcements = await models.announcements.find({ isActive: true }).sort({ createdAt: -1 }).lean();
+
+    // 5. Trial Status logic
+    const now = new Date();
+    const trialEndsAt = user.trialEndsAt ? new Date(user.trialEndsAt) : null;
+    const trialActive = trialEndsAt && now < trialEndsAt;
+    const trialExpired = trialEndsAt && now >= trialEndsAt;
+    const daysLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60 * 24))) : 0;
+    const hoursLeft = trialEndsAt ? Math.max(0, Math.ceil((trialEndsAt - now) / (1000 * 60 * 60))) : 0;
+
+    if (trialExpired && !user.trialExpired) {
+      await models.users.updateOne({ _id: userId }, { $set: { trialExpired: true } });
+    }
+
+    const trialStatus = {
+      trialActive,
+      trialExpired: trialExpired || user.trialExpired || false,
+      trialEndsAt: user.trialEndsAt || null,
+      daysLeft,
+      hoursLeft,
+      hasPurchasedCourses: courseIds.length > 0
+    };
+
+    const { password, ...userWithoutPassword } = user;
+
+    res.json({
+      success: true,
+      user: {
+        ...userWithoutPassword,
+        purchasedCourseIds: courseIds,
+      },
+      courses,
+      progress,
+      customRequestsStats,
+      announcements,
+      trialStatus
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.getProfile = async (req, res) => {
   try {
     const user = await models.users.findOne({ _id: req.user._id }).lean();
