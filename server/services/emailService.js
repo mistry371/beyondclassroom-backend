@@ -7,8 +7,8 @@ const createTransporter = () => {
     port: 587,
     secure: false, // use TLS
     auth: {
-      user: process.env.EMAIL_USER || 'beyondclassroom247@gmail.com',
-      pass: process.env.EMAIL_PASS || 'cvgp jxor pign ihhd',
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
@@ -17,23 +17,18 @@ const createTransporter = () => {
   });
 };
 
-const getFromAddress = () => {
-  return `"Beyond Classroom" <${process.env.EMAIL_USER || 'beyondclassroom247@gmail.com'}>`;
-};
-
 exports.sendEmail = async ({ to, subject, text, html }) => {
   const sendPromise = (async () => {
     try {
       const transporter = createTransporter();
-      const mailOptions = {
-        from: getFromAddress(),
+      const info = await transporter.sendMail({
+        from: `"Beyond Classroom" <${process.env.EMAIL_USER}>`,
         to,
         subject,
         text,
         html,
-      };
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent via Gmail SMTP successfully:', info.messageId);
+      });
+      console.log('✅ Email sent via Gmail SMTP:', info.messageId);
       return { success: true, messageId: info.messageId };
     } catch (error) {
       console.error('❌ Email send error:', error.message);
@@ -43,7 +38,7 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
 
   const timeoutPromise = new Promise(resolve =>
     setTimeout(() => {
-      console.log('⚠️ Email send timed out');
+      console.warn('⚠️ Email send timed out after 20s');
       resolve({ success: false, error: 'timeout' });
     }, 20000)
   );
