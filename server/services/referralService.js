@@ -263,6 +263,10 @@ exports.sanitizePromoter = (p) => ({
   name: p.name,
   email: p.email,
   phone: p.phone,
+  address: p.address || '',
+  city: p.city || '',
+  state: p.state || '',
+  pincode: p.pincode || '',
   referralCode: p.referralCode,
   referralLink: `${process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app'}/auth/register?ref=${p.referralCode}`,
   status: p.status,
@@ -274,6 +278,8 @@ exports.sanitizePromoter = (p) => ({
   totalPaidOut: p.totalPaidOut || 0,
   streak: p.streak || 0,
   rank: p.rank || 'Bronze',
+  bankDetails: p.bankDetails || {},
+  kyc: p.kyc || { status: 'pending' },
   milestones: getMilestones(p),
 })
 

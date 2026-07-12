@@ -414,6 +414,31 @@ const promoterSchema = new mongoose.Schema({
   totalPaidOut: { type: Number, default: 0 },
   streak: { type: Number, default: 0 },
   rank: { type: String, default: 'Bronze' },
+  // Profile (#7)
+  address: String,
+  city: String,
+  state: String,
+  pincode: String,
+  // Bank details for payouts (#7)
+  bankDetails: {
+    accountHolderName: String,
+    accountNumber: String,
+    ifsc: String,
+    bankName: String,
+    upiId: String,
+  },
+  // KYC documents + verification status (#7): pending → submitted → verified/rejected
+  kyc: {
+    status: { type: String, default: 'pending' },
+    panNumber: String,
+    panDocUrl: String,
+    aadhaarNumber: String,
+    aadhaarDocUrl: String,
+    passbookDocUrl: String,
+    submittedAt: Date,
+    reviewedAt: Date,
+    rejectionReason: String,
+  },
   lastLoginAt: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,

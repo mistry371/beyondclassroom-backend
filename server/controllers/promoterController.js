@@ -353,14 +353,108 @@ exports.adminListPayouts = async (req, res) => {
   try {
     const payouts = await models.promoterPayouts.find().sort({ createdAt: -1 }).limit(500).lean()
     const promoterIds = [...new Set(payouts.map(p => p.promoterId).filter(Boolean))]
-    const promoters = await models.promoters.find({ _id: { $in: promoterIds } }).select('name email _id').lean()
-    
+    const promoters = await models.promoters.find({ _id: { $in: promoterIds } })
+      .select('name email _id kyc pendingPayout earnings').lean()
+
     const mapped = payouts.map((p) => {
         const promoter = promoters.find((pr) => pr._id === p.promoterId)
-        return { ...p, promoterName: promoter?.name, promoterEmail: promoter?.email }
+        return {
+          ...p,
+          promoterName: promoter?.name,
+          promoterEmail: promoter?.email,
+          kycStatus: promoter?.kyc?.status || 'pending',
+          promoterBalance: promoter?.pendingPayout || 0,
+        }
       })
-      
+
     res.json({ success: true, payouts: mapped })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Full detail for one withdrawal request (#8): promoter, bank, KYC, earnings,
+// remaining balance, transaction history, student purchases, performance.
+exports.adminGetPayoutDetail = async (req, res) => {
+  try {
+    const payout = await models.promoterPayouts.findOne({ _id: req.params.id }).lean()
+    if (!payout) return res.status(404).json({ success: false, message: 'Withdrawal request not found' })
+
+    const promoter = await models.promoters.findOne({ _id: payout.promoterId }).lean()
+    if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
+
+    const [referrals, payoutHistory] = await Promise.all([
+      models.referrals.find({ promoterId: promoter._id }).sort({ createdAt: -1 }).limit(500).lean(),
+      models.promoterPayouts.find({ promoterId: promoter._id }).sort({ createdAt: -1 }).lean(),
+    ])
+
+    // Student purchases that generated commission through this promoter.
+    const studentPurchases = referrals
+      .filter((r) => (r.commissionAmount || 0) > 0)
+      .map((r) => ({
+        userName: r.userName,
+        userEmail: r.userEmail,
+        source: r.source || 'referral',
+        promoCode: r.promoCode || null,
+        orderAmount: r.orderAmount || 0,
+        commissionAmount: r.commissionAmount || 0,
+        date: r.convertedAt || r.createdAt,
+      }))
+
+    const totalPaidOut = promoter.totalPaidOut || 0
+    const performance = {
+      referrals: promoter.referrals || 0,
+      studentsJoined: promoter.studentsJoined || 0,
+      totalCommissionEntries: studentPurchases.length,
+      rank: promoter.rank || 'Bronze',
+      commissionRate: promoter.commissionRate ?? 0.2,
+      memberSince: promoter.createdAt,
+      lastLoginAt: promoter.lastLoginAt,
+    }
+
+    res.json({
+      success: true,
+      detail: {
+        payout,
+        promoter: referralService.sanitizePromoter(promoter),
+        bankDetails: promoter.bankDetails || {},
+        kyc: promoter.kyc || { status: 'pending' },
+        totalEarnings: promoter.earnings || 0,
+        totalPaidOut,
+        withdrawalAmount: payout.amount,
+        remainingBalance: promoter.pendingPayout || 0,
+        payoutHistory,
+        studentPurchases,
+        performance,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Admin verifies or rejects a promoter's KYC (#8 supports viewing/acting on KYC).
+exports.adminReviewKyc = async (req, res) => {
+  try {
+    const { status, reason } = req.body // 'verified' | 'rejected'
+    if (!['verified', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status must be verified or rejected' })
+    }
+    const promoter = await models.promoters.findOne({ _id: req.params.id }).lean()
+    if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
+
+    const kyc = {
+      ...(promoter.kyc || {}),
+      status,
+      reviewedAt: new Date().toISOString(),
+      rejectionReason: status === 'rejected' ? (reason || 'Documents could not be verified') : '',
+    }
+    const updated = await models.promoters.findOneAndUpdate(
+      { _id: promoter._id },
+      { $set: { kyc, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    res.json({ success: true, message: `KYC ${status}`, promoter: referralService.sanitizePromoter(updated) })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -368,9 +462,9 @@ exports.adminListPayouts = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, email, phone } = req.body
+    const { name, email, phone, address, city, state, pincode } = req.body
     let updates = { updatedAt: new Date().toISOString() }
-    
+
     if (name) updates.name = name.trim()
     if (email) updates.email = String(email).toLowerCase().trim()
     if (phone) {
@@ -380,6 +474,10 @@ exports.updateProfile = async (req, res) => {
       }
       updates.phone = phoneNorm
     }
+    if (address !== undefined) updates.address = address
+    if (city !== undefined) updates.city = city
+    if (state !== undefined) updates.state = state
+    if (pincode !== undefined) updates.pincode = pincode
 
     const promoter = await models.promoters.findOneAndUpdate(
       { _id: req.promoter._id },
@@ -390,6 +488,68 @@ exports.updateProfile = async (req, res) => {
     if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
 
     res.json({ success: true, promoter: referralService.sanitizePromoter(promoter) })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Save bank account details for payouts (#7)
+exports.updateBankDetails = async (req, res) => {
+  try {
+    const { accountHolderName, accountNumber, ifsc, bankName, upiId } = req.body
+    const bankDetails = {
+      accountHolderName: (accountHolderName || '').trim(),
+      accountNumber: (accountNumber || '').trim(),
+      ifsc: (ifsc || '').trim().toUpperCase(),
+      bankName: (bankName || '').trim(),
+      upiId: (upiId || '').trim(),
+    }
+    const hasBank = bankDetails.accountNumber && bankDetails.ifsc && bankDetails.accountHolderName
+    if (!hasBank && !bankDetails.upiId) {
+      return res.status(400).json({ success: false, message: 'Provide full bank details (account holder, number, IFSC) or a UPI ID' })
+    }
+    const promoter = await models.promoters.findOneAndUpdate(
+      { _id: req.promoter._id },
+      { $set: { bankDetails, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
+    res.json({ success: true, message: 'Bank details saved', promoter: referralService.sanitizePromoter(promoter) })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Submit KYC documents for verification (#7)
+exports.submitKyc = async (req, res) => {
+  try {
+    const { panNumber, panDocUrl, aadhaarNumber, aadhaarDocUrl, passbookDocUrl } = req.body
+    const current = await models.promoters.findById(req.promoter._id).lean()
+    if (!current) return res.status(404).json({ success: false, message: 'Promoter not found' })
+
+    const kyc = {
+      ...(current.kyc || {}),
+      panNumber: panNumber !== undefined ? String(panNumber).trim().toUpperCase() : current.kyc?.panNumber,
+      panDocUrl: panDocUrl !== undefined ? panDocUrl : current.kyc?.panDocUrl,
+      aadhaarNumber: aadhaarNumber !== undefined ? String(aadhaarNumber).replace(/\s/g, '') : current.kyc?.aadhaarNumber,
+      aadhaarDocUrl: aadhaarDocUrl !== undefined ? aadhaarDocUrl : current.kyc?.aadhaarDocUrl,
+      passbookDocUrl: passbookDocUrl !== undefined ? passbookDocUrl : current.kyc?.passbookDocUrl,
+    }
+    // Mark as submitted once the core documents are present, resetting any prior rejection.
+    if (kyc.panDocUrl && kyc.aadhaarDocUrl) {
+      kyc.status = 'submitted'
+      kyc.submittedAt = new Date().toISOString()
+      kyc.rejectionReason = ''
+    } else {
+      kyc.status = current.kyc?.status === 'verified' ? 'verified' : 'pending'
+    }
+
+    const promoter = await models.promoters.findOneAndUpdate(
+      { _id: req.promoter._id },
+      { $set: { kyc, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    res.json({ success: true, message: 'KYC details saved', promoter: referralService.sanitizePromoter(promoter) })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }

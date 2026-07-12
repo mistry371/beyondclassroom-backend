@@ -18,11 +18,15 @@ router.get('/dashboard', protectPromoter, promoterController.getDashboard)
 router.get('/referrals', protectPromoter, promoterController.getReferrals)
 router.post('/withdraw', protectPromoter, promoterController.requestWithdrawal)
 router.put('/profile', protectPromoter, promoterController.updateProfile)
+router.put('/bank-details', protectPromoter, promoterController.updateBankDetails)
+router.put('/kyc', protectPromoter, promoterController.submitKyc)
 router.put('/change-password', protectPromoter, promoterController.changePassword)
 
 // Admin
 router.get('/admin/list', protect, admin, promoterController.adminListPromoters)
 router.get('/admin/payouts', protect, admin, promoterController.adminListPayouts)
+router.get('/admin/payouts/:id', protect, admin, promoterController.adminGetPayoutDetail)
 router.put('/admin/payouts/:id', protect, admin, promoterController.adminProcessPayout)
+router.put('/admin/:id/kyc', protect, admin, promoterController.adminReviewKyc)
 
 module.exports = router
