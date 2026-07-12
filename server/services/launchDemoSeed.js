@@ -201,40 +201,22 @@ async function seedLaunchDemo() {
     if (db.data) db.data.packages = staticPackages
   }
 
-  // Seed admin user
+  // Seed admin user (only hash when the admin is missing — avoid a cost-12
+  // bcrypt on every boot; initDB already ensures the admin exists).
   const adminEmail = 'mistryjenish1003@gmail.com'
-  const adminHash = await bcrypt.hash('Jenish@1019', 12)
-  
-  let adminUser = await models.users.findOne({ $or: [{ _id: 'admin-default' }, { email: adminEmail }] }).lean()
-  
+  const adminUser = await models.users.findOne({ $or: [{ _id: 'admin-default' }, { email: adminEmail }] }).lean()
+
   if (adminUser) {
-    await models.users.updateOne(
-      { _id: adminUser._id },
-      { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } }
-    )
-    if (db.data.users) {
-      const idx = db.data.users.findIndex(u => u._id === adminUser._id)
-      if (idx !== -1) {
-        Object.assign(db.data.users[idx], { email: adminEmail, role: 'admin', password: adminHash, status: 'active' })
-      }
+    if (adminUser.role !== 'admin' || adminUser.status !== 'active' || adminUser.email !== adminEmail) {
+      await models.users.updateOne({ _id: adminUser._id }, { $set: { email: adminEmail, role: 'admin', status: 'active' } })
     }
   } else {
-    const newAdmin = {
-      _id: 'admin-default',
-      name: 'Jenish Mistry',
-      email: adminEmail,
-      password: adminHash,
-      role: 'admin',
-      status: 'active',
-      profilePhoto: '',
-      isGuest: false,
-      purchasedCourses: [],
-      favorites: [],
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    }
-    await models.users.create(newAdmin)
-    if (db.data.users) db.data.users.push(newAdmin)
+    const adminHash = await bcrypt.hash('Jenish@1019', 12)
+    await models.users.create({
+      _id: 'admin-default', name: 'Jenish Mistry', email: adminEmail, password: adminHash,
+      role: 'admin', status: 'active', profilePhoto: '', isGuest: false,
+      purchasedCourses: [], favorites: [], emailVerified: true, createdAt: new Date().toISOString(),
+    })
   }
 
   console.log('✅ Launch demo data seeded (classes, packages, admin)')

@@ -23,7 +23,10 @@ async function connectMongo() {
 
   await mongoose.connect(uri, {
     serverSelectionTimeoutMS: 15000,
-    socketTimeoutMS: 15000,
+    socketTimeoutMS: 45000,        // allow slower ops (large uploads) without killing the socket
+    maxPoolSize: 15,               // bounded connection pool (Atlas-friendly, reused under load)
+    minPoolSize: 2,                // keep warm connections to avoid per-request handshake latency
+    maxIdleTimeMS: 60000,          // recycle idle connections after 1 min
   });
   isConnected = true;
   console.log('✅ MongoDB connected');
@@ -554,6 +557,15 @@ paymentSchema.index({ status: 1 });
 activityLogSchema.index({ createdAt: -1 });
 examAttemptSchema.index({ examId: 1 });
 quizSchema.index({ moduleId: 1 });
+// Additional hot-path indexes (perf pass)
+notificationSchema.index({ user: 1, createdAt: -1 });   // notification bell / polling
+paymentSchema.index({ razorpayOrderId: 1 });            // payment-verify hot path
+progressSchema.index({ userId: 1, courseId: 1 });       // every lesson/quiz view + update
+announcementSchema.index({ isActive: 1, createdAt: -1 });
+promoterSchema.index({ phone: 1 });                     // promoter login/register lookup
+activityLogSchema.index({ userId: 1 });                 // log joins/filters
+examAttemptSchema.index({ userId: 1 });
+otpSchema.index({ email: 1, purpose: 1 });
 
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
@@ -607,12 +619,22 @@ const db = {
 };
 
 // ── initDB — connect + seed admin ─────────────────────────────────────────────
+const INIT_VERSION = 'v2026.07';
+
 async function initDB() {
   await connectMongo();
-  const usersCollection = mongoose.connection.collection('users');
-  try { await usersCollection.dropIndex('email_1'); } catch (_) {}
-  try { await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true, partialFilterExpression: { email: { $type: 'string', $ne: '' } } }); } catch (_) {}
-  try { await usersCollection.createIndex({ phone: 1 }, { unique: true, sparse: true, partialFilterExpression: { phone: { $type: 'string', $ne: '' } } }); } catch (_) {}
+
+  // One-time bootstrap flag: index reconciliation and the category migration
+  // only need to run once, not on every (cold) start.
+  const initFlag = await models.settings.findOne({ _id: 'schema_init' }).lean().catch(() => null);
+  const alreadyInit = initFlag && initFlag.value === INIT_VERSION;
+
+  if (!alreadyInit) {
+    const usersCollection = mongoose.connection.collection('users');
+    try { await usersCollection.dropIndex('email_1'); } catch (_) {}
+    try { await usersCollection.createIndex({ email: 1 }, { unique: true, sparse: true, partialFilterExpression: { email: { $type: 'string', $ne: '' } } }); } catch (_) {}
+    try { await usersCollection.createIndex({ phone: 1 }, { unique: true, sparse: true, partialFilterExpression: { phone: { $type: 'string', $ne: '' } } }); } catch (_) {}
+  }
 
   // Ensure settings exist
   const settingsCount = await models.settings.countDocuments();
@@ -640,40 +662,29 @@ async function initDB() {
   // Admin user
   const adminEmail = 'mistryjenish1003@gmail.com';
   const adminPassword = 'Jenish@1019';
-  const adminHash = await bcrypt.hash(adminPassword, 12);
-
-  // Remove duplicate admin entries with same email but different _id
-  await models.users.deleteMany({ email: adminEmail, _id: { $ne: 'admin-default' } });
 
   const existingAdmin = await models.users.findById('admin-default').lean();
-  if (existingAdmin) {
-    await models.users.findOneAndUpdate(
-      { _id: 'admin-default' },
-      { $set: { email: adminEmail, role: 'admin', password: adminHash, status: 'active' } },
-      { upsert: false }
-    );
+  if (existingAdmin && existingAdmin.password) {
+    // Already provisioned — just ensure role/status without an expensive re-hash
+    // on every (cold) start. (bcrypt cost-12 ≈ 300ms of event-loop-blocking CPU.)
+    if (existingAdmin.role !== 'admin' || existingAdmin.status !== 'active' || existingAdmin.email !== adminEmail) {
+      await models.users.updateOne({ _id: 'admin-default' }, { $set: { email: adminEmail, role: 'admin', status: 'active' } });
+    }
   } else {
-    const adminUser = {
-      _id:              'admin-default',
-      name:             'Jenish Mistry',
-      email:            adminEmail,
-      password:         adminHash,
-      role:             'admin',
-      status:           'active',
-      profilePhoto:     '',
-      isGuest:          false,
-      purchasedCourses: [],
-      favorites:        [],
-      emailVerified:    true,
-      createdAt:        new Date(),
-    };
-    await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: adminUser }, { upsert: true });
+    // First provision (or password missing): hash once and remove dup emails.
+    const adminHash = await bcrypt.hash(adminPassword, 12);
+    await models.users.deleteMany({ email: adminEmail, _id: { $ne: 'admin-default' } });
+    await models.users.findOneAndUpdate({ _id: 'admin-default' }, { $set: {
+      _id: 'admin-default', name: 'Jenish Mistry', email: adminEmail, password: adminHash,
+      role: 'admin', status: 'active', profilePhoto: '', isGuest: false,
+      purchasedCourses: [], favorites: [], emailVerified: true, createdAt: new Date(),
+    } }, { upsert: true });
   }
   console.log('✅ Admin user ready:', adminEmail);
 
-  // Normalize legacy course categories → Mathematics
-  const courses = await models.courses.find().lean();
+  // Normalize legacy course categories → Mathematics (one-time)
   let migrated = 0;
+  const courses = alreadyInit ? [] : await models.courses.find().lean();
   for (const course of courses) {
     const next = normalizeCourseCategory(course.category);
     if (course.category !== next) {
@@ -734,6 +745,12 @@ async function initDB() {
     ];
     await models.testimonials.insertMany(initialTestimonials);
     console.log('✅ Seeded initial testimonials');
+  }
+
+  // Mark one-time bootstrap done so future (cold) starts skip index churn +
+  // the category migration.
+  if (!alreadyInit) {
+    try { await models.settings.updateOne({ _id: 'schema_init' }, { $set: { _id: 'schema_init', key: 'schema_init', value: INIT_VERSION } }, { upsert: true }); } catch (_) {}
   }
 
   return db;
