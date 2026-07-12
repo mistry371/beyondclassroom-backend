@@ -12,6 +12,8 @@ router.post('/track-click', promoterController.trackClick)
 // Promoter auth
 router.post('/register', promoterController.register)
 router.post('/login', promoterController.login)
+router.post('/forgot-password', promoterController.forgotPassword)
+router.post('/reset-password', promoterController.resetPassword)
 
 // Promoter dashboard (protected)
 router.get('/dashboard', protectPromoter, promoterController.getDashboard)

@@ -445,6 +445,8 @@ const promoterSchema = new mongoose.Schema({
     reviewedBy: String,
     history: { type: [mongoose.Schema.Types.Mixed], default: [] }, // { status, note, at, by }
   },
+  passwordResetToken: String,
+  passwordResetExpires: String,
   lastLoginAt: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,

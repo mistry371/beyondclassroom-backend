@@ -686,3 +686,66 @@ exports.changePassword = async (req, res) => {
     res.status(500).json({ success: false, message: error.message })
   }
 }
+
+// ── Forgot / reset password (#6) — OTP based ──────────────────────────────────
+exports.forgotPassword = async (req, res) => {
+  try {
+    const emailNorm = String(req.body.email || '').toLowerCase().trim()
+    if (!emailNorm) return res.status(400).json({ success: false, message: 'Email is required' })
+
+    const promoter = await models.promoters.findOne({ email: emailNorm }).lean()
+    // Always respond success to avoid leaking which emails are registered.
+    if (!promoter) return res.json({ success: true, message: 'If that email is registered, an OTP has been sent.' })
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const expires = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+    await models.promoters.updateOne({ _id: promoter._id }, { $set: { passwordResetToken: otp, passwordResetExpires: expires } })
+
+    const { sendEmail } = require('../services/emailService')
+    const { otpEmailTemplate } = require('../services/emailTemplates')
+    const result = await sendEmail({
+      to: promoter.email,
+      subject: 'Password Reset OTP - Beyond Classroom Promoter',
+      html: otpEmailTemplate(otp, 'password_reset', '15 minutes'),
+    })
+    if (!result.success) {
+      console.error('Promoter reset email not delivered:', result.error)
+      return res.status(500).json({ success: false, message: 'We could not send the reset email right now. Please try again shortly.' })
+    }
+    res.json({ success: true, message: 'If that email is registered, an OTP has been sent.' })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body
+    const emailNorm = String(email || '').toLowerCase().trim()
+    if (!emailNorm || !otp || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, OTP and new password are required' })
+    }
+    if (String(newPassword).length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' })
+    }
+    const promoter = await models.promoters.findOne({ email: emailNorm }).lean()
+    if (!promoter || !promoter.passwordResetToken) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired OTP' })
+    }
+    if (String(promoter.passwordResetToken) !== String(otp).trim()) {
+      return res.status(400).json({ success: false, message: 'Incorrect OTP' })
+    }
+    if (!promoter.passwordResetExpires || new Date(promoter.passwordResetExpires) < new Date()) {
+      return res.status(400).json({ success: false, message: 'This OTP has expired. Please request a new one.' })
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12)
+    await models.promoters.updateOne(
+      { _id: promoter._id },
+      { $set: { password: hash, updatedAt: new Date().toISOString() }, $unset: { passwordResetToken: '', passwordResetExpires: '' } }
+    )
+    res.json({ success: true, message: 'Password reset successfully. You can now log in.' })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
