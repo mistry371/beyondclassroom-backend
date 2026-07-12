@@ -97,26 +97,6 @@ exports.getSubtopic = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
     
-    let isAuthorized = false;
-    if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
-      isAuthorized = true;
-    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.length > 0) {
-      const moduleDoc = await models.modules.findOne({ _id: subtopic.moduleId }).lean();
-      if (moduleDoc && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === moduleDoc.courseId)) {
-        isAuthorized = true;
-      }
-    }
-    
-    if (!isAuthorized) {
-      if (subtopic.documents) {
-        subtopic.documents = subtopic.documents.map(({ data, url, ...doc }) => doc);
-      }
-      if (subtopic.document) {
-        const { data, url, ...doc } = subtopic.document;
-        subtopic.document = doc;
-      }
-    }
-
     res.json({ success: true, subtopic })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
