@@ -256,19 +256,8 @@ exports.forgotPassword = async (req, res) => {
 
     try {
       const { sendEmail } = require('../services/emailService');
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 10px;">
-          <h2 style="color: #1e3a8a; text-align: center;">Reset Your Password</h2>
-          <p style="color: #475569; font-size: 16px;">Hello ${user.name},</p>
-          <p style="color: #475569; font-size: 16px;">We received a request to reset your password for your Beyond Classroom account. Your OTP for resetting the password is:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <span style="display: inline-block; padding: 15px 30px; font-size: 24px; font-weight: bold; color: #ffffff; background-color: #3b82f6; border-radius: 8px; letter-spacing: 4px;">${otp}</span>
-          </div>
-          <p style="color: #475569; font-size: 14px;">This OTP is valid for 15 minutes. If you did not request a password reset, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
-          <p style="color: #94a3b8; font-size: 12px; text-align: center;">&copy; ${new Date().getFullYear()} Beyond Classroom. All rights reserved.</p>
-        </div>
-      `;
+      const { otpEmailTemplate } = require('../services/emailTemplates');
+      const emailHtml = otpEmailTemplate(otp, 'password_reset', '15 minutes');
       await sendEmail({
         to: email,
         subject: 'Password Reset OTP - Beyond Classroom',
