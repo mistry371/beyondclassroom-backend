@@ -455,6 +455,52 @@ exports.adminGetPayoutDetail = async (req, res) => {
   }
 }
 
+// Admin: full profile + performance for a single promoter (#3).
+exports.adminGetPromoterDetail = async (req, res) => {
+  try {
+    const promoter = await models.promoters.findOne({ _id: req.params.id }).lean()
+    if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
+
+    const [referrals, payouts, promoCodes] = await Promise.all([
+      models.referrals.find({ promoterId: promoter._id }).sort({ createdAt: -1 }).limit(500).lean(),
+      models.promoterPayouts.find({ promoterId: promoter._id }).sort({ createdAt: -1 }).lean(),
+      models.promoCodes.find({ assignedTo: promoter._id }).lean(),
+    ])
+
+    const studentPurchases = referrals
+      .filter((r) => (r.commissionAmount || 0) > 0)
+      .map((r) => ({ userName: r.userName, userEmail: r.userEmail, source: r.source || 'referral', promoCode: r.promoCode || null, orderAmount: r.orderAmount || 0, commissionAmount: r.commissionAmount || 0, date: r.convertedAt || r.createdAt }))
+
+    const converted = referrals.filter((r) => r.status === 'paid').length
+    const conversionRate = referrals.length ? Math.round((converted / referrals.length) * 100) : 0
+
+    res.json({
+      success: true,
+      detail: {
+        promoter: referralService.sanitizePromoter(promoter),
+        bankDetails: promoter.bankDetails || {},
+        kyc: promoter.kyc || { status: 'pending' },
+        promoCodes: promoCodes.map((c) => ({ code: c.code, discountPercent: c.discountPercent, usedCount: c.usedCount || 0, active: c.active !== false })),
+        studentPurchases,
+        payoutHistory: payouts,
+        stats: {
+          totalEarnings: promoter.earnings || 0,
+          pendingPayout: promoter.pendingPayout || 0,
+          totalPaidOut: promoter.totalPaidOut || 0,
+          referrals: promoter.referrals || 0,
+          studentsJoined: promoter.studentsJoined || 0,
+          conversionRate,
+          rank: promoter.rank || 'Bronze',
+          commissionRate: promoter.commissionRate ?? 0.2,
+          memberSince: promoter.createdAt,
+        },
+      },
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 // Admin: list all KYC submissions, optionally filtered by status (#1).
 exports.adminListKyc = async (req, res) => {
   try {

@@ -27,6 +27,7 @@ router.put('/change-password', protectPromoter, promoterController.changePasswor
 
 // Admin
 router.get('/admin/list', protect, admin, promoterController.adminListPromoters)
+router.get('/admin/promoter/:id', protect, admin, promoterController.adminGetPromoterDetail)
 router.get('/admin/payouts', protect, admin, promoterController.adminListPayouts)
 router.get('/admin/payouts/:id', protect, admin, promoterController.adminGetPayoutDetail)
 router.put('/admin/payouts/:id', protect, admin, promoterController.adminProcessPayout)
