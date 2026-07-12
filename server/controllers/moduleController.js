@@ -35,21 +35,13 @@ exports.getModulesByCourse = async (req, res) => {
       isAuthorized = true;
     }
 
-    // Preview: first subtopic of each module is a free preview (or any flagged
-    // isPreview) — viewable without login (#1).
-    const previewIds = new Set()
-    for (const m of modules) {
-      const mSubs = allSubtopics.filter(s => s.moduleId === m._id)
-      previewableSubtopicIds(mSubs).forEach(id => previewIds.add(id))
-    }
-
     // Populate lesson count and lessons for each module
     modules = modules.map(m => {
       let modLessons = lessons.filter(l => l.moduleId === m._id) || []
       let quiz = quizzes.find(q => q.moduleId === m._id) || null
       let directSubtopics = allSubtopics.filter(s => s.moduleId === m._id && (!s.lessonId || String(s.lessonId).trim() === ''))
 
-      // ALWAYS strip massive base64 data payloads
+      // ALWAYS strip massive base64 data payloads (viewer fetches per-doc)
       directSubtopics = directSubtopics.map(subtopic => {
         if (subtopic.documents) {
           subtopic.documents = subtopic.documents.map(({ data, ...doc }) => doc);
@@ -58,23 +50,17 @@ exports.getModulesByCourse = async (req, res) => {
           const { data, ...doc } = subtopic.document;
           subtopic.document = doc;
         }
-        subtopic.isPreview = previewIds.has(subtopic._id)
         return subtopic;
       });
 
+      // Preview mode (#1): unauthorized viewers can still SEE the structure and
+      // documents; only premium extras (videos, quiz answers) are withheld.
       if (!isAuthorized) {
-        modLessons = modLessons.map(({ videoUrl, content, ...rest }) => rest);
+        modLessons = modLessons.map(({ videoUrl, ...rest }) => ({ ...rest, previewOnly: true }));
         if (quiz && quiz.questions) {
           quiz.questions = quiz.questions.map(({ correctAnswer, explanation, ...rest }) => rest);
         }
-        // Strip url + content from LOCKED subtopics; preview subtopics stay
-        // viewable (base64 already removed → not downloadable).
-        directSubtopics = directSubtopics.map(subtopic => {
-          if (subtopic.isPreview) return subtopic
-          if (subtopic.documents) subtopic.documents = subtopic.documents.map(({ url, ...doc }) => doc);
-          if (subtopic.document) { const { url, ...doc } = subtopic.document; subtopic.document = doc; }
-          return { ...subtopic, content: '', locked: true }
-        });
+        directSubtopics = directSubtopics.map(subtopic => ({ ...subtopic, previewOnly: true }));
       }
 
       return { ...m, lessons: modLessons, lessonCount: modLessons.length, quiz, directSubtopics }

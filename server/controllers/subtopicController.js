@@ -97,21 +97,15 @@ exports.getSubtopic = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
 
-    const { isAdmin, ownsCourse, previewableSubtopicIds } = require('../utils/contentAccess')
+    const { isAdmin, ownsCourse } = require('../utils/contentAccess')
     const authorized = isAdmin(req.user) || ownsCourse(req.user, subtopic.courseId)
 
     if (!authorized) {
-      // Determine if THIS subtopic is a free preview within its module.
-      const siblings = await models.subtopics.find({ moduleId: subtopic.moduleId }).select('_id order isPreview').lean()
-      const isPreview = previewableSubtopicIds(siblings).has(subtopic._id)
-
-      // Locked (non-preview) premium content is never served to unauthorized users.
-      if (!isPreview) {
-        return res.status(403).json({ success: false, message: 'Purchase required to access this content', locked: true })
-      }
-      // Preview: return the FULL document so it renders in the embedded viewer
-      // without login. Download is gated on the client (requires login).
-      subtopic.isPreview = true
+      // Preview mode: guests may VIEW any document in the embedded viewer
+      // (no login). Downloading is gated on the client and premium features
+      // (videos, progress, completion, purchase) stay protected elsewhere.
+      subtopic.previewOnly = true
+      subtopic.videoUrl = '' // videos remain premium
     }
 
     res.json({ success: true, subtopic })

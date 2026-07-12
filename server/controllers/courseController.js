@@ -71,28 +71,19 @@ exports.getCourseById = async (req, res) => {
         });
       }
 
-      // Preview set: first subtopic of each module is a free preview (or any
-      // subtopic explicitly flagged isPreview). Consistent across ALL courses (#1).
-      const previewIds = new Set();
-      for (const m of modules) {
-        const mSubs = subtopics.filter(s => s.moduleId === m._id);
-        previewableSubtopicIds(mSubs).forEach(id => previewIds.add(id));
-      }
-
-      // For an unauthorized viewer, strip premium payloads. Preview subtopics
-      // keep their viewable content (base64 already removed above → not
-      // downloadable); everything else is locked.
+      // Preview mode (#1): guests may VIEW course structure and all documents.
+      // The list carries only document METADATA (base64 stripped above for
+      // payload size); the embedded viewer fetches full data per document via
+      // GET /subtopics/:id. Only videos remain premium for unauthorized viewers.
       const gateSubtopic = (s) => {
-        const preview = previewIds.has(s._id);
-        s.isPreview = preview;
-        if (s.documents) s.documents = s.documents.map(d => stripDoc(d, { keepUrl: authorized || preview }));
-        if (s.document) s.document = stripDoc(s.document, { keepUrl: authorized || preview });
-        if (!authorized && !preview) { s.content = ''; s.locked = true; }
+        if (s.documents) s.documents = s.documents.map(d => stripDoc(d, { keepUrl: true }));
+        if (s.document) s.document = stripDoc(s.document, { keepUrl: true });
+        if (!authorized) s.previewOnly = true;
         return s;
       };
       const gateLesson = (lesson) => {
         if (authorized) return lesson;
-        return { ...lesson, videoUrl: '', content: '', locked: true };
+        return { ...lesson, videoUrl: '', previewOnly: true }; // videos premium; text/docs previewable
       };
 
       // Construct nested structure
