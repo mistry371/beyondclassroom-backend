@@ -28,8 +28,9 @@ exports.getAllOrders = async (req, res) => {
       query.status = status
     }
     
-    let orders = await models.orders.find(query).lean()
-    
+    // Newest first, with a generous safety cap so the list can't load unbounded.
+    let orders = await models.orders.find(query).sort({ createdAt: -1 }).limit(1000).lean()
+
     const userIds = [...new Set(orders.map(o => o.user || o.userId).filter(Boolean))]
     const users = await models.users.find({ _id: { $in: userIds } }).select('name email _id').lean()
     

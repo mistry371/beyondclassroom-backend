@@ -41,13 +41,23 @@ exports.createOrder = async (req, res) => {
 
     let finalAmount = originalAmount;
     let appliedPromo = null;
+    let promoDiscountAmount = 0;
 
     if (promoCode) {
+      const { checkPromoApplicable } = require('../utils/promo');
       const promo = await models.promoCodes.findOne({ code: promoCode.toUpperCase().trim() }).lean();
-      if (promo && promo.active !== false && (!promo.expiryDate || new Date(promo.expiryDate) >= new Date()) && (!promo.usageLimit || promo.usedCount < promo.usageLimit)) {
+      const validState = promo && promo.active !== false && (!promo.expiryDate || new Date(promo.expiryDate) >= new Date()) && (!promo.usageLimit || promo.usedCount < promo.usageLimit);
+      // Enforce package/course applicability (#9) server-side.
+      let packageCourseIds = [];
+      if (packageId) {
+        const pkgForPromo = await models.packages.findOne({ _id: packageId }).lean();
+        packageCourseIds = pkgForPromo?.courseIds || [];
+      }
+      const applicable = validState ? checkPromoApplicable(promo, { packageId, courseId, selectedCourseIds, packageCourseIds }) : { ok: false };
+      if (validState && applicable.ok) {
         const rawDiscount = (originalAmount * promo.discountPercent) / 100;
-        const discountAmount = Number(rawDiscount.toFixed(2));
-        finalAmount = Number(Math.max(0, originalAmount - discountAmount).toFixed(2));
+        promoDiscountAmount = Number(rawDiscount.toFixed(2));
+        finalAmount = Number(Math.max(0, originalAmount - promoDiscountAmount).toFixed(2));
         appliedPromo = promo.code;
       }
     }
@@ -95,6 +105,8 @@ exports.createOrder = async (req, res) => {
       packageId,
       selectedCourseIds: Array.isArray(selectedCourseIds) ? selectedCourseIds : [],
       amount: finalAmount,
+      originalAmount,
+      discountAmount: promoDiscountAmount,
       promoCode: appliedPromo,
       currency: 'INR',
       razorpayOrderId: order.id,
@@ -280,8 +292,9 @@ exports.verifyPayment = async (req, res) => {
     await Promise.all(progressPromises)
 
     const paymentAmount = payment ? payment.amount : 0
+    const referralService = require('../services/referralService')
+    // 1) Signup-referral commission (student registered via a promoter's ref link)
     try {
-      const referralService = require('../services/referralService')
       await referralService.recordReferralCommission(
         userId,
         paymentAmount,
@@ -290,6 +303,21 @@ exports.verifyPayment = async (req, res) => {
       )
     } catch (refErr) {
       console.error('Referral commission failed:', refErr.message)
+    }
+    // 2) Promo-code commission (student used a promoter's assigned promo code at checkout).
+    //    Commission = the discount amount given to the student (business rule #5).
+    if (payment && payment.promoCode) {
+      try {
+        await referralService.recordPromoCodeCommission(
+          payment.promoCode,
+          userId,
+          { orderAmount: paymentAmount, discountAmount: payment.discountAmount || 0 },
+          orderRecord._id,
+          razorpay_payment_id
+        )
+      } catch (promoErr) {
+        console.error('Promo-code commission failed:', promoErr.message)
+      }
     }
 
     res.json({
@@ -371,9 +399,16 @@ exports.checkCourseAccess = async (req, res) => {
     const { courseId } = req.params
     const userId = req.user._id
 
-    // Check if user has purchased the course
+    // Check if user has purchased the course.
+    // purchasedCourses stores composite "courseId_packageId" entries (plus bare
+    // package ids), so compare on the base course id rather than exact match.
     const user = await models.users.findOne({ _id: userId }).lean()
-    const hasAccess = user?.purchasedCourses?.includes(courseId) || false
+    const baseCourseId = courseId.includes('_') ? courseId.split('_')[0] : courseId
+    const hasAccess = (user?.purchasedCourses || []).some(id => {
+      const entry = String(id)
+      const base = entry.includes('_') ? entry.split('_')[0] : entry
+      return base === baseCourseId || entry === courseId
+    })
 
     // Check if trial is active
     const trial = await models.trials.findOne({

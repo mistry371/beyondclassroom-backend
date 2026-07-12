@@ -15,70 +15,84 @@ exports.getAnalytics = async (req, res) => {
       models.progress.find().lean()
     ])
 
-    // User growth data (real counts from DB)
-    const userGrowth = [];
-    for (let i = parseInt(days); i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const count = users.filter(u => {
-        const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null
-        return created === dateStr
-      }).length || 0;
-      userGrowth.push({ date: dateStr, users: count });
+    const dayKey = (d) => (d ? new Date(d).toISOString().split('T')[0] : null)
+
+    // Single-pass bucketing: build date -> count maps once (O(N)), then read
+    // per day (O(days)), instead of re-scanning every collection per day.
+    const usersByDay = new Map()
+    for (const u of users) {
+      const k = dayKey(u.createdAt)
+      if (k) usersByDay.set(k, (usersByDay.get(k) || 0) + 1)
+    }
+    const revenueByDay = new Map()
+    const enrollmentsByCourse = new Map()
+    for (const o of orders) {
+      if (o.status !== 'completed') continue
+      const k = dayKey(o.createdAt)
+      if (k) revenueByDay.set(k, (revenueByDay.get(k) || 0) + (o.totalAmount || 0))
+      // Count each purchased course once per completed order (base id).
+      const seen = new Set()
+      for (const cid of (o.courses || [])) {
+        const base = String(cid).includes('_') ? String(cid).split('_')[0] : String(cid)
+        if (!seen.has(base)) { seen.add(base); enrollmentsByCourse.set(base, (enrollmentsByCourse.get(base) || 0) + 1) }
+      }
     }
 
-    // Revenue data (real from orders)
+    const userGrowth = [];
     const revenue = [];
     for (let i = parseInt(days); i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const amount = orders.filter(o => {
-        const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null
-        return created === dateStr && o.status === 'completed'
-      }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
-      revenue.push({ date: dateStr, revenue: amount });
+      userGrowth.push({ date: dateStr, users: usersByDay.get(dateStr) || 0 });
+      revenue.push({ date: dateStr, revenue: revenueByDay.get(dateStr) || 0 });
     }
 
-    // Course popularity (real enrollment counts)
+    // Course popularity (real enrollment counts) — from the prebuilt map
     const coursePopularity = courses
       .map(c => ({
         name: c.title,
-        enrollments: orders.filter(o => o.courses?.includes(c._id.toString()) && o.status === 'completed').length || 0
+        enrollments: enrollmentsByCourse.get(String(c._id)) || 0
       }))
       .sort((a, b) => b.enrollments - a.enrollments)
       .slice(0, 5);
 
-    // Top students
+    // Top students — compute scores for all, THEN rank by performance.
     const topStudents = users
       .filter(u => u.role === 'user' || u.role === 'student')
-      .slice(0, 5)
       .map(u => {
         const userProgress = allProgress.filter(p => p.user === u._id.toString() || p.userId === u._id.toString())
         const completedCourses = userProgress.filter(p => p.completionPercentage >= 100).length
         const allScores = userProgress.flatMap(p => (p.quizScores || []).map(s => s.score || 0))
         const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0
-        return {
-          _id: u._id,
-          name: u.name,
-          coursesCompleted: completedCourses,
-          avgScore
-        }
-      });
+        return { _id: u._id, name: u.name, coursesCompleted: completedCourses, avgScore }
+      })
+      .sort((a, b) => (b.coursesCompleted - a.coursesCompleted) || (b.avgScore - a.avgScore))
+      .slice(0, 5);
 
     const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0
     const avgCompletionRate = allProgress.length > 0
       ? Math.round(allProgress.reduce((sum, p) => sum + (p.completionPercentage || 0), 0) / allProgress.length)
       : 0
 
+    // Real period-over-period growth: recent half of the window vs the previous half.
+    const halfGrowth = (series, key) => {
+      const n = series.length
+      if (n < 2) return 0
+      const mid = Math.floor(n / 2)
+      const prev = series.slice(0, mid).reduce((s, x) => s + (x[key] || 0), 0)
+      const recent = series.slice(mid).reduce((s, x) => s + (x[key] || 0), 0)
+      if (prev === 0) return recent > 0 ? 100 : 0
+      return Math.round(((recent - prev) / prev) * 1000) / 10
+    }
+
     const analytics = {
       totalUsers: users.length,
-      activeCourses: courses.filter(c => !c.status || c.status === 'published' || c.isFeatured !== undefined).length || 0,
+      activeCourses: courses.filter(c => (c.status || 'published') === 'published').length,
       totalRevenue,
       avgCompletionRate,
-      userGrowthPercent: 15,
-      revenueGrowthPercent: 22,
+      userGrowthPercent: halfGrowth(userGrowth, 'users'),
+      revenueGrowthPercent: halfGrowth(revenue, 'revenue'),
       userGrowth,
       revenue,
       coursePopularity,

@@ -3,35 +3,8 @@ const { db, models } = require('../database/db');
 // Get all notifications
 exports.getNotifications = async (req, res) => {
   try {
-    let notifications = await models.adminNotifications.find().sort({ createdAt: -1 }).lean()
-    
-    if (!notifications || notifications.length === 0) {
-      const defaultNotifications = [
-        {
-          _id: Date.now().toString() + '1',
-          title: 'Welcome to Beyond Classroom',
-          message: 'Thank you for joining our platform. Start learning today!',
-          type: 'info',
-          targetUsers: 'all',
-          deliveredCount: 25,
-          createdAt: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          _id: Date.now().toString() + '2',
-          title: 'New Course Available',
-          message: 'Check out our new Advanced Calculus course!',
-          type: 'success',
-          targetUsers: 'all',
-          deliveredCount: 25,
-          createdAt: new Date(Date.now() - 172800000).toISOString()
-        }
-      ];
-      await models.adminNotifications.insertMany(defaultNotifications)
-      if (db.data.adminNotifications) db.data.adminNotifications.push(...defaultNotifications);
-      notifications = defaultNotifications
-    }
-
-    res.json({ notifications });
+    const notifications = await models.adminNotifications.find().sort({ createdAt: -1 }).lean()
+    res.json({ notifications: notifications || [] });
   } catch (error) {
     console.error('Get notifications error:', error);
     res.status(500).json({ message: 'Server error' });

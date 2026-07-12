@@ -88,7 +88,7 @@ exports.getSubtopicsByModule = async (req, res) => {
   }
 }
 
-// Get single subtopic
+// Get single subtopic — server-side authorization for premium content (#4).
 exports.getSubtopic = async (req, res) => {
   try {
     const { subtopicId } = req.params
@@ -96,7 +96,18 @@ exports.getSubtopic = async (req, res) => {
     if (!subtopic) {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
-    
+
+    const { isAdmin, ownsCourse } = require('../utils/contentAccess')
+    const authorized = isAdmin(req.user) || ownsCourse(req.user, subtopic.courseId)
+
+    if (!authorized) {
+      // Preview mode: guests may VIEW any document in the embedded viewer
+      // (no login). Downloading is gated on the client and premium features
+      // (videos, progress, completion, purchase) stay protected elsewhere.
+      subtopic.previewOnly = true
+      subtopic.videoUrl = '' // videos remain premium
+    }
+
     res.json({ success: true, subtopic })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -140,12 +151,28 @@ exports.updateSubtopic = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
 
+    // IMPORTANT: the admin edit form loads documents from a data-stripped list
+    // endpoint (base64 removed for payload size). Saving would otherwise WIPE
+    // the file bytes of existing documents. So for any incoming document that
+    // arrives without data/url, restore it from the stored copy (matched by name).
+    const existingDocs = [
+      ...(Array.isArray(existing.documents) ? existing.documents : []),
+      ...(existing.document ? [existing.document] : []),
+    ]
+    const mergedDocuments = documents.map((doc) => {
+      if (doc && !doc.data && !doc.url) {
+        const prev = existingDocs.find((d) => d && d.name === doc.name && (d.data || d.url))
+        if (prev) return { ...doc, ...(prev.data ? { data: prev.data } : {}), ...(prev.url ? { url: prev.url } : {}) }
+      }
+      return doc
+    })
+
     const updated = await models.subtopics.findOneAndUpdate(
       { _id: subtopicId },
       { $set: {
         ...req.body,
-        documents,
-        document: documents[0] || null,
+        documents: mergedDocuments,
+        document: mergedDocuments[0] || null,
         updatedAt: new Date().toISOString(),
       }},
       { new: true }

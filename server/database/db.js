@@ -142,6 +142,7 @@ const subtopicSchema = new mongoose.Schema({
   content: String,
   order: Number,
   isPublished: { type: Boolean, default: true },
+  isPreview: { type: Boolean, default: false }, // viewable (not downloadable) without login/purchase (#1)
   document: mongoose.Schema.Types.Mixed,
   documents: [mongoose.Schema.Types.Mixed],
   packageIds: [String],
@@ -168,10 +169,13 @@ const quizSchema = new mongoose.Schema({
   moduleId: { type: String, index: true },
   courseId: { type: String, index: true },
   title: String,
+  description: String,
   questions: mongoose.Schema.Types.Mixed,
   passingScore: Number,
   timeLimit: Number,
+  isPublished: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
 }, { _id: false });
 
 const progressSchema = new mongoose.Schema({
@@ -414,6 +418,36 @@ const promoterSchema = new mongoose.Schema({
   totalPaidOut: { type: Number, default: 0 },
   streak: { type: Number, default: 0 },
   rank: { type: String, default: 'Bronze' },
+  // Profile (#7)
+  address: String,
+  city: String,
+  state: String,
+  pincode: String,
+  // Bank details for payouts (#7)
+  bankDetails: {
+    accountHolderName: String,
+    accountNumber: String,
+    ifsc: String,
+    bankName: String,
+    upiId: String,
+  },
+  // KYC documents + verification status (#7):
+  // pending → submitted → verified | rejected | resubmit
+  kyc: {
+    status: { type: String, default: 'pending' },
+    panNumber: String,
+    panDocUrl: String,
+    aadhaarNumber: String,
+    aadhaarDocUrl: String,
+    passbookDocUrl: String,
+    submittedAt: Date,
+    reviewedAt: Date,
+    rejectionReason: String,
+    reviewedBy: String,
+    history: { type: [mongoose.Schema.Types.Mixed], default: [] }, // { status, note, at, by }
+  },
+  passwordResetToken: String,
+  passwordResetExpires: String,
   lastLoginAt: Date,
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
@@ -427,6 +461,8 @@ const referralSchema = new mongoose.Schema({
   userEmail: String,
   userName: String,
   status: { type: String, default: 'registered' },
+  source: { type: String, default: 'referral' }, // 'referral' (signup link) | 'promo' (promo code at checkout)
+  promoCode: String,
   orderId: String,
   paymentId: String,
   orderAmount: Number,
@@ -454,6 +490,11 @@ const promoCodeSchema = new mongoose.Schema({
   usedCount: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   assignedTo: String,
+  // Applicability (#9): 'all' = any package/course; 'packages' = only the listed
+  // packages; 'courses' = only purchases that include one of the listed courses.
+  applicableType: { type: String, default: 'all' },
+  applicablePackageIds: { type: [String], default: [] },
+  applicableCourseIds: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false });
@@ -499,8 +540,20 @@ progressSchema.index({ userId: 1 });
 customRequestSchema.index({ createdAt: -1 });
 customRequestSchema.index({ userId: 1 });
 courseSchema.index({ createdAt: -1 });
+courseSchema.index({ status: 1 });
+courseSchema.index({ category: 1 });
 promoterSchema.index({ createdAt: -1 });
 referralSchema.index({ createdAt: -1 });
+referralSchema.index({ promoterId: 1 });
+referralSchema.index({ userId: 1 });
+referralSchema.index({ orderId: 1 });
+promoterPayoutSchema.index({ promoterId: 1 });
+promoCodeSchema.index({ assignedTo: 1 });
+userSchema.index({ createdAt: -1 });
+paymentSchema.index({ status: 1 });
+activityLogSchema.index({ createdAt: -1 });
+examAttemptSchema.index({ examId: 1 });
+quizSchema.index({ moduleId: 1 });
 
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
