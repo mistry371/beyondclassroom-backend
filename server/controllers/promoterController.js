@@ -2,7 +2,15 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const { db, models } = require('../database/db')
 const referralService = require('../services/referralService')
+const { sendEmail } = require('../services/emailService')
+const promoterEmails = require('../services/emailTemplates')
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '')
+
+// Fire-and-forget promoter email — never blocks or fails the API response.
+const notifyPromoter = (to, subject, html) => {
+  if (!to) return
+  Promise.resolve().then(() => sendEmail({ to, subject, html })).catch(() => {})
+}
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
 
@@ -224,6 +232,12 @@ exports.requestWithdrawal = async (req, res) => {
       }
     }
 
+    notifyPromoter(
+      promoter.email,
+      'Withdrawal request received',
+      promoterEmails.promoterWithdrawalRequestedTemplate(promoter.name, amt, updatedPromoter.pendingPayout)
+    )
+
     res.json({
       success: true,
       message: 'Your withdrawal request has been submitted successfully. The amount will be credited to your registered bank account within 24 hours after verification.',
@@ -343,6 +357,14 @@ exports.adminProcessPayout = async (req, res) => {
       if (pIdx !== -1) Object.assign(db.data.promoterPayouts[pIdx], updatedPayout)
     }
 
+    if (promoter) {
+      notifyPromoter(
+        promoter.email,
+        status === 'rejected' ? 'Withdrawal update' : 'Withdrawal paid',
+        promoterEmails.promoterWithdrawalProcessedTemplate(promoter.name, payout.amount, status, note)
+      )
+    }
+
     res.json({ success: true, payout: updatedPayout })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
@@ -454,6 +476,13 @@ exports.adminReviewKyc = async (req, res) => {
       { $set: { kyc, updatedAt: new Date().toISOString() } },
       { new: true }
     ).lean()
+
+    notifyPromoter(
+      updated.email,
+      status === 'verified' ? 'KYC verified' : 'KYC needs attention',
+      promoterEmails.promoterKycStatusTemplate(updated.name, status, kyc.rejectionReason)
+    )
+
     res.json({ success: true, message: `KYC ${status}`, promoter: referralService.sanitizePromoter(updated) })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

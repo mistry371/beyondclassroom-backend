@@ -1,549 +1,287 @@
-// Professional Email Templates for Beyond Classroom
+// Professional, consistent email templates for Beyond Classroom.
+// All templates render through a single shared layout so every email shares
+// the same branding, spacing, and mobile-friendly, email-client-safe markup.
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'https://beyondclassroom.netlify.app').replace(/\/$/, '')
 
-const getEmailHeader = () => `
-  <div style="background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); padding: 40px 20px; text-align: center;">
-    <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 700;">Beyond Classroom</h1>
-    <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">Excellence in Mathematics Education</p>
-  </div>
-`
+const BRAND = {
+  name: 'Beyond Classroom',
+  tagline: 'Excellence in Mathematics Education',
+  primary: '#4f46e5',
+  accent: '#7c3aed',
+  ink: '#0f172a',
+  body: '#334155',
+  muted: '#64748b',
+  line: '#e5e7eb',
+  bg: '#f1f5f9',
+  font: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+}
 
-const getEmailFooter = () => `
-  <div style="background: #1f2937; padding: 30px 20px; text-align: center; margin-top: 40px;">
-    <p style="color: #9ca3af; margin: 0 0 10px 0; font-size: 14px;">
-      © 2026 Beyond Classroom. All rights reserved.
-    </p>
-    <p style="color: #6b7280; margin: 0; font-size: 12px;">
-      This email was sent to you because you registered on our platform.
-    </p>
-    <div style="margin-top: 20px;">
-      <a href="${FRONTEND_URL}" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Home</a>
-      <a href="${FRONTEND_URL}/courses" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Courses</a>
-      <a href="${FRONTEND_URL}/contact" style="color: #22d3ee; text-decoration: none; margin: 0 10px;">Contact</a>
-    </div>
-  </div>
-`
+const esc = (v) => String(v == null ? '' : v)
 
-// OTP Email Template
+// ── Reusable building blocks ──────────────────────────────────────────────────
+const button = (label, href) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px auto;">
+    <tr><td style="border-radius:10px;background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});">
+      <a href="${href}" style="display:inline-block;padding:14px 34px;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none;border-radius:10px;">${label}</a>
+    </td></tr>
+  </table>`
+
+const panel = (html, tone = 'info') => {
+  const tones = {
+    info: { bg: '#eef2ff', bar: BRAND.primary, text: '#3730a3' },
+    success: { bg: '#ecfdf5', bar: '#10b981', text: '#065f46' },
+    warning: { bg: '#fffbeb', bar: '#f59e0b', text: '#92400e' },
+    danger: { bg: '#fef2f2', bar: '#ef4444', text: '#991b1b' },
+  }
+  const t = tones[tone] || tones.info
+  return `<div style="background:${t.bg};border-left:4px solid ${t.bar};padding:14px 18px;border-radius:6px;margin:22px 0;">
+    <p style="color:${t.text};margin:0;font-size:14px;line-height:1.6;">${html}</p></div>`
+}
+
+const rows = (pairs) => `
+  <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:8px 0;">
+    ${pairs.filter(Boolean).map(([k, v], i, arr) => `
+      <tr style="${i < arr.length - 1 ? `border-bottom:1px solid ${BRAND.line};` : ''}">
+        <td style="padding:11px 0;color:${BRAND.muted};font-size:14px;">${k}</td>
+        <td style="padding:11px 0;color:${BRAND.ink};font-size:14px;font-weight:600;text-align:right;">${v}</td>
+      </tr>`).join('')}
+  </table>`
+
+const h2 = (text) => `<h2 style="color:${BRAND.ink};margin:0 0 16px 0;font-size:22px;font-weight:700;">${text}</h2>`
+const p = (text) => `<p style="color:${BRAND.body};font-size:15px;line-height:1.65;margin:0 0 16px 0;">${text}</p>`
+const hero = (value, caption, tone = BRAND.primary) => `
+  <div style="text-align:center;background:${BRAND.bg};border-radius:12px;padding:28px;margin:24px 0;">
+    <div style="font-size:40px;font-weight:800;color:${tone};line-height:1;">${value}</div>
+    <div style="color:${BRAND.muted};font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-top:8px;">${caption}</div>
+  </div>`
+
+// ── Shared layout ─────────────────────────────────────────────────────────────
+const renderEmail = ({ title, preheader = '', body }) => `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="x-apple-disable-message-reformatting"><title>${esc(title)}</title></head>
+<body style="margin:0;padding:0;background:${BRAND.bg};font-family:${BRAND.font};">
+  <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;">${esc(preheader)}</span>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BRAND.bg};padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <tr><td style="background:linear-gradient(135deg,${BRAND.primary},${BRAND.accent});padding:32px 24px;text-align:center;">
+          <div style="color:#ffffff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">${BRAND.name}</div>
+          <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">${BRAND.tagline}</div>
+        </td></tr>
+        <tr><td style="padding:36px 32px;">${body}</td></tr>
+        <tr><td style="background:#f8fafc;padding:24px 32px;text-align:center;border-top:1px solid ${BRAND.line};">
+          <div style="margin-bottom:12px;">
+            <a href="${FRONTEND_URL}" style="color:${BRAND.muted};text-decoration:none;font-size:13px;margin:0 10px;">Home</a>
+            <a href="${FRONTEND_URL}/courses" style="color:${BRAND.muted};text-decoration:none;font-size:13px;margin:0 10px;">Courses</a>
+            <a href="${FRONTEND_URL}/contact" style="color:${BRAND.muted};text-decoration:none;font-size:13px;margin:0 10px;">Contact</a>
+          </div>
+          <p style="color:#94a3b8;margin:0;font-size:12px;line-height:1.6;">© ${new Date().getFullYear()} ${BRAND.name}. All rights reserved.<br>You received this email because you have an account with us.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>`
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Templates (signatures preserved for backward compatibility)
+// ══════════════════════════════════════════════════════════════════════════════
+
 exports.otpEmailTemplate = (otpCode, purpose, expiresIn = '10 minutes') => {
-  const purposeText = {
-    'registration': 'Registration',
-    'login': 'Login',
-    'password_reset': 'Password Reset'
-  }[purpose] || 'Verification'
-
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your ${purposeText} OTP</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        ${getEmailHeader()}
-        
-        <div style="padding: 40px 30px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Your ${purposeText} OTP</h2>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-            Hello! You requested a one-time password (OTP) to complete your ${purpose}. Please use the code below:
-          </p>
-          
-          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%); border: 3px dashed #22d3ee; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
-            <p style="color: #6b7280; margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Your OTP Code</p>
-            <h1 style="color: #22d3ee; font-size: 56px; margin: 0; letter-spacing: 12px; font-weight: 700;">${otpCode}</h1>
-          </div>
-          
-          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px 20px; margin: 30px 0; border-radius: 4px;">
-            <p style="color: #92400e; margin: 0; font-size: 14px;">
-              <strong>⏰ Important:</strong> This OTP will expire in ${expiresIn}. Please use it before it expires.
-            </p>
-          </div>
-          
-          <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">Security Tips:</h3>
-            <ul style="color: #6b7280; margin: 0; padding-left: 20px; line-height: 1.8;">
-              <li>Never share your OTP with anyone</li>
-              <li>Our team will never ask for your OTP</li>
-              <li>If you didn't request this, please ignore this email</li>
-              <li>Contact support if you notice suspicious activity</li>
-            </ul>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
-            If you have any questions or need assistance, please don't hesitate to contact our support team.
-          </p>
-          
-          <div style="text-align: center; margin-top: 30px;">
-            <a href="${FRONTEND_URL}/contact" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-              Contact Support
-            </a>
-          </div>
-        </div>
-        
-        ${getEmailFooter()}
+  const label = { registration: 'Registration', login: 'Login', password_reset: 'Password Reset' }[purpose] || 'Verification'
+  return renderEmail({
+    title: `Your ${label} Code`,
+    preheader: `${otpCode} is your ${label.toLowerCase()} code. It expires in ${expiresIn}.`,
+    body: `${h2(`${label} code`)}
+      ${p('Use the one-time code below to continue. For your security, never share it with anyone.')}
+      <div style="text-align:center;background:${BRAND.bg};border-radius:12px;padding:24px;margin:24px 0;">
+        <div style="font-size:40px;font-weight:800;letter-spacing:10px;color:${BRAND.primary};">${otpCode}</div>
       </div>
-    </body>
-    </html>
-  `
+      ${panel(`This code expires in <strong>${expiresIn}</strong>. Our team will never ask you for it.`, 'warning')}
+      ${p('If you didn\'t request this, you can safely ignore this email.')}`,
+  })
 }
 
-// Welcome Email Template
-exports.welcomeEmailTemplate = (userName, userEmail) => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Welcome to Beyond Classroom</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        ${getEmailHeader()}
-        
-        <div style="padding: 40px 30px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px;">Welcome, ${userName}! 🎉</h2>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-            We're thrilled to have you join the Beyond Classroom community! You've taken the first step towards mastering mathematics and achieving academic excellence.
-          </p>
-          
-          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%); padding: 30px; border-radius: 12px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin: 0 0 20px 0; font-size: 20px;">What's Next?</h3>
-            <div style="margin-bottom: 15px;">
-              <div style="display: inline-block; background: #22d3ee; color: white; width: 32px; height: 32px; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; margin-right: 10px;">1</div>
-              <span style="color: #4b5563; font-size: 16px;">Explore our 25+ comprehensive courses</span>
-            </div>
-            <div style="margin-bottom: 15px;">
-              <div style="display: inline-block; background: #a855f7; color: white; width: 32px; height: 32px; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; margin-right: 10px;">2</div>
-              <span style="color: #4b5563; font-size: 16px;">Try our 26 interactive math tools</span>
-            </div>
-            <div style="margin-bottom: 15px;">
-              <div style="display: inline-block; background: #22d3ee; color: white; width: 32px; height: 32px; border-radius: 50%; text-align: center; line-height: 32px; font-weight: 700; margin-right: 10px;">3</div>
-              <span style="color: #4b5563; font-size: 16px;">Start learning and track your progress</span>
-            </div>
-          </div>
-          
-          <div style="background: #f9fafb; padding: 25px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">Your Account Details:</h3>
-            <p style="color: #6b7280; margin: 5px 0; font-size: 14px;"><strong>Email:</strong> ${userEmail}</p>
-            <p style="color: #6b7280; margin: 5px 0; font-size: 14px;"><strong>Registration Date:</strong> ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-          </div>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px; margin-right: 10px;">
-              Go to Dashboard
-            </a>
-            <a href="${FRONTEND_URL}/courses" style="display: inline-block; background: white; color: #22d3ee; border: 2px solid #22d3ee; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              Browse Courses
-            </a>
-          </div>
-          
-          <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px 20px; margin: 30px 0; border-radius: 4px;">
-            <p style="color: #065f46; margin: 0; font-size: 14px;">
-              <strong>💡 Pro Tip:</strong> Complete your profile and set your learning goals to get personalized course recommendations!
-            </p>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
-            Need help getting started? Check out our <a href="${FRONTEND_URL}/about" style="color: #22d3ee; text-decoration: none;">Getting Started Guide</a> or contact our support team.
-          </p>
-        </div>
-        
-        ${getEmailFooter()}
-      </div>
-    </body>
-    </html>
-  `
-}
+exports.welcomeEmailTemplate = (userName, userEmail) => renderEmail({
+  title: 'Welcome to Beyond Classroom',
+  preheader: 'Your account is ready — start learning today.',
+  body: `${h2(`Welcome, ${esc(userName)}!`)}
+    ${p('Your account is ready. Beyond Classroom gives you structured courses, interactive tools, and progress tracking to help you master mathematics.')}
+    ${rows([['Email', esc(userEmail)], ['Joined', new Date().toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })]])}
+    ${button('Go to Dashboard', `${FRONTEND_URL}/dashboard`)}
+    ${p(`Not sure where to begin? <a href="${FRONTEND_URL}/courses" style="color:${BRAND.primary};text-decoration:none;">Browse our courses</a> to find the right fit.`)}`,
+})
 
-// Course Enrollment Email Template
-exports.courseEnrollmentEmailTemplate = (userName, courseName, coursePrice) => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Course Enrollment Confirmation</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        ${getEmailHeader()}
-        
-        <div style="padding: 40px 30px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <div style="display: inline-block; background: #10b981; color: white; width: 80px; height: 80px; border-radius: 50%; text-align: center; line-height: 80px; font-size: 40px;">
-              ✓
-            </div>
-          </div>
-          
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Enrollment Successful!</h2>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0; text-align: center;">
-            Congratulations, ${userName}! You've successfully enrolled in:
-          </p>
-          
-          <div style="background: linear-gradient(135deg, #f0f9ff 0%, #faf5ff 100%); padding: 30px; border-radius: 12px; margin: 30px 0; text-align: center;">
-            <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 24px;">${courseName}</h3>
-            <p style="color: #6b7280; margin: 0; font-size: 18px;">₹${coursePrice}</p>
-          </div>
-          
-          <div style="background: #f9fafb; padding: 25px; border-radius: 8px; margin: 30px 0;">
-            <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 18px;">What's Included:</h3>
-            <ul style="color: #6b7280; margin: 0; padding-left: 20px; line-height: 2;">
-              <li>Lifetime access to course content</li>
-              <li>Interactive practice exercises</li>
-              <li>Quizzes and assessments</li>
-              <li>Certificate of completion</li>
-              <li>24/7 support</li>
-            </ul>
-          </div>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              Start Learning Now
-            </a>
-          </div>
-          
-          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px 20px; margin: 30px 0; border-radius: 4px;">
-            <p style="color: #92400e; margin: 0; font-size: 14px;">
-              <strong>📧 Receipt:</strong> A detailed receipt has been sent to your email address.
-            </p>
-          </div>
-        </div>
-        
-        ${getEmailFooter()}
-      </div>
-    </body>
-    </html>
-  `
-}
+exports.courseEnrollmentEmailTemplate = (userName, courseName, coursePrice) => renderEmail({
+  title: 'Enrollment Confirmed',
+  preheader: `You're enrolled in ${courseName}.`,
+  body: `${h2('Enrollment confirmed')}
+    ${p(`Congratulations, ${esc(userName)} — you now have access to:`)}
+    ${hero(esc(courseName), `₹${esc(coursePrice)}`)}
+    ${p('Your enrollment includes full course content, practice exercises, quizzes, and a certificate on completion.')}
+    ${button('Start Learning', `${FRONTEND_URL}/dashboard`)}`,
+})
 
-// Course Expiry Reminder Email Template
-exports.courseExpiryReminderEmailTemplate = (userName, courseName, daysRemaining) => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Course Expiry Reminder</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        ${getEmailHeader()}
-        
-        <div style="padding: 40px 30px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Course Access Expiring Soon</h2>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-            Hi ${userName},
-          </p>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-            This is a friendly reminder that your access to <strong>${courseName}</strong> will expire in <strong>${daysRemaining} days</strong>.
-          </p>
-          
-          <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin: 30px 0; border-radius: 4px;">
-            <p style="color: #991b1b; margin: 0; font-size: 16px;">
-              <strong>⚠️ Action Required:</strong> Complete your remaining lessons before access expires!
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${FRONTEND_URL}/dashboard" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              Continue Learning
-            </a>
-          </div>
-        </div>
-        
-        ${getEmailFooter()}
-      </div>
-    </body>
-    </html>
-  `
-}
+exports.courseExpiryReminderEmailTemplate = (userName, courseName, daysRemaining) => renderEmail({
+  title: 'Course Access Expiring Soon',
+  preheader: `${courseName} access ends in ${daysRemaining} days.`,
+  body: `${h2('Your access is expiring soon')}
+    ${p(`Hi ${esc(userName)}, your access to <strong>${esc(courseName)}</strong> ends in <strong>${esc(daysRemaining)} days</strong>.`)}
+    ${panel('Finish your remaining lessons before access expires to make the most of your enrollment.', 'warning')}
+    ${button('Continue Learning', `${FRONTEND_URL}/dashboard`)}`,
+})
 
-// Password Reset Email Template
-exports.passwordResetEmailTemplate = (userName, resetLink) => {
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Password Reset Request</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
-      <div style="max-width: 600px; margin: 0 auto; background-color: white;">
-        ${getEmailHeader()}
-        
-        <div style="padding: 40px 30px;">
-          <h2 style="color: #1f2937; margin: 0 0 20px 0; font-size: 24px;">Password Reset Request</h2>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
-            Hi ${userName},
-          </p>
-          
-          <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-            We received a request to reset your password. Click the button below to create a new password:
-          </p>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${resetLink}" style="display: inline-block; background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%); color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              Reset Password
-            </a>
-          </div>
-          
-          <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px 20px; margin: 30px 0; border-radius: 4px;">
-            <p style="color: #92400e; margin: 0; font-size: 14px;">
-              <strong>⏰ Important:</strong> This link will expire in 1 hour for security reasons.
-            </p>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
-            If you didn't request a password reset, please ignore this email or contact support if you have concerns.
-          </p>
-        </div>
-        
-        ${getEmailFooter()}
-      </div>
-    </body>
-    </html>
-  `
-}
+exports.passwordResetEmailTemplate = (userName, resetLink) => renderEmail({
+  title: 'Reset Your Password',
+  preheader: 'Reset your Beyond Classroom password. Link valid for 1 hour.',
+  body: `${h2('Password reset request')}
+    ${p(`Hi ${esc(userName)}, we received a request to reset your password. Click below to choose a new one.`)}
+    ${button('Reset Password', resetLink)}
+    ${panel('This link expires in <strong>1 hour</strong>. If you didn\'t request it, no action is needed.', 'warning')}`,
+})
 
-// Admin notification email template
-exports.adminNewUserEmailTemplate = (userName, userEmail, registeredAt) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:30px;">
-  <h2 style="color:#1f2937;margin:0 0 16px 0;">🆕 New User Registered</h2>
-  <table style="width:100%;border-collapse:collapse;">
-    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Name</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userEmail}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Registered At</td><td style="padding:8px 0;color:#1f2937;">${registeredAt}</td></tr>
-  </table>
-  <div style="margin-top:24px;">
-    <a href="https://beyondclassroom.netlify.app/admin/users" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">View in Admin Panel</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.adminNewUserEmailTemplate = (userName, userEmail, registeredAt) => renderEmail({
+  title: 'New User Registered',
+  preheader: `${userName} just registered.`,
+  body: `${h2('New user registered')}
+    ${rows([['Name', esc(userName)], ['Email', esc(userEmail)], ['Registered', esc(registeredAt)]])}
+    ${button('View in Admin Panel', `${FRONTEND_URL}/admin/users`)}`,
+})
 
-// Admin notification email template for new order
-exports.adminNewOrderEmailTemplate = (userName, userEmail, courseName, amount, orderId) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:30px;">
-  <h2 style="color:#1f2937;margin:0 0 16px 0;">💰 New Order Received</h2>
-  <table style="width:100%;border-collapse:collapse;">
-    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Student</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;">${userEmail}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Course</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${courseName}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Amount</td><td style="padding:8px 0;color:#10b981;font-weight:700;font-size:18px;">₹${amount}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Order ID</td><td style="padding:8px 0;color:#6b7280;font-size:12px;">${orderId}</td></tr>
-  </table>
-  <div style="margin-top:24px;">
-    <a href="https://beyondclassroom.netlify.app/admin/orders" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">View Orders</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.adminNewOrderEmailTemplate = (userName, userEmail, courseName, amount, orderId) => renderEmail({
+  title: 'New Order Received',
+  preheader: `${userName} purchased ${courseName} — ₹${amount}.`,
+  body: `${h2('New order received')}
+    ${rows([['Student', esc(userName)], ['Email', esc(userEmail)], ['Item', esc(courseName)], ['Amount', `₹${esc(amount)}`], ['Order ID', `<span style="font-size:12px;color:${BRAND.muted}">${esc(orderId)}</span>`]])}
+    ${button('View Orders', `${FRONTEND_URL}/admin/orders`)}`,
+})
 
-// Custom Request - Admin Notification
-exports.adminCustomRequestEmailTemplate = (userName, userEmail, title, deliverable, topics, budget) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:30px;">
-  <h2 style="color:#1f2937;margin:0 0 16px 0;">📋 New Custom Course Request</h2>
-  <table style="width:100%;border-collapse:collapse;">
-    <tr><td style="padding:8px 0;color:#6b7280;width:140px;">Student</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${userName}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Email</td><td style="padding:8px 0;color:#1f2937;">${userEmail}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Title</td><td style="padding:8px 0;color:#1f2937;font-weight:600;">${title}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Deliverable</td><td style="padding:8px 0;color:#1f2937;">${deliverable || 'Not specified'}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Topics</td><td style="padding:8px 0;color:#1f2937;">${topics || 'Not specified'}</td></tr>
-    <tr><td style="padding:8px 0;color:#6b7280;">Budget</td><td style="padding:8px 0;color:#10b981;font-weight:700;">${budget ? '₹' + budget : 'Not specified'}</td></tr>
-  </table>
-  <div style="margin-top:24px;">
-    <a href="https://beyondclassroom.netlify.app/admin/custom-requests" style="background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:12px 28px;text-decoration:none;border-radius:8px;font-weight:600;">Review Request</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.adminCustomRequestEmailTemplate = (userName, userEmail, title, deliverable, topics, budget) => renderEmail({
+  title: 'New Custom Course Request',
+  preheader: `${userName} submitted a custom request.`,
+  body: `${h2('New custom course request')}
+    ${rows([
+      ['Student', esc(userName)], ['Email', esc(userEmail)], ['Title', esc(title)],
+      ['Deliverable', esc(deliverable) || 'Not specified'], ['Topics', esc(topics) || 'Not specified'],
+      ['Budget', budget ? `₹${esc(budget)}` : 'Not specified'],
+    ])}
+    ${button('Review Request', `${FRONTEND_URL}/admin/custom-requests`)}`,
+})
 
-// Custom Request - Student Quote Notification
-exports.studentCustomRequestQuotedTemplate = (userName, title, quotedPrice, adminNote) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:40px 30px;">
-  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;">Your Request Has Been Quoted! 💰</h2>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName},</p>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 30px 0;">
-    Great news! Your custom course request <strong>"${title}"</strong> has been reviewed and quoted.
-  </p>
-  <div style="background:linear-gradient(135deg,#f0f9ff,#faf5ff);border:2px solid #22d3ee;border-radius:12px;padding:30px;text-align:center;margin:30px 0;">
-    <p style="color:#6b7280;margin:0 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;">Quoted Price</p>
-    <h1 style="color:#22d3ee;font-size:48px;margin:0;font-weight:700;">₹${quotedPrice}</h1>
-  </div>
-  ${adminNote ? `<div style="background:#f9fafb;padding:20px;border-radius:8px;margin:20px 0;"><p style="color:#4b5563;margin:0;font-size:15px;"><strong>Note from Admin:</strong> ${adminNote}</p></div>` : ''}
-  <div style="text-align:center;margin:30px 0;">
-    <a href="https://beyondclassroom.netlify.app/dashboard/custom-requests" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">View & Accept</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.studentCustomRequestQuotedTemplate = (userName, title, quotedPrice, adminNote) => renderEmail({
+  title: 'Your Request Has Been Quoted',
+  preheader: `${title} has been quoted at ₹${quotedPrice}.`,
+  body: `${h2('Your request has been quoted')}
+    ${p(`Hi ${esc(userName)}, your custom request <strong>“${esc(title)}”</strong> has been reviewed.`)}
+    ${hero(`₹${esc(quotedPrice)}`, 'Quoted price')}
+    ${adminNote ? panel(`<strong>Note:</strong> ${esc(adminNote)}`, 'info') : ''}
+    ${button('View & Accept', `${FRONTEND_URL}/dashboard/custom-requests`)}`,
+})
 
-// Custom Request - Student Status Update
 exports.studentCustomRequestStatusTemplate = (userName, title, status, message) => {
-  const statusConfig = {
-    reviewing: { color: '#f59e0b', icon: '🔍', label: 'Under Review' },
-    accepted:  { color: '#10b981', icon: '✅', label: 'Accepted' },
-    rejected:  { color: '#ef4444', icon: '❌', label: 'Not Fulfilled' },
-    completed: { color: '#22d3ee', icon: '🎉', label: 'Completed' },
-  }[status] || { color: '#6b7280', icon: '📋', label: status }
-
-  return `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:40px 30px;">
-  <div style="text-align:center;margin-bottom:24px;">
-    <div style="display:inline-block;background:${statusConfig.color}22;border:2px solid ${statusConfig.color};border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">${statusConfig.icon}</div>
-  </div>
-  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:24px;text-align:center;">Request ${statusConfig.label}</h2>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 16px 0;">Hi ${userName},</p>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">
-    Your custom course request <strong>"${title}"</strong> status has been updated to <strong style="color:${statusConfig.color};">${statusConfig.label}</strong>.
-  </p>
-  <div style="background:#f9fafb;padding:20px;border-radius:8px;margin:20px 0;">
-    <p style="color:#4b5563;margin:0;font-size:15px;">${message}</p>
-  </div>
-  <div style="text-align:center;margin:30px 0;">
-    <a href="https://beyondclassroom.netlify.app/dashboard/custom-requests" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">View Request</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+  const cfg = {
+    reviewing: { tone: 'warning', label: 'Under Review' },
+    accepted: { tone: 'success', label: 'Accepted' },
+    rejected: { tone: 'danger', label: 'Not Fulfilled' },
+    completed: { tone: 'success', label: 'Completed' },
+  }[status] || { tone: 'info', label: status }
+  return renderEmail({
+    title: `Request ${cfg.label}`,
+    preheader: `Your request “${title}” is now ${cfg.label}.`,
+    body: `${h2(`Request ${cfg.label}`)}
+      ${p(`Hi ${esc(userName)}, the status of your request <strong>“${esc(title)}”</strong> is now <strong>${cfg.label}</strong>.`)}
+      ${message ? panel(esc(message), cfg.tone) : ''}
+      ${button('View Request', `${FRONTEND_URL}/dashboard/custom-requests`)}`,
+  })
 }
 
-// Quiz Results Email Template
-exports.quizResultsEmailTemplate = (userName, quizTitle, score, totalQuestions, percentage, passed) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:40px 30px;">
-  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;">Quiz Results 📊</h2>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName}, here are your results for <strong>${quizTitle}</strong>:</p>
-  <div style="background:linear-gradient(135deg,${passed ? '#f0fdf4' : '#fef2f2'},${passed ? '#ecfdf5' : '#fff1f2'});border:2px solid ${passed ? '#10b981' : '#ef4444'};border-radius:12px;padding:30px;text-align:center;margin:30px 0;">
-    <p style="color:#6b7280;margin:0 0 8px 0;font-size:14px;text-transform:uppercase;letter-spacing:1px;">Your Score</p>
-    <h1 style="color:${passed ? '#10b981' : '#ef4444'};font-size:56px;margin:0;font-weight:700;">${percentage}%</h1>
-    <p style="color:#6b7280;margin:8px 0 0 0;font-size:16px;">${score} / ${totalQuestions} correct</p>
-    <div style="margin-top:16px;display:inline-block;background:${passed ? '#10b981' : '#ef4444'};color:white;padding:8px 24px;border-radius:20px;font-weight:700;font-size:16px;">
-      ${passed ? '🎉 PASSED' : '📚 KEEP PRACTICING'}
-    </div>
-  </div>
-  <div style="text-align:center;margin:30px 0;">
-    <a href="https://beyondclassroom.netlify.app/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Go to Dashboard</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.quizResultsEmailTemplate = (userName, quizTitle, score, totalQuestions, percentage, passed) => renderEmail({
+  title: 'Quiz Results',
+  preheader: `You scored ${percentage}% on ${quizTitle}.`,
+  body: `${h2('Your quiz results')}
+    ${p(`Hi ${esc(userName)}, here are your results for <strong>${esc(quizTitle)}</strong>:`)}
+    ${hero(`${esc(percentage)}%`, `${esc(score)} / ${esc(totalQuestions)} correct`, passed ? '#10b981' : '#ef4444')}
+    ${panel(passed ? '🎉 You passed — great work!' : 'Keep practicing — you\'ll get there.', passed ? 'success' : 'warning')}
+    ${button('Go to Dashboard', `${FRONTEND_URL}/dashboard`)}`,
+})
 
-// Account Action Email Template (suspend/unsuspend/warning)
 exports.accountActionEmailTemplate = (userName, action, details) => {
-  const actionConfig = {
-    suspended:   { color: '#ef4444', icon: '🚫', title: 'Account Suspended' },
-    unsuspended: { color: '#10b981', icon: '✅', title: 'Account Restored' },
-    warning:     { color: '#f59e0b', icon: '⚠️', title: 'Account Warning' },
-  }[action] || { color: '#6b7280', icon: '📋', title: 'Account Update' }
-
-  return `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:40px 30px;">
-  <div style="text-align:center;margin-bottom:24px;">
-    <div style="display:inline-block;background:${actionConfig.color}22;border:2px solid ${actionConfig.color};border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">${actionConfig.icon}</div>
-  </div>
-  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:24px;text-align:center;">${actionConfig.title}</h2>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 16px 0;">Hi ${userName},</p>
-  <div style="background:#f9fafb;border-left:4px solid ${actionConfig.color};padding:20px;border-radius:4px;margin:20px 0;">
-    <p style="color:#4b5563;margin:0;font-size:15px;line-height:1.6;">${details}</p>
-  </div>
-  <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:20px 0 0 0;">
-    If you have any questions, please contact our support team.
-  </p>
-  <div style="text-align:center;margin:30px 0;">
-    <a href="https://beyondclassroom.netlify.app/contact" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Contact Support</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+  const cfg = {
+    suspended: { tone: 'danger', title: 'Account Suspended' },
+    unsuspended: { tone: 'success', title: 'Account Restored' },
+    warning: { tone: 'warning', title: 'Account Warning' },
+  }[action] || { tone: 'info', title: 'Account Update' }
+  return renderEmail({
+    title: cfg.title,
+    preheader: cfg.title,
+    body: `${h2(cfg.title)}
+      ${p(`Hi ${esc(userName)},`)}
+      ${panel(esc(details), cfg.tone)}
+      ${p('If you have any questions, please contact our support team.')}
+      ${button('Contact Support', `${FRONTEND_URL}/contact`)}`,
+  })
 }
 
-// Payment Receipt Email Template
-exports.paymentReceiptEmailTemplate = (userName, courseName, amount, orderId, paymentDate) => `
-<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;font-family:'Segoe UI',sans-serif;background:#f3f4f6;">
-<div style="max-width:600px;margin:0 auto;background:white;">
-${getEmailHeader()}
-<div style="padding:40px 30px;">
-  <div style="text-align:center;margin-bottom:24px;">
-    <div style="display:inline-block;background:#10b98122;border:2px solid #10b981;border-radius:50%;width:72px;height:72px;line-height:72px;font-size:32px;">🧾</div>
-  </div>
-  <h2 style="color:#1f2937;margin:0 0 20px 0;font-size:26px;text-align:center;">Payment Receipt</h2>
-  <p style="color:#4b5563;font-size:16px;line-height:1.6;margin:0 0 20px 0;">Hi ${userName}, thank you for your purchase!</p>
-  <div style="background:#f9fafb;border-radius:12px;padding:24px;margin:24px 0;">
-    <table style="width:100%;border-collapse:collapse;">
-      <tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Course</td>
-        <td style="padding:12px 0;color:#1f2937;font-weight:600;text-align:right;">${courseName}</td>
-      </tr>
-      <tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Order ID</td>
-        <td style="padding:12px 0;color:#6b7280;font-size:12px;text-align:right;">${orderId}</td>
-      </tr>
-      <tr style="border-bottom:1px solid #e5e7eb;">
-        <td style="padding:12px 0;color:#6b7280;font-size:14px;">Date</td>
-        <td style="padding:12px 0;color:#1f2937;text-align:right;">${paymentDate}</td>
-      </tr>
-      <tr>
-        <td style="padding:16px 0;color:#1f2937;font-weight:700;font-size:16px;">Total Paid</td>
-        <td style="padding:16px 0;color:#10b981;font-weight:700;font-size:22px;text-align:right;">₹${amount}</td>
-      </tr>
-    </table>
-  </div>
-  <div style="text-align:center;margin:30px 0;">
-    <a href="https://beyondclassroom.netlify.app/dashboard" style="display:inline-block;background:linear-gradient(135deg,#22d3ee,#a855f7);color:white;padding:14px 32px;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;">Start Learning</a>
-  </div>
-</div>
-${getEmailFooter()}
-</div></body></html>
-`
+exports.paymentReceiptEmailTemplate = (userName, courseName, amount, orderId, paymentDate) => renderEmail({
+  title: 'Payment Receipt',
+  preheader: `Receipt for ${courseName} — ₹${amount}.`,
+  body: `${h2('Payment receipt')}
+    ${p(`Hi ${esc(userName)}, thank you for your purchase. Here's your receipt:`)}
+    ${rows([['Item', esc(courseName)], ['Order ID', `<span style="font-size:12px;color:${BRAND.muted}">${esc(orderId)}</span>`], ['Date', esc(paymentDate)], ['Total Paid', `<span style="color:#10b981;font-size:18px;font-weight:700;">₹${esc(amount)}</span>`]])}
+    ${button('Start Learning', `${FRONTEND_URL}/dashboard`)}`,
+})
+
+// ── Promoter communications (new) ─────────────────────────────────────────────
+exports.promoterWithdrawalRequestedTemplate = (promoterName, amount, balanceAfter) => renderEmail({
+  title: 'Withdrawal Request Received',
+  preheader: `Your withdrawal request for ₹${amount} has been received.`,
+  body: `${h2('Withdrawal request received')}
+    ${p(`Hi ${esc(promoterName)}, we've received your withdrawal request.`)}
+    ${hero(`₹${esc(amount)}`, 'Requested amount')}
+    ${panel('Your withdrawal request has been submitted successfully. The amount will be credited to your registered bank account within 24 hours after verification.', 'success')}
+    ${rows([['Remaining balance', `₹${esc(balanceAfter)}`]])}
+    ${button('View Dashboard', `${FRONTEND_URL}/promoter/dashboard`)}`,
+})
+
+exports.promoterWithdrawalProcessedTemplate = (promoterName, amount, status, note) => {
+  const paid = status === 'paid' || status === 'approved'
+  return renderEmail({
+    title: paid ? 'Withdrawal Paid' : 'Withdrawal Update',
+    preheader: paid ? `₹${amount} has been paid to your account.` : `Update on your ₹${amount} withdrawal.`,
+    body: `${h2(paid ? 'Withdrawal paid' : 'Withdrawal update')}
+      ${p(`Hi ${esc(promoterName)},`)}
+      ${hero(`₹${esc(amount)}`, paid ? 'Paid to your account' : 'Withdrawal amount', paid ? '#10b981' : '#ef4444')}
+      ${paid
+        ? panel('This amount has been credited to your registered bank account. Please allow a short time for it to reflect.', 'success')
+        : panel(`Your withdrawal could not be processed and the amount has been returned to your balance.${note ? ` Reason: ${esc(note)}` : ''}`, 'danger')}
+      ${button('View Dashboard', `${FRONTEND_URL}/promoter/dashboard`)}`,
+  })
+}
+
+exports.promoterKycStatusTemplate = (promoterName, status, reason) => {
+  const verified = status === 'verified'
+  return renderEmail({
+    title: verified ? 'KYC Verified' : 'KYC Update',
+    preheader: verified ? 'Your KYC has been verified.' : 'Your KYC needs attention.',
+    body: `${h2(verified ? 'KYC verified' : 'KYC could not be verified')}
+      ${p(`Hi ${esc(promoterName)},`)}
+      ${verified
+        ? panel('Your KYC documents have been verified. Your withdrawals can now be processed without delay.', 'success')
+        : panel(`We couldn't verify your KYC documents.${reason ? ` Reason: ${esc(reason)}` : ''} Please re-upload clear, valid documents from your dashboard.`, 'danger')}
+      ${button('Open Dashboard', `${FRONTEND_URL}/promoter/dashboard`)}`,
+  })
+}
+
+exports.promoterCommissionEarnedTemplate = (promoterName, commission, studentName, balance) => renderEmail({
+  title: 'You Earned a Commission',
+  preheader: `You earned ₹${commission} in commission.`,
+  body: `${h2('You earned a commission!')}
+    ${p(`Hi ${esc(promoterName)}, a student purchased using your promo code.`)}
+    ${hero(`₹${esc(commission)}`, 'Commission earned', '#10b981')}
+    ${rows([studentName ? ['Student', esc(studentName)] : null, ['Available balance', `₹${esc(balance)}`]])}
+    ${button('View Earnings', `${FRONTEND_URL}/promoter/dashboard`)}`,
+})
 
 module.exports = {
   otpEmailTemplate: exports.otpEmailTemplate,
@@ -559,4 +297,9 @@ module.exports = {
   quizResultsEmailTemplate: exports.quizResultsEmailTemplate,
   accountActionEmailTemplate: exports.accountActionEmailTemplate,
   paymentReceiptEmailTemplate: exports.paymentReceiptEmailTemplate,
+  // New promoter communications
+  promoterWithdrawalRequestedTemplate: exports.promoterWithdrawalRequestedTemplate,
+  promoterWithdrawalProcessedTemplate: exports.promoterWithdrawalProcessedTemplate,
+  promoterKycStatusTemplate: exports.promoterKycStatusTemplate,
+  promoterCommissionEarnedTemplate: exports.promoterCommissionEarnedTemplate,
 }
