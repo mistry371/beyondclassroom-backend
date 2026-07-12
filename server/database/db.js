@@ -142,6 +142,7 @@ const subtopicSchema = new mongoose.Schema({
   content: String,
   order: Number,
   isPublished: { type: Boolean, default: true },
+  isPreview: { type: Boolean, default: false }, // viewable (not downloadable) without login/purchase (#1)
   document: mongoose.Schema.Types.Mixed,
   documents: [mongoose.Schema.Types.Mixed],
   packageIds: [String],

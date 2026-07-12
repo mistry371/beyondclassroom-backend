@@ -88,7 +88,7 @@ exports.getSubtopicsByModule = async (req, res) => {
   }
 }
 
-// Get single subtopic
+// Get single subtopic — server-side authorization for premium content (#4).
 exports.getSubtopic = async (req, res) => {
   try {
     const { subtopicId } = req.params
@@ -96,7 +96,26 @@ exports.getSubtopic = async (req, res) => {
     if (!subtopic) {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
-    
+
+    const { isAdmin, ownsCourse, previewableSubtopicIds, stripDoc } = require('../utils/contentAccess')
+    const authorized = isAdmin(req.user) || ownsCourse(req.user, subtopic.courseId)
+
+    if (!authorized) {
+      // Determine if THIS subtopic is a free preview within its module.
+      const siblings = await models.subtopics.find({ moduleId: subtopic.moduleId }).select('_id order isPreview').lean()
+      const isPreview = previewableSubtopicIds(siblings).has(subtopic._id)
+
+      // Non-preview premium content is not served at all to unauthorized users.
+      if (!isPreview) {
+        return res.status(403).json({ success: false, message: 'Purchase required to access this content', locked: true })
+      }
+      // Preview: viewable but not downloadable — strip the base64 payload,
+      // keep the (streamable) url so it can be shown inline.
+      if (subtopic.document) subtopic.document = stripDoc(subtopic.document, { keepUrl: true })
+      if (Array.isArray(subtopic.documents)) subtopic.documents = subtopic.documents.map((d) => stripDoc(d, { keepUrl: true }))
+      subtopic.isPreview = true
+    }
+
     res.json({ success: true, subtopic })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })

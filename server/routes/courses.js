@@ -8,11 +8,11 @@ const {
   deleteCourse,
   getFeaturedCourses
 } = require('../controllers/courseController');
-const { protect, admin } = require('../middleware/auth');
+const { protect, admin, optionalAuth } = require('../middleware/auth');
 
 router.get('/', getAllCourses);
 router.get('/featured', getFeaturedCourses);
-router.get('/:id', getCourseById);
+router.get('/:id', optionalAuth, getCourseById);
 router.post('/', protect, admin, createCourse);
 router.put('/:id', protect, admin, updateCourse);
 router.delete('/:id', protect, admin, deleteCourse);
