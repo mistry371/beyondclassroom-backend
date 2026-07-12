@@ -67,15 +67,21 @@ exports.updateLessonProgress = async (req, res) => {
     const modules = await models.modules.find({ courseId: baseCourseId }).lean()
     const moduleIds = modules.map(m => m._id)
     
-    let courseLessons = await models.lessons.find({ moduleId: { $in: moduleIds } }).lean()
-    
-    // If the course uses direct subtopics instead of lessons (like the Demo course)
-    if (courseLessons.length === 0) {
-      courseLessons = await models.subtopics.find({ moduleId: { $in: moduleIds } }).select({ 'documents.data': 0, 'document.data': 0 }).lean()
-    }
-    
-    const totalLessons = courseLessons.length || 1
-    const completionPercentage = Math.round((lessonsCompleted.length / totalLessons) * 100)
+    // Total completable items = all lessons + all DIRECT subtopics (subtopics not
+    // nested under a lesson). This matches what the learner can mark complete.
+    const lessons = moduleIds.length ? await models.lessons.find({ moduleId: { $in: moduleIds } }).select('_id').lean() : []
+    const directSubtopics = moduleIds.length
+      ? await models.subtopics.find({
+          moduleId: { $in: moduleIds },
+          $or: [{ lessonId: { $exists: false } }, { lessonId: null }, { lessonId: '' }],
+        }).select('_id').lean()
+      : []
+
+    const totalLessons = lessons.length + directSubtopics.length
+    // Guard against a zero denominator so one completion can't read as 100%.
+    const completionPercentage = totalLessons > 0
+      ? Math.min(100, Math.round((lessonsCompleted.length / totalLessons) * 100))
+      : 0
     
     const updated = await models.progress.findOneAndUpdate(
       { userId, courseId },

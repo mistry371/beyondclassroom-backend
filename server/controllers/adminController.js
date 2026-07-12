@@ -19,7 +19,10 @@ exports.getDashboardStats = async (req, res) => {
       revenueResult,
       last30DaysUsers,
       previous30DaysUsers,
-      last30DaysOrders
+      last30DaysOrders,
+      pendingWithdrawals,
+      pendingKyc,
+      pendingCustomRequests
     ] = await Promise.all([
       models.users.countDocuments(),
       models.courses.countDocuments(),
@@ -32,7 +35,10 @@ exports.getDashboardStats = async (req, res) => {
       models.orders.aggregate([{ $group: { _id: null, total: { $sum: "$totalAmount" } } }]),
       models.users.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
       models.users.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
-      models.orders.countDocuments({ createdAt: { $gte: thirtyDaysAgo } })
+      models.orders.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      models.promoterPayouts.countDocuments({ status: 'pending' }),
+      models.promoters.countDocuments({ 'kyc.status': 'submitted' }),
+      models.customRequests.countDocuments({ status: 'pending' })
     ])
 
     const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0
@@ -54,8 +60,13 @@ exports.getDashboardStats = async (req, res) => {
         percentage: Math.round(userGrowthPercent * 10) / 10
       },
       courseEnrollments: last30DaysOrders,
+      pendingActions: {
+        withdrawals: pendingWithdrawals,
+        kyc: pendingKyc,
+        customRequests: pendingCustomRequests,
+      },
     }
-    
+
     res.json({ success: true, stats })
   } catch (error) {
     console.error('Dashboard Stats Error:', error)

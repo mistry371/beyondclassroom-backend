@@ -3,35 +3,9 @@ const { db, models } = require('../database/db');
 // Get all announcements
 exports.getAnnouncements = async (req, res) => {
   try {
-    let announcements = await models.announcements.find().sort({ createdAt: -1 }).lean()
-    
-    if (!announcements || announcements.length === 0) {
-      const defaultAnnouncements = [
-        {
-          _id: Date.now().toString() + '1',
-          title: 'Platform Maintenance',
-          message: 'Scheduled maintenance on Sunday 2 AM - 4 AM',
-          priority: 'high',
-          expiryDate: new Date(Date.now() + 604800000).toISOString(),
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: Date.now().toString() + '2',
-          title: 'New Features Released',
-          message: 'Check out our new interactive learning tools!',
-          priority: 'medium',
-          expiryDate: null,
-          createdAt: new Date(Date.now() - 86400000).toISOString()
-        }
-      ];
-      
-      await models.announcements.insertMany(defaultAnnouncements)
-      if (db.data.announcements) db.data.announcements.push(...defaultAnnouncements)
-      
-      announcements = defaultAnnouncements
-    }
+    const announcements = await models.announcements.find().sort({ createdAt: -1 }).lean()
 
-    res.json({ announcements: announcements.map(a => ({
+    res.json({ announcements: (announcements || []).map(a => ({
       ...a,
       message: a.message || a.content || ''
     })) });

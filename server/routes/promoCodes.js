@@ -2,8 +2,19 @@ const express = require('express')
 const router = express.Router()
 const { db, models } = require('../database/db')
 const { protect, admin } = require('../middleware/auth')
+const { checkPromoApplicable } = require('../utils/promo')
 
 const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11)
+
+// Normalize applicability fields from a request body.
+const readApplicability = (body, fallback = {}) => {
+  const type = ['all', 'packages', 'courses'].includes(body.applicableType) ? body.applicableType : (fallback.applicableType || 'all')
+  return {
+    applicableType: type,
+    applicablePackageIds: type === 'packages' ? (Array.isArray(body.applicablePackageIds) ? body.applicablePackageIds : (fallback.applicablePackageIds || [])) : [],
+    applicableCourseIds: type === 'courses' ? (Array.isArray(body.applicableCourseIds) ? body.applicableCourseIds : (fallback.applicableCourseIds || [])) : [],
+  }
+}
 
 // GET /api/admin/promo-codes — admin list
 router.get('/', protect, admin, async (req, res) => {
@@ -35,6 +46,7 @@ router.post('/', protect, admin, async (req, res) => {
       usedCount: 0,
       active: active !== false,
       assignedTo: assignedTo || '',
+      ...readApplicability(req.body),
       createdAt: new Date().toISOString(),
     }
     
@@ -64,6 +76,7 @@ router.put('/:id', protect, admin, async (req, res) => {
         usageLimit: usageLimit !== undefined ? (usageLimit ? Number(usageLimit) : null) : idx.usageLimit,
         active: active !== undefined ? active : idx.active,
         assignedTo: assignedTo !== undefined ? assignedTo : idx.assignedTo,
+        ...readApplicability(req.body, idx),
         updatedAt: new Date().toISOString(),
       }},
       { new: true }
@@ -122,11 +135,11 @@ router.patch('/:id/toggle', protect, admin, async (req, res) => {
 // POST /api/promo-codes/validate — public (requires auth), validate a code at checkout
 router.post('/validate', protect, async (req, res) => {
   try {
-    const { code, amount } = req.body
+    const { code, amount, packageId, courseId, selectedCourseIds } = req.body
     if (!code) return res.status(400).json({ message: 'Promo code is required' })
-    
+
     const promo = await models.promoCodes.findOne({ code: code.toUpperCase().trim() }).lean()
-    
+
     if (!promo) return res.status(404).json({ success: false, message: 'Invalid promo code' })
     if (promo.active === false) return res.status(400).json({ success: false, message: 'This promo code is inactive' })
     if (promo.expiryDate && new Date(promo.expiryDate) < new Date()) {
@@ -135,7 +148,18 @@ router.post('/validate', protect, async (req, res) => {
     if (promo.usageLimit && promo.usedCount >= promo.usageLimit) {
       return res.status(400).json({ success: false, message: 'This promo code has reached its usage limit' })
     }
-    
+
+    // Applicability restriction (#9)
+    let packageCourseIds = []
+    if (packageId) {
+      const pkg = await models.packages.findOne({ _id: packageId }).lean()
+      packageCourseIds = pkg?.courseIds || []
+    }
+    const applicable = checkPromoApplicable(promo, { packageId, courseId, selectedCourseIds, packageCourseIds })
+    if (!applicable.ok) {
+      return res.status(400).json({ success: false, message: applicable.reason || 'This promo code is not valid for this purchase' })
+    }
+
     const originalAmount = Number(amount) || 0
     const rawDiscount = (originalAmount * promo.discountPercent) / 100
     const discountAmount = Number(rawDiscount.toFixed(2))

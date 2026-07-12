@@ -1,48 +1,44 @@
-const { db } = require('../database/db');
+const { models } = require('../database/db');
 
-// Get security data
+const generateId = () => Date.now().toString() + Math.random().toString(36).slice(2, 11);
+
+// Get security data — real data only (no fabricated sample incidents).
 exports.getSecurityData = async (req, res) => {
   try {
-    const securityData = {
-      failedLogins: db.data.failedLogins || [
-        {
-          email: 'hacker@example.com',
-          ip: '192.168.1.100',
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ],
-      blockedIPs: db.data.blockedIPs || [],
-      suspiciousActivity: db.data.suspiciousActivity || [
-        {
-          type: 'Multiple failed logins',
-          description: '5 failed login attempts from same IP',
-          severity: 'high',
-          timestamp: new Date(Date.now() - 3600000).toISOString()
-        }
-      ]
-    };
+    const [blocked, recentLogs] = await Promise.all([
+      models.blockedIPs.find().sort({ createdAt: -1 }).limit(200).lean(),
+      models.activityLogs
+        ? models.activityLogs.find({ action: { $in: ['failed_login', 'login_failed'] } }).sort({ createdAt: -1 }).limit(50).lean()
+        : [],
+    ]);
 
-    res.json(securityData);
+    const failedLogins = (recentLogs || []).map((l) => ({
+      email: l.userName || l.metadata?.email || 'unknown',
+      ip: l.metadata?.ip || '—',
+      timestamp: l.createdAt,
+    }));
+
+    res.json({
+      failedLogins,
+      blockedIPs: blocked.map((b) => ({ address: b.ip, reason: b.reason || '', blockedAt: b.createdAt })),
+      suspiciousActivity: [], // populated from real telemetry when available
+    });
   } catch (error) {
     console.error('Get security data error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Block IP
+// Block IP — persisted to the blockedIPs collection.
 exports.blockIP = async (req, res) => {
   try {
-    const { ip } = req.body;
-    
-    if (!db.data.blockedIPs) {
-      db.data.blockedIPs = [];
+    const { ip, reason } = req.body;
+    if (!ip) return res.status(400).json({ message: 'IP address is required' });
+
+    const existing = await models.blockedIPs.findOne({ ip }).lean();
+    if (!existing) {
+      await models.blockedIPs.create({ _id: generateId(), ip, reason: reason || 'Blocked by admin', createdAt: new Date() });
     }
-
-    db.data.blockedIPs.push({
-      address: ip,
-      blockedAt: new Date().toISOString()
-    });
-
     res.json({ message: 'IP blocked successfully' });
   } catch (error) {
     console.error('Block IP error:', error);
@@ -54,11 +50,8 @@ exports.blockIP = async (req, res) => {
 exports.unblockIP = async (req, res) => {
   try {
     const { ip } = req.body;
-    
-    if (db.data.blockedIPs) {
-      db.data.blockedIPs = db.data.blockedIPs.filter(item => item.address !== ip);
-    }
-
+    if (!ip) return res.status(400).json({ message: 'IP address is required' });
+    await models.blockedIPs.deleteOne({ ip });
     res.json({ message: 'IP unblocked successfully' });
   } catch (error) {
     console.error('Unblock IP error:', error);

@@ -49,8 +49,9 @@ exports.exportLogs = async (req, res) => {
       query = { type }
     }
 
-    const logs = await models.activityLogs.find(query).sort({ createdAt: -1 }).lean()
-    
+    // Cap the export so a very large activity log can't exhaust memory.
+    const logs = await models.activityLogs.find(query).sort({ createdAt: -1 }).limit(10000).lean()
+
     const userIds = [...new Set(logs.map(l => l.userId).filter(Boolean))]
     const users = await models.users.find({ _id: { $in: userIds } }).select('name _id').lean()
 

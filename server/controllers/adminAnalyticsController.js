@@ -57,35 +57,42 @@ exports.getAnalytics = async (req, res) => {
       .sort((a, b) => b.enrollments - a.enrollments)
       .slice(0, 5);
 
-    // Top students
+    // Top students — compute scores for all, THEN rank by performance.
     const topStudents = users
       .filter(u => u.role === 'user' || u.role === 'student')
-      .slice(0, 5)
       .map(u => {
         const userProgress = allProgress.filter(p => p.user === u._id.toString() || p.userId === u._id.toString())
         const completedCourses = userProgress.filter(p => p.completionPercentage >= 100).length
         const allScores = userProgress.flatMap(p => (p.quizScores || []).map(s => s.score || 0))
         const avgScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0
-        return {
-          _id: u._id,
-          name: u.name,
-          coursesCompleted: completedCourses,
-          avgScore
-        }
-      });
+        return { _id: u._id, name: u.name, coursesCompleted: completedCourses, avgScore }
+      })
+      .sort((a, b) => (b.coursesCompleted - a.coursesCompleted) || (b.avgScore - a.avgScore))
+      .slice(0, 5);
 
     const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0
     const avgCompletionRate = allProgress.length > 0
       ? Math.round(allProgress.reduce((sum, p) => sum + (p.completionPercentage || 0), 0) / allProgress.length)
       : 0
 
+    // Real period-over-period growth: recent half of the window vs the previous half.
+    const halfGrowth = (series, key) => {
+      const n = series.length
+      if (n < 2) return 0
+      const mid = Math.floor(n / 2)
+      const prev = series.slice(0, mid).reduce((s, x) => s + (x[key] || 0), 0)
+      const recent = series.slice(mid).reduce((s, x) => s + (x[key] || 0), 0)
+      if (prev === 0) return recent > 0 ? 100 : 0
+      return Math.round(((recent - prev) / prev) * 1000) / 10
+    }
+
     const analytics = {
       totalUsers: users.length,
-      activeCourses: courses.filter(c => !c.status || c.status === 'published' || c.isFeatured !== undefined).length || 0,
+      activeCourses: courses.filter(c => (c.status || 'published') === 'published').length,
       totalRevenue,
       avgCompletionRate,
-      userGrowthPercent: 15,
-      revenueGrowthPercent: 22,
+      userGrowthPercent: halfGrowth(userGrowth, 'users'),
+      revenueGrowthPercent: halfGrowth(revenue, 'revenue'),
       userGrowth,
       revenue,
       coursePopularity,
