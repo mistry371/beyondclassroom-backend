@@ -545,6 +545,9 @@ promoterPayoutSchema.index({ promoterId: 1 });
 promoCodeSchema.index({ assignedTo: 1 });
 userSchema.index({ createdAt: -1 });
 paymentSchema.index({ status: 1 });
+activityLogSchema.index({ createdAt: -1 });
+examAttemptSchema.index({ examId: 1 });
+quizSchema.index({ moduleId: 1 });
 
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {
