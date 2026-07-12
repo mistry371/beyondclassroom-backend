@@ -280,8 +280,9 @@ exports.verifyPayment = async (req, res) => {
     await Promise.all(progressPromises)
 
     const paymentAmount = payment ? payment.amount : 0
+    const referralService = require('../services/referralService')
+    // 1) Signup-referral commission (student registered via a promoter's ref link)
     try {
-      const referralService = require('../services/referralService')
       await referralService.recordReferralCommission(
         userId,
         paymentAmount,
@@ -290,6 +291,20 @@ exports.verifyPayment = async (req, res) => {
       )
     } catch (refErr) {
       console.error('Referral commission failed:', refErr.message)
+    }
+    // 2) Promo-code commission (student used a promoter's assigned promo code at checkout)
+    if (payment && payment.promoCode) {
+      try {
+        await referralService.recordPromoCodeCommission(
+          payment.promoCode,
+          userId,
+          paymentAmount,
+          orderRecord._id,
+          razorpay_payment_id
+        )
+      } catch (promoErr) {
+        console.error('Promo-code commission failed:', promoErr.message)
+      }
     }
 
     res.json({
@@ -371,9 +386,16 @@ exports.checkCourseAccess = async (req, res) => {
     const { courseId } = req.params
     const userId = req.user._id
 
-    // Check if user has purchased the course
+    // Check if user has purchased the course.
+    // purchasedCourses stores composite "courseId_packageId" entries (plus bare
+    // package ids), so compare on the base course id rather than exact match.
     const user = await models.users.findOne({ _id: userId }).lean()
-    const hasAccess = user?.purchasedCourses?.includes(courseId) || false
+    const baseCourseId = courseId.includes('_') ? courseId.split('_')[0] : courseId
+    const hasAccess = (user?.purchasedCourses || []).some(id => {
+      const entry = String(id)
+      const base = entry.includes('_') ? entry.split('_')[0] : entry
+      return base === baseCourseId || entry === courseId
+    })
 
     // Check if trial is active
     const trial = await models.trials.findOne({

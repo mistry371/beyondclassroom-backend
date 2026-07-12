@@ -427,6 +427,8 @@ const referralSchema = new mongoose.Schema({
   userEmail: String,
   userName: String,
   status: { type: String, default: 'registered' },
+  source: { type: String, default: 'referral' }, // 'referral' (signup link) | 'promo' (promo code at checkout)
+  promoCode: String,
   orderId: String,
   paymentId: String,
   orderAmount: Number,
@@ -499,8 +501,17 @@ progressSchema.index({ userId: 1 });
 customRequestSchema.index({ createdAt: -1 });
 customRequestSchema.index({ userId: 1 });
 courseSchema.index({ createdAt: -1 });
+courseSchema.index({ status: 1 });
+courseSchema.index({ category: 1 });
 promoterSchema.index({ createdAt: -1 });
 referralSchema.index({ createdAt: -1 });
+referralSchema.index({ promoterId: 1 });
+referralSchema.index({ userId: 1 });
+referralSchema.index({ orderId: 1 });
+promoterPayoutSchema.index({ promoterId: 1 });
+promoCodeSchema.index({ assignedTo: 1 });
+userSchema.index({ createdAt: -1 });
+paymentSchema.index({ status: 1 });
 
 // ── Models ────────────────────────────────────────────────────────────────────
 const models = {

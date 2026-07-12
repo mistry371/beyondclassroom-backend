@@ -15,37 +15,44 @@ exports.getAnalytics = async (req, res) => {
       models.progress.find().lean()
     ])
 
-    // User growth data (real counts from DB)
-    const userGrowth = [];
-    for (let i = parseInt(days); i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split('T')[0];
-      const count = users.filter(u => {
-        const created = u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : null
-        return created === dateStr
-      }).length || 0;
-      userGrowth.push({ date: dateStr, users: count });
+    const dayKey = (d) => (d ? new Date(d).toISOString().split('T')[0] : null)
+
+    // Single-pass bucketing: build date -> count maps once (O(N)), then read
+    // per day (O(days)), instead of re-scanning every collection per day.
+    const usersByDay = new Map()
+    for (const u of users) {
+      const k = dayKey(u.createdAt)
+      if (k) usersByDay.set(k, (usersByDay.get(k) || 0) + 1)
+    }
+    const revenueByDay = new Map()
+    const enrollmentsByCourse = new Map()
+    for (const o of orders) {
+      if (o.status !== 'completed') continue
+      const k = dayKey(o.createdAt)
+      if (k) revenueByDay.set(k, (revenueByDay.get(k) || 0) + (o.totalAmount || 0))
+      // Count each purchased course once per completed order (base id).
+      const seen = new Set()
+      for (const cid of (o.courses || [])) {
+        const base = String(cid).includes('_') ? String(cid).split('_')[0] : String(cid)
+        if (!seen.has(base)) { seen.add(base); enrollmentsByCourse.set(base, (enrollmentsByCourse.get(base) || 0) + 1) }
+      }
     }
 
-    // Revenue data (real from orders)
+    const userGrowth = [];
     const revenue = [];
     for (let i = parseInt(days); i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
-      const amount = orders.filter(o => {
-        const created = o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : null
-        return created === dateStr && o.status === 'completed'
-      }).reduce((sum, o) => sum + (o.totalAmount || 0), 0) || 0;
-      revenue.push({ date: dateStr, revenue: amount });
+      userGrowth.push({ date: dateStr, users: usersByDay.get(dateStr) || 0 });
+      revenue.push({ date: dateStr, revenue: revenueByDay.get(dateStr) || 0 });
     }
 
-    // Course popularity (real enrollment counts)
+    // Course popularity (real enrollment counts) — from the prebuilt map
     const coursePopularity = courses
       .map(c => ({
         name: c.title,
-        enrollments: orders.filter(o => o.courses?.includes(c._id.toString()) && o.status === 'completed').length || 0
+        enrollments: enrollmentsByCourse.get(String(c._id)) || 0
       }))
       .sort((a, b) => b.enrollments - a.enrollments)
       .slice(0, 5);

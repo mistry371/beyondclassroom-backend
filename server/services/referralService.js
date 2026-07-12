@@ -160,6 +160,82 @@ exports.recordReferralCommission = async (userId, orderAmount, orderId, paymentI
   return updatedReferral
 }
 
+// Credit the promoter who owns a promo code when a student purchases using it.
+// Unlike recordReferralCommission (one-time, keyed to signup referral), this fires
+// on EVERY purchase that uses the code, creating one commission record per order.
+exports.recordPromoCodeCommission = async (promoCode, userId, orderAmount, orderId, paymentId) => {
+  if (!promoCode) return null
+
+  const promo = await models.promoCodes.findOne({
+    code: String(promoCode).trim().toUpperCase()
+  }).lean()
+  if (!promo || !promo.assignedTo) return null // code not tied to any promoter
+
+  const promoter = await models.promoters.findOne({ _id: promo.assignedTo }).lean()
+  if (!promoter || promoter.status !== 'active') return null
+
+  // Idempotency guard — never credit the same order twice (e.g. on re-verify).
+  const already = await models.referrals.findOne({ orderId, promoterId: promoter._id, source: 'promo' }).lean()
+  if (already) return already
+
+  const user = await models.users.findOne({ _id: userId }).lean()
+
+  const rate = promoter.commissionRate ?? 0.2
+  const commission = Math.round((orderAmount || 0) * rate)
+
+  const referral = {
+    _id: generateId(),
+    promoterId: promoter._id,
+    referralCode: promoter.referralCode,
+    userId,
+    userEmail: user?.email || '',
+    userName: user?.name || 'Customer',
+    status: 'paid',
+    source: 'promo',
+    promoCode: promo.code,
+    orderId,
+    paymentId,
+    orderAmount,
+    commissionAmount: commission,
+    createdAt: new Date(),
+    convertedAt: new Date(),
+  }
+  await models.referrals.create(referral)
+  if (db.data.referrals) db.data.referrals.push(referral)
+
+  const newReferrals = (promoter.referrals || 0) + 1
+  const newStudentsJoined = (promoter.studentsJoined || 0) + 1
+  const newEarnings = (promoter.earnings || 0) + commission
+  const newPendingPayout = (promoter.pendingPayout || 0) + commission
+  const newRank = computeRank(newReferrals)
+
+  await models.promoters.updateOne(
+    { _id: promoter._id },
+    { $set: {
+      referrals: newReferrals,
+      studentsJoined: newStudentsJoined,
+      earnings: newEarnings,
+      pendingPayout: newPendingPayout,
+      rank: newRank,
+      updatedAt: new Date(),
+    }}
+  )
+  if (db.data.promoters) {
+    const pIdx = db.data.promoters.findIndex((p) => p._id === promoter._id)
+    if (pIdx !== -1) {
+      Object.assign(db.data.promoters[pIdx], {
+        referrals: newReferrals,
+        studentsJoined: newStudentsJoined,
+        earnings: newEarnings,
+        pendingPayout: newPendingPayout,
+        rank: newRank,
+      })
+    }
+  }
+
+  return referral
+}
+
 exports.getLeaderboard = async (limit = 10) => {
   const promoters = await models.promoters.find({ status: 'active' })
     .sort({ earnings: -1 })

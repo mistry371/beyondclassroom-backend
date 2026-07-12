@@ -42,7 +42,9 @@ exports.getCourseById = async (req, res) => {
     }
 
     if (req.query.populate === 'true') {
-      const modules = await models.modules.find({ courseId: course._id }).lean();
+      // Modules are stored under the BASE course id (e.g. "course-class-1"),
+      // never the composite "course-class-1_package" id. Always query with baseId.
+      const modules = await models.modules.find({ courseId: baseId }).lean();
       const moduleIds = modules.map(m => m._id);
 
       const lessons = moduleIds.length > 0
