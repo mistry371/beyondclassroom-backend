@@ -3,46 +3,8 @@ const { db, models } = require('../database/db');
 // Get all media
 exports.getMedia = async (req, res) => {
   try {
-    let mediaList = await models.media.find().lean()
-    
-    // Initialize media array if not exists
-    if (!mediaList || mediaList.length === 0) {
-      const defaultMedia = [
-        {
-          _id: Date.now().toString() + '1',
-          name: 'sample-image.jpg',
-          url: 'https://via.placeholder.com/400x300',
-          type: 'image/jpeg',
-          size: 45678,
-          uploadedBy: req.user._id,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: Date.now().toString() + '2',
-          name: 'tutorial-video.mp4',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          type: 'video/mp4',
-          size: 1234567,
-          uploadedBy: req.user._id,
-          createdAt: new Date().toISOString()
-        },
-        {
-          _id: Date.now().toString() + '3',
-          name: 'course-material.pdf',
-          url: 'https://example.com/sample.pdf',
-          type: 'application/pdf',
-          size: 234567,
-          uploadedBy: req.user._id,
-          createdAt: new Date().toISOString()
-        }
-      ];
-      await models.media.insertMany(defaultMedia)
-      if (db.data.media) db.data.media.push(...defaultMedia);
-      
-      mediaList = defaultMedia
-    }
-
-    res.json({ media: mediaList });
+    const mediaList = await models.media.find().sort({ createdAt: -1 }).lean()
+    res.json({ media: mediaList || [] });
   } catch (error) {
     console.error('Get media error:', error);
     res.status(500).json({ message: 'Server error' });

@@ -101,6 +101,8 @@ const liveClassRoutes = require('./routes/liveClasses');
 const trialRoutes = require('./routes/trial');
 const systemRoutes = require('./routes/system');
 const testimonialRoutes = require('./routes/testimonials');
+const quizRoutes = require('./routes/quizzes');
+const examRoutes = require('./routes/exams');
 
 // ── Auth Middleware ──────────────────────────────────────────────────────────
 const { protect } = require('./middleware/auth');
@@ -132,6 +134,8 @@ app.use('/api/live-classes', liveClassRoutes);
 app.use('/api/trial', trialRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/testimonials', testimonialRoutes);
+app.use('/api/quizzes', quizRoutes);
+app.use('/api/exams', examRoutes);
 
 // ── Health Check (direct, also in system routes) ─────────────────────────────
 app.get('/api/health', (req, res) => {

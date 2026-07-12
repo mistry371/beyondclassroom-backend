@@ -168,10 +168,13 @@ const quizSchema = new mongoose.Schema({
   moduleId: { type: String, index: true },
   courseId: { type: String, index: true },
   title: String,
+  description: String,
   questions: mongoose.Schema.Types.Mixed,
   passingScore: Number,
   timeLimit: Number,
+  isPublished: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now },
+  updatedAt: Date,
 }, { _id: false });
 
 const progressSchema = new mongoose.Schema({

@@ -3,38 +3,8 @@ const { db, models } = require('../database/db');
 // Get email logs
 exports.getEmailLogs = async (req, res) => {
   try {
-    let logs = await models.emailLogs.find().lean()
-    
-    if (!logs || logs.length === 0) {
-      const defaultLogs = [
-        {
-          _id: Date.now().toString() + '1',
-          subject: 'Welcome to Beyond Classroom',
-          to: 'student@example.com',
-          status: 'sent',
-          sentAt: new Date(Date.now() - 86400000).toISOString()
-        },
-        {
-          _id: Date.now().toString() + '2',
-          subject: 'Course Enrollment Confirmation',
-          to: 'student2@example.com',
-          status: 'sent',
-          sentAt: new Date(Date.now() - 172800000).toISOString()
-        },
-        {
-          _id: Date.now().toString() + '3',
-          subject: 'Password Reset Request',
-          to: 'student3@example.com',
-          status: 'failed',
-          sentAt: new Date(Date.now() - 259200000).toISOString()
-        }
-      ];
-      await models.emailLogs.insertMany(defaultLogs)
-      if (db.data.emailLogs) db.data.emailLogs.push(...defaultLogs)
-      logs = defaultLogs
-    }
-
-    res.json({ emails: logs });
+    const logs = await models.emailLogs.find().sort({ createdAt: -1 }).lean()
+    res.json({ emails: logs || [] });
   } catch (error) {
     console.error('Get email logs error:', error);
     res.status(500).json({ message: 'Server error' });

@@ -3,20 +3,8 @@ const { db, models } = require('../database/db');
 // Get all badges
 exports.getBadges = async (req, res) => {
   try {
-    let badges = await models.badges.find().lean()
-
-    if (!badges || badges.length === 0) {
-      const defaultBadges = [
-        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'First Course Complete', description: 'Complete your first course', criteria: 'Complete 1 course', icon: '🎓' },
-        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'Quiz Master', description: 'Score 100% in any quiz', criteria: 'Score 100% in a quiz', icon: '🏆' },
-        { _id: Date.now().toString() + Math.random().toString(36).slice(2, 9), name: 'Learning Streak', description: 'Learn for 7 days straight', criteria: '7 day streak', icon: '🔥' }
-      ];
-      await models.badges.insertMany(defaultBadges)
-      if (db.data.badges) db.data.badges.push(...defaultBadges)
-      badges = defaultBadges
-    }
-
-    res.json({ badges });
+    const badges = await models.badges.find().lean()
+    res.json({ badges: badges || [] });
   } catch (error) {
     console.error('Get badges error:', error);
     res.status(500).json({ message: 'Server error' });
