@@ -151,12 +151,28 @@ exports.updateSubtopic = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Subtopic not found' })
     }
 
+    // IMPORTANT: the admin edit form loads documents from a data-stripped list
+    // endpoint (base64 removed for payload size). Saving would otherwise WIPE
+    // the file bytes of existing documents. So for any incoming document that
+    // arrives without data/url, restore it from the stored copy (matched by name).
+    const existingDocs = [
+      ...(Array.isArray(existing.documents) ? existing.documents : []),
+      ...(existing.document ? [existing.document] : []),
+    ]
+    const mergedDocuments = documents.map((doc) => {
+      if (doc && !doc.data && !doc.url) {
+        const prev = existingDocs.find((d) => d && d.name === doc.name && (d.data || d.url))
+        if (prev) return { ...doc, ...(prev.data ? { data: prev.data } : {}), ...(prev.url ? { url: prev.url } : {}) }
+      }
+      return doc
+    })
+
     const updated = await models.subtopics.findOneAndUpdate(
       { _id: subtopicId },
       { $set: {
         ...req.body,
-        documents,
-        document: documents[0] || null,
+        documents: mergedDocuments,
+        document: mergedDocuments[0] || null,
         updatedAt: new Date().toISOString(),
       }},
       { new: true }
