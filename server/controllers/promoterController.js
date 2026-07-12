@@ -455,21 +455,48 @@ exports.adminGetPayoutDetail = async (req, res) => {
   }
 }
 
-// Admin verifies or rejects a promoter's KYC (#8 supports viewing/acting on KYC).
+// Admin: list all KYC submissions, optionally filtered by status (#1).
+exports.adminListKyc = async (req, res) => {
+  try {
+    const { status } = req.query
+    const query = {}
+    if (status && status !== 'all') query['kyc.status'] = status
+    else query['kyc.status'] = { $in: ['submitted', 'verified', 'rejected', 'resubmit'] }
+
+    const promoters = await models.promoters.find(query).sort({ 'kyc.submittedAt': -1, updatedAt: -1 }).limit(500).lean()
+    const items = promoters.map((p) => ({
+      promoterId: p._id,
+      name: p.name,
+      email: p.email,
+      phone: p.phone,
+      referralCode: p.referralCode,
+      kyc: p.kyc || { status: 'pending' },
+      bankDetails: p.bankDetails || {},
+    }))
+    res.json({ success: true, kyc: items })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Admin verifies, rejects, or requests re-submission of a promoter's KYC (#1).
 exports.adminReviewKyc = async (req, res) => {
   try {
-    const { status, reason } = req.body // 'verified' | 'rejected'
-    if (!['verified', 'rejected'].includes(status)) {
-      return res.status(400).json({ success: false, message: 'Status must be verified or rejected' })
+    const { status, reason } = req.body // 'verified' | 'rejected' | 'resubmit'
+    if (!['verified', 'rejected', 'resubmit'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status must be verified, rejected, or resubmit' })
     }
     const promoter = await models.promoters.findOne({ _id: req.params.id }).lean()
     if (!promoter) return res.status(404).json({ success: false, message: 'Promoter not found' })
 
+    const note = status === 'verified' ? '' : (reason || (status === 'resubmit' ? 'Please re-upload clearer documents' : 'Documents could not be verified'))
     const kyc = {
       ...(promoter.kyc || {}),
       status,
       reviewedAt: new Date().toISOString(),
-      rejectionReason: status === 'rejected' ? (reason || 'Documents could not be verified') : '',
+      reviewedBy: req.user?._id || 'admin',
+      rejectionReason: note,
+      history: [...(promoter.kyc?.history || []), { status, note, at: new Date().toISOString(), by: 'admin' }],
     }
     const updated = await models.promoters.findOneAndUpdate(
       { _id: promoter._id },
@@ -477,10 +504,11 @@ exports.adminReviewKyc = async (req, res) => {
       { new: true }
     ).lean()
 
+    const subjectMap = { verified: 'KYC verified', rejected: 'KYC needs attention', resubmit: 'KYC document re-submission requested' }
     notifyPromoter(
       updated.email,
-      status === 'verified' ? 'KYC verified' : 'KYC needs attention',
-      promoterEmails.promoterKycStatusTemplate(updated.name, status, kyc.rejectionReason)
+      subjectMap[status],
+      promoterEmails.promoterKycStatusTemplate(updated.name, status, note)
     )
 
     res.json({ success: true, message: `KYC ${status}`, promoter: referralService.sanitizePromoter(updated) })
@@ -565,10 +593,12 @@ exports.submitKyc = async (req, res) => {
       passbookDocUrl: passbookDocUrl !== undefined ? passbookDocUrl : current.kyc?.passbookDocUrl,
     }
     // Mark as submitted once the core documents are present, resetting any prior rejection.
+    const wasSubmitted = kyc.status
     if (kyc.panDocUrl && kyc.aadhaarDocUrl) {
       kyc.status = 'submitted'
       kyc.submittedAt = new Date().toISOString()
       kyc.rejectionReason = ''
+      kyc.history = [...(current.kyc?.history || []), { status: 'submitted', note: 'Documents submitted by promoter', at: new Date().toISOString(), by: 'promoter' }]
     } else {
       kyc.status = current.kyc?.status === 'verified' ? 'verified' : 'pending'
     }
@@ -578,7 +608,49 @@ exports.submitKyc = async (req, res) => {
       { $set: { kyc, updatedAt: new Date().toISOString() } },
       { new: true }
     ).lean()
-    res.json({ success: true, message: 'KYC details saved', promoter: referralService.sanitizePromoter(promoter) })
+
+    // Notify admins of a new/updated KYC submission (#1).
+    if (kyc.status === 'submitted' && wasSubmitted !== 'submitted') {
+      try {
+        await models.adminNotifications.create({
+          _id: generateId(),
+          title: 'New KYC submission',
+          message: `${promoter.name} submitted KYC documents for verification.`,
+          type: 'kyc',
+          createdAt: new Date().toISOString(),
+        })
+      } catch (_) {}
+    }
+
+    res.json({ success: true, message: 'KYC submitted for verification', promoter: referralService.sanitizePromoter(promoter) })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+// Delete a single KYC document (#7) — only allowed before verification.
+exports.deleteKycDoc = async (req, res) => {
+  try {
+    const { field } = req.body // 'panDocUrl' | 'aadhaarDocUrl' | 'passbookDocUrl'
+    const allowed = ['panDocUrl', 'aadhaarDocUrl', 'passbookDocUrl']
+    if (!allowed.includes(field)) return res.status(400).json({ success: false, message: 'Invalid document field' })
+
+    const current = await models.promoters.findById(req.promoter._id).lean()
+    if (!current) return res.status(404).json({ success: false, message: 'Promoter not found' })
+    if (current.kyc?.status === 'verified') {
+      return res.status(400).json({ success: false, message: 'Verified documents cannot be deleted' })
+    }
+
+    const kyc = { ...(current.kyc || {}), [field]: '' }
+    // Removing a required doc drops the record back to pending.
+    if (!kyc.panDocUrl || !kyc.aadhaarDocUrl) kyc.status = 'pending'
+
+    const promoter = await models.promoters.findOneAndUpdate(
+      { _id: req.promoter._id },
+      { $set: { kyc, updatedAt: new Date().toISOString() } },
+      { new: true }
+    ).lean()
+    res.json({ success: true, message: 'Document removed', promoter: referralService.sanitizePromoter(promoter) })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }

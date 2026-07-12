@@ -20,6 +20,7 @@ router.post('/withdraw', protectPromoter, promoterController.requestWithdrawal)
 router.put('/profile', protectPromoter, promoterController.updateProfile)
 router.put('/bank-details', protectPromoter, promoterController.updateBankDetails)
 router.put('/kyc', protectPromoter, promoterController.submitKyc)
+router.put('/kyc-doc/delete', protectPromoter, promoterController.deleteKycDoc)
 router.put('/change-password', protectPromoter, promoterController.changePassword)
 
 // Admin
@@ -27,6 +28,7 @@ router.get('/admin/list', protect, admin, promoterController.adminListPromoters)
 router.get('/admin/payouts', protect, admin, promoterController.adminListPayouts)
 router.get('/admin/payouts/:id', protect, admin, promoterController.adminGetPayoutDetail)
 router.put('/admin/payouts/:id', protect, admin, promoterController.adminProcessPayout)
+router.get('/admin/kyc', protect, admin, promoterController.adminListKyc)
 router.put('/admin/:id/kyc', protect, admin, promoterController.adminReviewKyc)
 
 module.exports = router

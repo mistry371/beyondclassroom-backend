@@ -430,7 +430,8 @@ const promoterSchema = new mongoose.Schema({
     bankName: String,
     upiId: String,
   },
-  // KYC documents + verification status (#7): pending → submitted → verified/rejected
+  // KYC documents + verification status (#7):
+  // pending → submitted → verified | rejected | resubmit
   kyc: {
     status: { type: String, default: 'pending' },
     panNumber: String,
@@ -441,6 +442,8 @@ const promoterSchema = new mongoose.Schema({
     submittedAt: Date,
     reviewedAt: Date,
     rejectionReason: String,
+    reviewedBy: String,
+    history: { type: [mongoose.Schema.Types.Mixed], default: [] }, // { status, note, at, by }
   },
   lastLoginAt: Date,
   createdAt: { type: Date, default: Date.now },
