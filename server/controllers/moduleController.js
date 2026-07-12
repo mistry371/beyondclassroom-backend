@@ -27,7 +27,7 @@ exports.getModulesByCourse = async (req, res) => {
     let isAuthorized = false;
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
       isAuthorized = true;
-    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.includes(courseId)) {
+    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === courseId)) {
       isAuthorized = true;
     }
     

@@ -246,7 +246,7 @@ exports.studentAction = async (req, res) => {
         );
         if (db.data.users) {
           const uIdx = db.data.users.findIndex(u => u._id === req.user._id);
-          if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.includes(current.courseId)) {
+          if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === current.courseId)) {
             db.data.users[uIdx].purchasedCourses.push(current.courseId);
           }
         }
@@ -326,7 +326,7 @@ exports.assignPdf = async (req, res) => {
       );
       if (db.data.users) {
         const uIdx = db.data.users.findIndex(u => u._id === updated.userId);
-        if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.includes(updated.courseId)) {
+        if (uIdx !== -1 && !db.data.users[uIdx].purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === updated.courseId)) {
           db.data.users[uIdx].purchasedCourses.push(updated.courseId);
         }
       }

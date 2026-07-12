@@ -15,7 +15,7 @@ exports.getLessonsByModule = async (req, res) => {
     } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.length > 0) {
       // Find the course this module belongs to
       const moduleDoc = await models.modules.findOne({ _id: moduleId }).lean();
-      if (moduleDoc && req.user.purchasedCourses.includes(moduleDoc.courseId)) {
+      if (moduleDoc && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === moduleDoc.courseId)) {
         isAuthorized = true;
       }
     }
@@ -55,7 +55,7 @@ exports.getLesson = async (req, res) => {
       isAuthorized = true;
     } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.length > 0) {
       const moduleDoc = await models.modules.findOne({ _id: lesson.moduleId }).lean();
-      if (moduleDoc && req.user.purchasedCourses.includes(moduleDoc.courseId)) {
+      if (moduleDoc && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === moduleDoc.courseId)) {
         isAuthorized = true;
       }
     }
