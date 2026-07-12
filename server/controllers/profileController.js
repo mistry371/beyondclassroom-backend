@@ -94,7 +94,30 @@ exports.getProfile = async (req, res) => {
     const user = await models.users.findOne({ _id: req.user._id }).lean();
 
     if (user) {
-      const populatedCourses = await models.courses.find({ _id: { $in: user.purchasedCourses || [] } }).lean();
+      const courseIds = user.purchasedCourses || [];
+      const baseCourseIds = [...new Set(courseIds.map(id => id.includes('_') ? id.split('_')[0] : id))];
+      const packageIds = [...new Set(courseIds.filter(id => id.includes('_')).map(id => id.split('_')[1]))];
+
+      const dbCourses = await models.courses.find({ _id: { $in: baseCourseIds } }).lean();
+      const dbPackages = await models.packages.find({ _id: { $in: packageIds } }).select('name _id').lean();
+
+      const populatedCourses = courseIds.map(purchasedId => {
+        const isCompound = purchasedId.includes('_');
+        const baseId = isCompound ? purchasedId.split('_')[0] : purchasedId;
+        const pkgId = isCompound ? purchasedId.split('_')[1] : null;
+        
+        const c = dbCourses.find(c => c._id === baseId);
+        if (!c) return null;
+        
+        const pkg = pkgId ? dbPackages.find(p => p._id === pkgId) : null;
+        
+        return {
+          ...c,
+          _id: purchasedId,
+          originalCourseId: baseId,
+          title: pkg ? `${c.title} (${pkg.name})` : c.title
+        };
+      }).filter(Boolean);
 
       const { password, ...userWithoutPassword } = user;
       res.json({ success: true, user: {
