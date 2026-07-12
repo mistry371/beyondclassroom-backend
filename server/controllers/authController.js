@@ -254,18 +254,19 @@ exports.forgotPassword = async (req, res) => {
       { $set: { passwordResetToken: otp, passwordResetExpires: resetExpires } }
     );
 
-    try {
-      const { sendEmail } = require('../services/emailService');
-      const { otpEmailTemplate } = require('../services/emailTemplates');
-      const emailHtml = otpEmailTemplate(otp, 'password_reset', '15 minutes');
-      await sendEmail({
-        to: email,
-        subject: 'Password Reset OTP - Beyond Classroom',
-        html: emailHtml
-      });
-    } catch (emailErr) {
-      console.error('Password reset email failed:', emailErr.message);
-      return res.status(500).json({ message: 'Failed to send OTP email. Please try again later.' });
+    const { sendEmail } = require('../services/emailService');
+    const { otpEmailTemplate } = require('../services/emailTemplates');
+    const emailHtml = otpEmailTemplate(otp, 'password_reset', '15 minutes');
+    // sendEmail never throws — it returns { success }. Check it so a failed
+    // delivery surfaces as an error instead of a silent "OTP sent".
+    const result = await sendEmail({
+      to: email,
+      subject: 'Password Reset OTP - Beyond Classroom',
+      html: emailHtml
+    });
+    if (!result.success) {
+      console.error('Password reset email not delivered:', result.error);
+      return res.status(500).json({ message: 'We could not send the reset email right now. Please try again in a moment.' });
     }
 
     res.json({ success: true, message: 'If that email exists, an OTP has been sent.' });
