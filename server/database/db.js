@@ -456,6 +456,11 @@ const promoCodeSchema = new mongoose.Schema({
   usedCount: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
   assignedTo: String,
+  // Applicability (#9): 'all' = any package/course; 'packages' = only the listed
+  // packages; 'courses' = only purchases that include one of the listed courses.
+  applicableType: { type: String, default: 'all' },
+  applicablePackageIds: { type: [String], default: [] },
+  applicableCourseIds: { type: [String], default: [] },
   createdAt: { type: Date, default: Date.now },
   updatedAt: Date,
 }, { _id: false });

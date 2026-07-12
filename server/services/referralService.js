@@ -163,8 +163,13 @@ exports.recordReferralCommission = async (userId, orderAmount, orderId, paymentI
 // Credit the promoter who owns a promo code when a student purchases using it.
 // Unlike recordReferralCommission (one-time, keyed to signup referral), this fires
 // on EVERY purchase that uses the code, creating one commission record per order.
-exports.recordPromoCodeCommission = async (promoCode, userId, orderAmount, orderId, paymentId) => {
+//
+// Business rule (#5): the promoter's commission IS the discount the student received
+// (e.g. 10% off ₹1000 → ₹100 discount → ₹100 commission). `amounts` carries both the
+// final orderAmount (for reporting) and the discountAmount (the commission value).
+exports.recordPromoCodeCommission = async (promoCode, userId, amounts, orderId, paymentId) => {
   if (!promoCode) return null
+  const { orderAmount = 0, discountAmount = 0 } = (typeof amounts === 'object' && amounts) ? amounts : { orderAmount: amounts }
 
   const promo = await models.promoCodes.findOne({
     code: String(promoCode).trim().toUpperCase()
@@ -180,8 +185,11 @@ exports.recordPromoCodeCommission = async (promoCode, userId, orderAmount, order
 
   const user = await models.users.findOne({ _id: userId }).lean()
 
-  const rate = promoter.commissionRate ?? 0.2
-  const commission = Math.round((orderAmount || 0) * rate)
+  // Commission = discount given to the student. Fall back to rate*order only if the
+  // discount wasn't recorded (older orders), so no commission is silently lost.
+  const commission = discountAmount > 0
+    ? Math.round(discountAmount)
+    : Math.round((orderAmount || 0) * (promoter.commissionRate ?? 0.2))
 
   const referral = {
     _id: generateId(),

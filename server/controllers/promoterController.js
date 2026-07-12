@@ -175,13 +175,13 @@ exports.getReferrals = async (req, res) => {
 exports.requestWithdrawal = async (req, res) => {
   try {
     const { amount } = req.body
-    const amt = parseInt(amount, 10)
-    const MIN_WITHDRAWAL = 500
+    const amt = Number(amount)
 
-    if (!amt || amt < MIN_WITHDRAWAL) {
+    // No minimum withdrawal limit (#6) — any positive amount up to the balance.
+    if (!amt || amt <= 0) {
       return res.status(400).json({
         success: false,
-        message: `Minimum withdrawal is ₹${MIN_WITHDRAWAL}`,
+        message: 'Please enter a valid withdrawal amount',
       })
     }
 
@@ -191,7 +191,7 @@ exports.requestWithdrawal = async (req, res) => {
     }
 
     if (amt > (promoter.pendingPayout || 0)) {
-      return res.status(400).json({ success: false, message: 'Insufficient pending balance' })
+      return res.status(400).json({ success: false, message: 'Insufficient balance for this withdrawal amount' })
     }
 
     const payout = {
@@ -226,7 +226,7 @@ exports.requestWithdrawal = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Withdrawal request submitted',
+      message: 'Your withdrawal request has been submitted successfully. The amount will be credited to your registered bank account within 24 hours after verification.',
       payout,
       pendingPayout: updatedPromoter.pendingPayout,
     })
