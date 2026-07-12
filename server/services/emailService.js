@@ -1,13 +1,6 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
-
-// ── Resend via API (Bypasses Render Port Blocks) ─────────────────────────────
-// Get free API key at https://resend.com (3000 emails/month free)
 
 const createTransporter = () => {
-  // Fallback: Gmail SMTP (works locally, but Render blocks outbound 465/587 on free tier)
-
-  // Fallback: Gmail SMTP (works locally and on some platforms)
   return nodemailer.createTransport({
     service: 'gmail',
     host: 'smtp.gmail.com',
@@ -24,38 +17,13 @@ const createTransporter = () => {
   });
 };
 
-// From address — Resend requires verified domain or use onboarding@resend.dev for testing
 const getFromAddress = () => {
-  if (process.env.RESEND_API_KEY) {
-    // Use verified domain if set, otherwise Resend's test address
-    return process.env.EMAIL_FROM || 'Beyond Classroom <onboarding@resend.dev>';
-  }
   return `"Beyond Classroom" <${process.env.EMAIL_USER || 'beyondclassroom247@gmail.com'}>`;
 };
 
 exports.sendEmail = async ({ to, subject, text, html }) => {
   const sendPromise = (async () => {
     try {
-      // If Resend API key exists, use Resend SDK (HTTPS port 443 - never blocked)
-      if (process.env.RESEND_API_KEY) {
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const { data, error } = await resend.emails.send({
-          from: getFromAddress(),
-          to,
-          subject,
-          text: text || '',
-          html,
-        });
-
-        if (!error && data?.id) {
-          console.log('✅ Email sent via Resend API successfully:', data.id);
-          return { success: true, messageId: data.id };
-        } else {
-          console.error('⚠️ Resend failed (falling back to SMTP):', error?.message || 'Unknown Resend Error');
-        }
-      }
-
-      // Fallback to Nodemailer (Gmail SMTP)
       const transporter = createTransporter();
       const mailOptions = {
         from: getFromAddress(),
@@ -75,7 +43,7 @@ exports.sendEmail = async ({ to, subject, text, html }) => {
 
   const timeoutPromise = new Promise(resolve =>
     setTimeout(() => {
-      console.log('⚠️ Email send timed out — OTP still valid');
+      console.log('⚠️ Email send timed out');
       resolve({ success: false, error: 'timeout' });
     }, 20000)
   );
