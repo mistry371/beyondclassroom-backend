@@ -144,16 +144,19 @@ app.get('/api/health', (req, res) => {
 
 // ── Initialize Database & Start Server ───────────────────────────────────────
 initDB().then(async () => {
+  console.log('✅ Database initialized');
+
+  // Start accepting traffic immediately — don't block the port on seeding.
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+
+  // Seed demo data in the background (after the server is live).
   try {
     const { seedLaunchDemo } = require('./services/launchDemoSeed');
     await seedLaunchDemo();
   } catch (e) {
     console.warn('Launch demo seed skipped:', e.message);
   }
-  console.log('✅ Database initialized');
-
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
 }).catch(err => {
   console.error('❌ Failed to initialize database:', err);
   process.exit(1);

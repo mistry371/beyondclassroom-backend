@@ -54,18 +54,20 @@ exports.createOrder = async (req, res) => {
     // Clear cart
     await models.cart.updateOne({ user: req.user._id }, { $set: { items: [] } });
 
-    // Send enrollment notifications for each course
-    const notificationService = require('../services/notificationService');
-    for (const courseId of courseIds) {
-      const course = coursesObj.find(c => c._id === courseId);
-      if (course) {
-        await notificationService.sendEnrollmentNotification(
-          req.user._id, req.user.name, req.user.email, course.title
-        );
-      }
-    }
-
+    // Respond immediately; fire enrollment notifications in the background
+    // (don't block the order response on N sequential notification/email sends).
     res.status(201).json({ success: true, order });
+
+    const notificationService = require('../services/notificationService');
+    Promise.allSettled(
+      courseIds.map(courseId => {
+        const course = coursesObj.find(c => c._id === courseId);
+        return course
+          ? notificationService.sendEnrollmentNotification(req.user._id, req.user.name, req.user.email, course.title)
+          : Promise.resolve();
+      })
+    ).catch(() => {});
+    return;
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
