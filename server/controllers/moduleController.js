@@ -15,8 +15,11 @@ exports.getAllModules = async (req, res) => {
 exports.getModulesByCourse = async (req, res) => {
   try {
     const { courseId } = req.params
-    
-    let modules = await models.modules.find({ courseId }).sort({ order: 1 }).lean()
+    // Frontend navigates with composite "courseId_packageId" ids, but modules
+    // are stored under the base course id. Strip the package suffix before querying.
+    const baseCourseId = courseId.includes('_') ? courseId.split('_')[0] : courseId
+
+    let modules = await models.modules.find({ courseId: baseCourseId }).sort({ order: 1 }).lean()
     
     const moduleIds = modules.map(m => m._id)
     
@@ -27,7 +30,7 @@ exports.getModulesByCourse = async (req, res) => {
     let isAuthorized = false;
     if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
       isAuthorized = true;
-    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === courseId)) {
+    } else if (req.user && req.user.purchasedCourses && req.user.purchasedCourses.some(id => (id.includes('_') ? id.split('_')[0] : id) === baseCourseId)) {
       isAuthorized = true;
     }
     
