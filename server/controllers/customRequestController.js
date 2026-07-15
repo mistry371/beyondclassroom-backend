@@ -8,9 +8,29 @@ const {
 
 const ADMIN_EMAIL = 'mistryjenish1003@gmail.com'
 
+// Does the user own THIS specific course? purchasedCourses holds composite
+// "courseId_packageId" entries (and bare package ids). Owning a package that
+// merely *contains* a course does NOT count — only the specific course the
+// user actually purchased.
+const ownsSpecificCourse = (user, courseId) => {
+  if (!courseId) return true;
+  const base = courseId.includes('_') ? courseId.split('_')[0] : courseId;
+  return (user.purchasedCourses || []).some((entry) => {
+    const e = String(entry);
+    const b = e.includes('_') ? e.split('_')[0] : e;
+    return b === base || e === courseId;
+  });
+};
+
 const getUserPackageLimits = async (user, courseId) => {
   let limit = 0;
   let hasUnlimited = false;
+
+  // Per-course gate: custom-request access is granted only for the specific
+  // class purchased, not every class in the owned package.
+  if (courseId && !ownsSpecificCourse(user, courseId)) {
+    return { limit: 0, used: 0, hasUnlimited: false, remaining: 0, owned: false };
+  }
 
   const pkgs = user.purchasedCourses || [];
   if (pkgs.length > 0) {
@@ -41,10 +61,11 @@ const getUserPackageLimits = async (user, courseId) => {
   }
 
   const used = await models.customRequests.countDocuments(queryCondition);
-  return { 
-    limit: hasUnlimited ? 'unlimited' : limit, 
-    used, 
+  return {
+    limit: hasUnlimited ? 'unlimited' : limit,
+    used,
     hasUnlimited,
+    owned: true,
     remaining: hasUnlimited ? 'unlimited' : Math.max(0, limit - used)
   };
 }
@@ -67,6 +88,10 @@ exports.createRequest = async (req, res) => {
     
     const courseId = req.body.courseId;
     const usage = await getUserPackageLimits(user, courseId);
+    // Must have purchased THIS specific class (not just a package containing it).
+    if (courseId && usage.owned === false) {
+      return res.status(403).json({ success: false, message: 'Please purchase this class first to create custom requests for it.', requiresPurchase: true });
+    }
     if (!usage.hasUnlimited && usage.used >= usage.limit) {
       return res.status(403).json({ success: false, message: 'You have reached the custom request limit for your current package. Please upgrade to request more.' });
     }
